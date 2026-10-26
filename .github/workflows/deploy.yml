@@ -37,25 +37,44 @@ jobs:
       # Supabase URL and publishable key, inlined in the public JavaScript at build time (the key is
       # public by design: data is protected by RLS). Set them in Settings -> Secrets and variables ->
       # Actions, as repository Variables (Secrets work too). Not inside an "Environment": this job has none.
+      # Cleans up common copy-paste slips (spaces, quotes, "/rest/v1", the dashboard address) and
+      # passes the clean values to the build through $GITHUB_ENV.
       - name: Check Supabase settings
         run: |
-          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ] || [ -z "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]; then
+          url=$(printf '%s' "$RAW_URL" | tr -d '[:space:]"'"'")
+          key=$(printf '%s' "$RAW_KEY" | tr -d '[:space:]"'"'")
+          if [ -z "$url" ] || [ -z "$key" ]; then
             echo "::error::Mancano EXPO_PUBLIC_SUPABASE_URL e/o EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Aggiungile in Settings -> Secrets and variables -> Actions -> Variables (a livello di repository), poi rilancia il workflow."
             exit 1
           fi
-          case "$EXPO_PUBLIC_SUPABASE_URL" in
-            https://*.supabase.co|https://*.supabase.co/) echo "Supabase URL ok: $EXPO_PUBLIC_SUPABASE_URL" ;;
-            *) echo "::error::EXPO_PUBLIC_SUPABASE_URL deve essere tipo https://<project-id>.supabase.co"; exit 1 ;;
+          # Dashboard address (https://supabase.com/dashboard/project/<id>/...) or just the Project ID -> project URL
+          case "$url" in
+            *supabase.com/dashboard/project/*)
+              id=$(printf '%s' "$url" | sed -E 's#.*/dashboard/project/([a-z0-9]+).*#\1#')
+              url="https://$id.supabase.co" ;;
+            *)
+              if printf '%s' "$url" | grep -Eq '^[a-z0-9]{20}$'; then url="https://$url.supabase.co"; fi ;;
           esac
+          # Keep only https://<id>.supabase.co (drop "/rest/v1", trailing slashes, …)
+          url=$(printf '%s' "$url" | sed -E 's#^(https://[a-z0-9]+\.supabase\.co).*#\1#')
+          if ! printf '%s' "$url" | grep -Eq '^https://[a-z0-9]+\.supabase\.co$'; then
+            echo "::error::EXPO_PUBLIC_SUPABASE_URL ricevuto: \"$RAW_URL\". Deve essere tipo https://<project-id>.supabase.co (Supabase -> Project Settings -> Data API -> Project URL)."
+            exit 1
+          fi
+          case "$key" in
+            https://*) echo "::error::EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY contiene un indirizzo: hai invertito URL e chiave?"; exit 1 ;;
+            sb_secret_*) echo "::error::Hai messo la chiave SECRET: serve la Publishable key (sb_publishable_...). Cambia anche la secret key in Supabase, perché è stata esposta."; exit 1 ;;
+          esac
+          echo "Supabase URL ok: $url"
+          echo "EXPO_PUBLIC_SUPABASE_URL=$url" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$key" >> "$GITHUB_ENV"
         env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          RAW_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          RAW_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       # Exports to dist/ and adds 404.html (client-side routing fallback) + .nojekyll
+      # (EXPO_PUBLIC_SUPABASE_URL/KEY come from the step above, through $GITHUB_ENV)
       - run: npm run build:web
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       - uses: actions/upload-pages-artifact@v4
         with:
