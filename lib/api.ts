@@ -4,7 +4,9 @@
 // its comment (client in lib/supabase.ts); signatures stay the same.
 // Notifications are created here by hand; in Supabase the triggers in schema.sql do it.
 
+import { validateChatLink } from './chatLinks';
 import { eventPhase } from './eventTiming';
+import { randomSeed } from './identicon';
 import * as mock from './mockData';
 import { rankFor, type Rank } from './ranks';
 import type {
@@ -26,6 +28,7 @@ import type {
   NewEventInput,
   NewGroupInput,
   Notification,
+  PickedFile,
   ProfileStats,
   SignUpInput,
   User,
@@ -42,6 +45,7 @@ const db = {
   joinRequests: mock.joinRequests.map((r) => ({ ...r })),
   chatMessages: mock.chatMessages.map((m) => ({ ...m })),
   notifications: mock.notifications.map((n) => ({ ...n })),
+  groupLinks: mock.groupLinks.map((l) => ({ ...l })),
   accounts: { ...mock.mockAccounts },
 };
 
@@ -82,8 +86,20 @@ function withAuthor(message: ChatMessage): ChatMessageWithAuthor {
       id: message.user_id,
       full_name: user?.full_name ?? 'Utente',
       is_relocated: user?.is_relocated ?? false,
+      avatar_url: user?.avatar_url ?? null,
+      avatar_seed: user?.avatar_seed ?? null,
     },
   };
+}
+
+// Stores a picked file and returns its URL.
+// MOCK: keeps the local URI (blob: on web, file:// on the phone), valid until the app reloads.
+// Supabase: supabase.storage.from(bucket).upload(path, file, { contentType: file.mimeType, upsert: true })
+// then supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+// (on web upload the asset's `file`; on native fetch(uri) -> blob/arrayBuffer first).
+async function uploadFile(_bucket: 'avatars' | 'event-posters', _path: string, file: PickedFile): Promise<string> {
+  await delay(400);
+  return file.uri;
 }
 
 function notify(n: Omit<Notification, 'id' | 'read_at' | 'created_at'>) {
@@ -115,6 +131,8 @@ export async function signUp(input: SignUpInput): Promise<User> {
     is_relocated: input.is_relocated,
     relocated_at: input.is_relocated ? (input.relocated_at ?? null) : null,
     interests: input.interests ?? [],
+    avatar_url: null,
+    avatar_seed: randomSeed(), // pixel avatar by default, like GitHub
     role: input.role,
     intent: input.intent,
   };
@@ -146,6 +164,11 @@ export async function updateProfile(userId: string, changes: Partial<Omit<User, 
   Object.assign(user, changes);
   if (!user.is_relocated) user.relocated_at = null;
   return { ...user, interests: [...user.interests] };
+}
+
+// Profile photo. Supabase: uploadFile('avatars', `${userId}/avatar`, file), then updateProfile({ avatar_url })
+export async function uploadAvatar(userId: string, file: PickedFile): Promise<string> {
+  return uploadFile('avatars', `${userId}/avatar`, file);
 }
 
 // ---- Users ----
@@ -195,6 +218,8 @@ export async function getGroupMembers(groupId: string): Promise<MemberWithProfil
 export async function createGroup(userId: string, input: NewGroupInput): Promise<Group> {
   await delay();
   if (!input.name.trim()) throw new Error('Dai un nome al gruppo');
+  const linkError = validateChatLink(input.chat_url ?? '');
+  if (linkError) throw new Error(linkError);
   const group: Group = {
     id: newId('g'),
     name: input.name.trim(),
@@ -205,7 +230,34 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
   };
   db.groups.push(group);
   db.groupMembers.push({ user_id: userId, group_id: group.id, role: 'admin' });
+  if (input.chat_url?.trim()) db.groupLinks.push({ group_id: group.id, chat_url: input.chat_url.trim() });
   return { ...group };
+}
+
+// Admin only. supabase.from('groups').update(changes).eq('id', groupId), and for the chat link
+// supabase.from('group_links').upsert({ group_id, chat_url }) or .delete().eq('group_id', groupId)
+export async function updateGroup(userId: string, groupId: string, changes: Partial<NewGroupInput>): Promise<Group> {
+  await delay();
+  const group = db.groups.find((g) => g.id === groupId);
+  if (!group || group.admin_id !== userId) throw new Error('Solo l’admin può modificare il gruppo');
+  if (changes.name !== undefined && !changes.name.trim()) throw new Error('Dai un nome al gruppo');
+  const { chat_url, ...fields } = changes;
+  if (chat_url !== undefined) {
+    const linkError = validateChatLink(chat_url ?? '');
+    if (linkError) throw new Error(linkError);
+    db.groupLinks = db.groupLinks.filter((l) => l.group_id !== groupId);
+    if (chat_url?.trim()) db.groupLinks.push({ group_id: groupId, chat_url: chat_url.trim() });
+  }
+  Object.assign(group, fields);
+  return { ...group };
+}
+
+// The external chat link, only for members and guests (RLS on group_links does the same).
+// supabase.from('group_links').select('chat_url').eq('group_id', groupId).maybeSingle()
+export async function getGroupChatLink(userId: string, groupId: string): Promise<string | null> {
+  await delay(100);
+  if (!hasGroupAccess(userId, groupId)) return null;
+  return db.groupLinks.find((l) => l.group_id === groupId)?.chat_url ?? null;
 }
 
 // Groups the user belongs to, with check-ins at that group's events (drives the rank).
@@ -286,17 +338,33 @@ export async function createEvent(userId: string, input: NewEventInput): Promise
   const group = db.groups.find((g) => g.id === input.group_id);
   if (!group || group.admin_id !== userId) throw new Error('Solo l’admin del gruppo può creare eventi');
   if (!input.title.trim()) throw new Error('Dai un titolo all’evento');
+  const id = newId('e');
   const event: Event = {
-    id: newId('e'),
+    id,
     group_id: group.id,
     title: input.title.trim(),
     date_time: input.date_time,
     location: input.location.trim(),
+    poster_url: input.poster ? await uploadFile('event-posters', `${group.id}/${id}`, input.poster) : null,
+    poster_mime: input.poster?.mimeType ?? null,
   };
   db.events.push(event);
   for (const m of db.groupMembers.filter((m) => m.group_id === group.id && m.user_id !== userId)) {
     notify({ user_id: m.user_id, type: 'new_event', title: 'Nuovo evento', body: `${group.name}: ${event.title}`, group_id: group.id, event_id: event.id });
   }
+  return withGroupName(event);
+}
+
+// Admin only: add, replace or remove (file = null) the event poster.
+// Supabase: uploadFile('event-posters', `${groupId}/${eventId}`, file), then
+// supabase.from('events').update({ poster_url, poster_mime }).eq('id', eventId)
+export async function setEventPoster(userId: string, eventId: string, file: PickedFile | null): Promise<EventWithGroup> {
+  await delay();
+  const event = db.events.find((e) => e.id === eventId);
+  const group = event && db.groups.find((g) => g.id === event.group_id);
+  if (!event || !group || group.admin_id !== userId) throw new Error('Solo l’admin può cambiare la locandina');
+  event.poster_url = file ? await uploadFile('event-posters', `${group.id}/${event.id}`, file) : null;
+  event.poster_mime = file?.mimeType ?? null;
   return withGroupName(event);
 }
 

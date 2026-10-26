@@ -1,7 +1,10 @@
-// Initials avatar with a stable pastel color per name (no photos in the MVP)
+// User avatar: photo if `url` is set, else a GitHub-style pixel avatar if `seed` is set,
+// else initials on a stable pastel color.
 
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { initials } from '../lib/format';
+import { identicon } from '../lib/identicon';
+import type { User } from '../lib/types';
 
 const palette = ['bg-orange-200', 'bg-sky-200', 'bg-emerald-200', 'bg-violet-200', 'bg-rose-200', 'bg-amber-200'];
 
@@ -11,15 +14,54 @@ function colorFor(name: string): string {
   return palette[hash % palette.length];
 }
 
-export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+interface Props {
+  name: string;
+  url?: string | null;
+  seed?: string | null;
+  size?: number;
+}
+
+// Avatar props from a user row: <Avatar {...avatarOf(user)} size={40} />
+export function avatarOf(user: Pick<User, 'full_name' | 'avatar_url' | 'avatar_seed'>) {
+  return { name: user.full_name, url: user.avatar_url, seed: user.avatar_seed };
+}
+
+export function Avatar({ name, url, seed, size = 40 }: Props) {
+  const box = { width: size, height: size, borderRadius: size / 2 };
+
+  if (url) {
+    return <Image source={{ uri: url }} style={box} accessibilityLabel={name} />;
+  }
+
+  if (seed) {
+    return <PixelAvatar seed={seed} size={size} />;
+  }
+
   return (
-    <View
-      className={`items-center justify-center rounded-full ${colorFor(name)}`}
-      style={{ width: size, height: size }}
-    >
+    <View className={`items-center justify-center rounded-full ${colorFor(name)}`} style={box}>
       <Text className="font-semibold text-ink" style={{ fontSize: size * 0.38 }}>
         {initials(name)}
       </Text>
+    </View>
+  );
+}
+
+// 5x5 mirrored pixel grid inside a light circle (the grid stays inside so the circle doesn't crop it)
+export function PixelAvatar({ seed, size }: { seed: string; size: number }) {
+  const { color, cells } = identicon(seed);
+  const cell = (size * 0.62) / 5;
+  return (
+    <View
+      className="items-center justify-center rounded-full bg-stone-100"
+      style={{ width: size, height: size, borderRadius: size / 2 }}
+    >
+      {cells.map((row, r) => (
+        <View key={r} className="flex-row">
+          {row.map((on, c) => (
+            <View key={c} style={{ width: cell, height: cell, backgroundColor: on ? color : 'transparent' }} />
+          ))}
+        </View>
+      ))}
     </View>
   );
 }

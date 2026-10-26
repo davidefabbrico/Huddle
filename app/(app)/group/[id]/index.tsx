@@ -1,15 +1,17 @@
 // Group detail: description, join button, upcoming events, members.
 // Join flow: "Chiedi di unirti" -> "In attesa…" -> (simulated acceptance) -> opens the chat.
-// The admin also sees "Gestisci il gruppo": pending requests and a "Nuovo evento" button.
+// Members and guests see the button to the external chat (WhatsApp, Telegram…) if the admin set one.
+// The admin also sees "Gestisci il gruppo": edit, pending requests and a "Nuovo evento" button.
 
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Avatar } from '../../../../components/Avatar';
+import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
 import { EventCard } from '../../../../components/EventCard';
+import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { GroupIcon } from '../../../../components/GroupIcon';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
@@ -26,14 +28,19 @@ export default function GroupDetailScreen() {
   const access = useJoinStore((state) => state.access[id] ?? 'loading');
   const loadAccess = useJoinStore((state) => state.load);
 
-  const details = useAsync(async () => {
-    const [group, members, events] = await Promise.all([
-      api.getGroupById(id),
-      api.getGroupMembers(id),
-      api.getGroupEvents(id),
-    ]);
-    return { group, members, events };
-  }, [id, access]); // refetch after joining so the member list updates
+  const details = useAsync(
+    async () => {
+      const [group, members, events, chatLink] = await Promise.all([
+        api.getGroupById(id),
+        api.getGroupMembers(id),
+        api.getGroupEvents(id),
+        api.getGroupChatLink(user.id, id),
+      ]);
+      return { group, members, events, chatLink };
+    },
+    [id, user.id, access], // refetch after joining so the member list updates
+    { refetchOnFocus: true }, // and after editing the group
+  );
 
   useEffect(() => {
     loadAccess(user.id, id);
@@ -72,7 +79,7 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const { members, events } = details.data;
+  const { members, events, chatLink } = details.data;
 
   return (
     <Screen>
@@ -96,6 +103,8 @@ export default function GroupDetailScreen() {
 
         <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 
+        {chatLink && hasChatAccess(access) ? <ExternalChatButton url={chatLink} /> : null}
+
         {group.admin_id === user.id ? <AdminSection groupId={group.id} onChanged={details.reload} /> : null}
 
         <View className="gap-3">
@@ -115,7 +124,7 @@ export default function GroupDetailScreen() {
                 key={member.id}
                 className={`flex-row gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}
               >
-                <Avatar name={member.full_name} />
+                <Avatar {...avatarOf(member)} />
                 <View className="flex-1 gap-1">
                   <View className="flex-row flex-wrap items-center gap-2">
                     <Text className="font-semibold text-ink">
@@ -205,12 +214,24 @@ function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () =
         <Text className="text-base font-semibold text-brand-700">Gestisci il gruppo</Text>
       </View>
 
-      <Button
-        title="Nuovo evento"
-        icon="calendar"
-        variant="secondary"
-        onPress={() => router.push({ pathname: '/create-event', params: { groupId } })}
-      />
+      <View className="flex-row gap-2">
+        <View className="flex-1">
+          <Button
+            title="Nuovo evento"
+            icon="calendar"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/create-event', params: { groupId } })}
+          />
+        </View>
+        <View className="flex-1">
+          <Button
+            title="Modifica"
+            icon="create-outline"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/edit-group', params: { id: groupId } })}
+          />
+        </View>
+      </View>
 
       <Text className="mt-1 text-sm font-semibold text-stone-600">
         Richieste e ospiti{list.length ? ` (${list.length})` : ''}
@@ -223,7 +244,7 @@ function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () =
         list.map((request) => (
           <View key={request.id} className="gap-3 rounded-2xl bg-white p-3">
             <View className="flex-row gap-3">
-              <Avatar name={request.user.full_name} size={40} />
+              <Avatar {...avatarOf(request.user)} size={40} />
               <View className="flex-1 gap-1">
                 <View className="flex-row flex-wrap items-center gap-2">
                   <Text className="font-semibold text-ink">{request.user.full_name}</Text>

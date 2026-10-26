@@ -5,9 +5,10 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar } from '../../../../components/Avatar';
+import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
+import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
 import { colors } from '../../../../components/theme';
@@ -24,12 +25,13 @@ export default function GroupChatScreen() {
   const insets = useSafeAreaInsets();
 
   const info = useAsync(async () => {
-    const [group, allowed, request] = await Promise.all([
+    const [group, allowed, request, chatLink] = await Promise.all([
       api.getGroupById(id),
       api.canAccessChat(user.id, id),
       api.getJoinRequest(user.id, id),
+      api.getGroupChatLink(user.id, id),
     ]);
-    return { group, allowed, isGuest: request?.status === 'guest' };
+    return { group, allowed, isGuest: request?.status === 'guest', chatLink };
   }, [id, user.id]);
 
   const allowed = info.data?.allowed ?? false;
@@ -82,7 +84,11 @@ export default function GroupChatScreen() {
 
   return (
     <Screen>
-      <Header title={title} subtitle={info.data.isGuest ? 'Sei ospite nella lobby' : 'Chat del gruppo'} />
+      <Header
+        title={title}
+        subtitle={info.data.isGuest ? 'Sei ospite nella lobby' : 'Chat del gruppo'}
+        right={info.data.chatLink ? <ExternalChatButton url={info.data.chatLink} compact /> : undefined}
+      />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {welcome ? (
           <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-2xl bg-emerald-100 p-3">
@@ -149,7 +155,7 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
 
   return (
     <View className="max-w-[85%] flex-row items-end gap-2 self-start">
-      <Avatar name={message.author.full_name} size={32} />
+      <Avatar {...avatarOf(message.author)} size={32} />
       <View className="flex-shrink">
         <View className="mb-1 flex-row flex-wrap items-center gap-2">
           <Text className="text-xs font-semibold text-stone-600">{message.author.full_name}</Text>

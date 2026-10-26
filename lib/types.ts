@@ -23,6 +23,9 @@ export interface User {
   is_relocated: boolean;
   relocated_at: string | null; // YYYY-MM-DD, roughly when they moved to the city
   interests: string[];
+  // Avatar: a photo if avatar_url is set, else a pixel identicon if avatar_seed is set, else initials
+  avatar_url: string | null;
+  avatar_seed: string | null;
   role: UserRole;
   intent: UserIntent;
 }
@@ -48,6 +51,15 @@ export interface Event {
   title: string;
   date_time: string; // ISO 8601
   location: string;
+  // Optional poster ("locandina"): a PDF or an image
+  poster_url: string | null;
+  poster_mime: string | null;
+}
+
+// External chat of a group (WhatsApp, Telegram…). Separate table so only members and guests can read it.
+export interface GroupLink {
+  group_id: string;
+  chat_url: string;
 }
 
 // RSVP ("Ci sarò") and check-in ("Sono qui"). Check-ins drive the member ranks (lib/ranks.ts).
@@ -112,7 +124,7 @@ export interface AttendeeWithProfile extends User {
 }
 
 export interface ChatMessageWithAuthor extends ChatMessage {
-  author: Pick<User, 'id' | 'full_name' | 'is_relocated'>;
+  author: Pick<User, 'id' | 'full_name' | 'is_relocated' | 'avatar_url' | 'avatar_seed'>;
 }
 
 export interface JoinRequestWithUser extends JoinRequest {
@@ -166,6 +178,7 @@ export interface NewGroupInput {
   description: string;
   location: string;
   type: GroupType;
+  chat_url?: string | null;
 }
 
 export interface NewEventInput {
@@ -173,4 +186,12 @@ export interface NewEventInput {
   title: string;
   date_time: string;
   location: string;
+  poster?: PickedFile | null;
+}
+
+// A file chosen with expo-image-picker / expo-document-picker, before upload
+export interface PickedFile {
+  uri: string;
+  mimeType: string;
+  name: string;
 }

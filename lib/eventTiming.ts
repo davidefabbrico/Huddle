@@ -7,6 +7,8 @@ export const CHECKIN_CLOSES_AFTER_MS = 6 * HOUR;
 
 export type EventPhase = 'upcoming' | 'live' | 'ended';
 
+export const isInPast = (date: Date) => date.getTime() < Date.now();
+
 export function eventPhase(dateTime: string, now = Date.now()): EventPhase {
   const start = new Date(dateTime).getTime();
   if (now < start - CHECKIN_OPENS_BEFORE_MS) return 'upcoming';

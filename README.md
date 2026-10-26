@@ -17,6 +17,10 @@ Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblic
 - **Gradi** in ogni gruppo, che salgono con i check-in: Turista per caso → Faccia nota → Prezzemolo → Anima della festa → Colonna portante → Leggenda vivente
 - **Profilo**: data di arrivo in città, traguardi, gradi, modifica profilo
 - **➕ Crea**: nuovo gruppo (chiunque), nuovo evento e richieste da approvare (admin)
+- **Chat esterna**: l'admin può collegare il gruppo WhatsApp/Telegram/Signal/Discord; il link lo vedono solo membri e ospiti
+- **Locandine**: PDF o immagine allegati agli eventi (gli eventi demo "Aperitivo di benvenuto" e "Anello del Monte Barro" ne hanno una)
+- **Avatar**: foto profilo, avatar a pixel stile GitHub (predefinito per i nuovi utenti) o iniziali
+- **Icona app**: quando salvi il sito nella schermata Home (iPhone: Condividi → Aggiungi a Home) compare l'icona di Huddle
 
 Account demo: **Giulia** (nuova in città, nessun gruppo) e **Sofia** (admin dei Runners dei Navigli, ha una richiesta da approvare).
 L'evento "Allenamento libero in Darsena" è sempre "in corso", per provare subito il check-in.
@@ -66,8 +70,13 @@ Controlli utili:
 
 ```bash
 npm run typecheck         # TypeScript
+npm run lint              # ESLint (config Expo)
 npm run build:web         # build di produzione in dist/ (come su GitHub Pages)
 ```
+
+L'icona nasce da [assets/icon.svg](assets/icon.svg); i PNG in `assets/` (app) e `public/` (sito: apple-touch-icon,
+icone del manifest) ne sono l'esportazione. `public/index.html` e `public/manifest.json` contengono il percorso
+`/Huddle/`: se rinomini la repo aggiornali insieme a `baseUrl`.
 
 ## Pubblicazione su GitHub Pages
 
@@ -111,7 +120,11 @@ Puoi anche rilanciare la pubblicazione a mano: Actions → "Deploy to GitHub Pag
 5. Su GitHub (Settings → Secrets and variables → Actions):
    - **Variables**: `EXPO_PUBLIC_SUPABASE_URL`
    - **Secrets**: `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-6. Riscrivi le funzioni di `lib/api.ts` con le query indicate nei commenti.
+6. Riscrivi le funzioni di `lib/api.ts` con le query indicate nei commenti
+   (l'upload dei file è in `uploadFile`: oggi tiene il file in memoria, con Supabase va su Storage).
+
+Lo schema crea anche i bucket di **Storage**: `avatars` (ognuno scrive solo nella propria cartella) e
+`event-posters` (solo l'admin del gruppo), entrambi leggibili pubblicamente tramite URL.
 
 Note di sicurezza:
 

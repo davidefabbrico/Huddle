@@ -21,7 +21,10 @@ export function EventCard({ event, showGroup = false }: { event: EventWithGroup;
           <Text className="text-xs font-semibold text-brand-600">{tile.month}</Text>
         </View>
         <View className="flex-1 justify-center">
-          {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
+          <View className="flex-row flex-wrap gap-1">
+            {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
+            {event.poster_url ? <Badge label="Locandina" tone="brand" icon="attach" /> : null}
+          </View>
           <Text numberOfLines={1} className="text-base font-semibold text-ink">
             {event.title}
           </Text>

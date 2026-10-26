@@ -3,7 +3,7 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import { Avatar } from '../../../components/Avatar';
+import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
@@ -34,7 +34,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-4">
         {/* Identity */}
         <View className="items-center gap-2">
-          <Avatar name={user.full_name} size={88} />
+          <Avatar {...avatarOf(user)} size={88} />
           <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
           <View className="flex-row flex-wrap justify-center gap-2">
             {user.is_relocated ? <RelocatedBadge /> : null}

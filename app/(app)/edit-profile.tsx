@@ -1,9 +1,10 @@
-// Edit your profile: name, bio, arrival in the city, what you're looking for, interests
+// Edit your profile: photo or pixel avatar, name, bio, arrival in the city, what you're looking for, interests
 
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrivalPicker } from '../../components/ArrivalPicker';
+import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
@@ -11,8 +12,11 @@ import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../components/theme';
 import { useAuth } from '../../hooks/useAuth';
+import * as api from '../../lib/api';
 import { intentLabels, interestOptions } from '../../lib/format';
-import type { UserIntent } from '../../lib/types';
+import { randomSeed } from '../../lib/identicon';
+import { pickProfilePhoto } from '../../lib/pickers';
+import type { PickedFile, UserIntent } from '../../lib/types';
 
 export default function EditProfileScreen() {
   const user = useAuth((state) => state.user)!;
@@ -26,6 +30,10 @@ export default function EditProfileScreen() {
   // Keep custom interests (e.g. from the mock data) selectable too
   const [interests, setInterests] = useState<string[]>(user.interests);
   const allInterests = [...new Set([...interestOptions, ...user.interests])];
+  // Avatar choice: a new photo to upload, the current photo, a pixel avatar (seed) or initials
+  const [newPhoto, setNewPhoto] = useState<PickedFile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url);
+  const [avatarSeed, setAvatarSeed] = useState(user.avatar_seed);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -36,7 +44,10 @@ export default function EditProfileScreen() {
     setError(undefined);
     setLoading(true);
     try {
+      const photoUrl = newPhoto ? await api.uploadAvatar(user.id, newPhoto) : avatarUrl;
       await updateProfile({
+        avatar_url: photoUrl,
+        avatar_seed: avatarSeed,
         full_name: fullName.trim(),
         bio: bio.trim(),
         is_relocated: isRelocated,
@@ -56,6 +67,43 @@ export default function EditProfileScreen() {
       <Header title="Modifica profilo" />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-6 px-4 py-5" keyboardShouldPersistTaps="handled">
+          <View className="items-center gap-3">
+            <Avatar name={fullName || user.full_name} url={newPhoto?.uri ?? avatarUrl} seed={avatarSeed} size={104} />
+            <View className="flex-row flex-wrap justify-center gap-2">
+              <Button
+                title="Carica foto"
+                icon="image-outline"
+                size="sm"
+                variant="secondary"
+                onPress={async () => {
+                  const photo = await pickProfilePhoto();
+                  if (photo) setNewPhoto(photo);
+                }}
+              />
+              <Button
+                title={!newPhoto && !avatarUrl && avatarSeed ? 'Genera un altro' : 'Avatar a pixel'}
+                icon="shuffle"
+                size="sm"
+                variant="secondary"
+                onPress={() => {
+                  setNewPhoto(null);
+                  setAvatarUrl(null);
+                  setAvatarSeed(randomSeed());
+                }}
+              />
+              <Button
+                title="Iniziali"
+                size="sm"
+                variant="muted"
+                onPress={() => {
+                  setNewPhoto(null);
+                  setAvatarUrl(null);
+                  setAvatarSeed(null);
+                }}
+              />
+            </View>
+          </View>
+
           <TextField label="Nome e cognome" value={fullName} onChangeText={setFullName} autoComplete="name" />
           <TextField
             label="Bio"

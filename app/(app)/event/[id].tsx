@@ -1,14 +1,15 @@
 // Event detail: info, RSVP ("Ci sarò"), check-in ("Sono qui") while it's live, and who's coming.
-// Checking in is what makes you climb the ranks of the group.
+// Checking in is what makes you climb the ranks of the group. The admin can add a poster (PDF or image).
 
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { Avatar } from '../../../components/Avatar';
+import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { GroupIcon } from '../../../components/GroupIcon';
+import { PosterView } from '../../../components/PosterView';
 import { Header } from '../../../components/Header';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
@@ -17,6 +18,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import * as api from '../../../lib/api';
 import { eventPhase } from '../../../lib/eventTiming';
 import { formatEventDate } from '../../../lib/format';
+import { pickPoster } from '../../../lib/pickers';
 import type { Rank } from '../../../lib/ranks';
 
 export default function EventScreen() {
@@ -30,12 +32,13 @@ export default function EventScreen() {
   const data = useAsync(async () => {
     const event = await api.getEventById(id);
     if (!event) return null;
-    const [access, attendance, attendees] = await Promise.all([
+    const [access, attendance, attendees, group] = await Promise.all([
       api.canAccessChat(user.id, event.group_id),
       api.getAttendance(user.id, id),
       api.getEventAttendees(id),
+      api.getGroupById(event.group_id),
     ]);
-    return { event, access, attendance, attendees };
+    return { event, access, attendance, attendees, isAdmin: group?.admin_id === user.id };
   }, [id, user.id, version]);
 
   async function run(action: () => Promise<void>) {
@@ -64,7 +67,7 @@ export default function EventScreen() {
     );
   }
 
-  const { event, access, attendance, attendees } = data.data;
+  const { event, access, attendance, attendees, isAdmin } = data.data;
   const phase = eventPhase(event.date_time);
   const checkedInCount = attendees.filter((a) => a.checked_in).length;
 
@@ -77,7 +80,7 @@ export default function EventScreen() {
           {phase === 'ended' ? <Badge label="Concluso" icon="checkmark-done" /> : null}
           <Text className="text-2xl font-bold text-ink">{event.title}</Text>
           <InfoRow icon="time-outline" text={formatEventDate(event.date_time)} />
-          <InfoRow icon="location-outline" text={event.location} />
+          {event.location ? <InfoRow icon="location-outline" text={event.location} /> : null}
           <Link href={{ pathname: '/group/[id]', params: { id: event.group_id } }} asChild>
             <Pressable className="mt-1 flex-row items-center gap-3 rounded-2xl bg-stone-50 p-3 active:bg-stone-100">
               <GroupIcon name={event.group_name} size={36} />
@@ -86,6 +89,36 @@ export default function EventScreen() {
             </Pressable>
           </Link>
         </View>
+
+        {event.poster_url ? <PosterView url={event.poster_url} mime={event.poster_mime} /> : null}
+        {isAdmin ? (
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button
+                title={event.poster_url ? 'Cambia locandina' : 'Aggiungi locandina'}
+                icon="attach"
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onPress={() =>
+                  run(async () => {
+                    const file = await pickPoster();
+                    if (file) await api.setEventPoster(user.id, event.id, file);
+                  })
+                }
+              />
+            </View>
+            {event.poster_url ? (
+              <Button
+                title="Rimuovi"
+                size="sm"
+                variant="muted"
+                disabled={busy}
+                onPress={() => run(async () => void (await api.setEventPoster(user.id, event.id, null)))}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
         {newRank ? (
           <View className="items-center gap-1 rounded-3xl bg-amber-100 p-5">
@@ -171,7 +204,7 @@ export default function EventScreen() {
                     key={person.id}
                     className={`flex-row items-center gap-3 p-3 ${index > 0 ? 'border-t border-stone-100' : ''}`}
                   >
-                    <Avatar name={person.full_name} size={36} />
+                    <Avatar {...avatarOf(person)} size={36} />
                     <View className="flex-1 flex-row flex-wrap items-center gap-2">
                       <Text className="font-medium text-ink">
                         {person.full_name}

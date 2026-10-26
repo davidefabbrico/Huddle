@@ -1,8 +1,10 @@
 // New event form, for groups you administer. Optional ?groupId= preselects the group.
 // Date = a chip for each of the next 14 days; time = "HH:MM" text (no extra libraries needed).
+// Optional poster ("locandina"): a PDF or an image.
 
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
@@ -13,6 +15,9 @@ import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
+import { isInPast } from '../../lib/eventTiming';
+import { isPdf, pickPoster } from '../../lib/pickers';
+import type { PickedFile } from '../../lib/types';
 
 // Today + the next 13 days, as { label, date } with date at local midnight
 function nextDays(count = 14) {
@@ -36,6 +41,7 @@ export default function CreateEventScreen() {
   const [dayIndex, setDayIndex] = useState(1); // tomorrow
   const [time, setTime] = useState('19:30');
   const [location, setLocation] = useState('');
+  const [poster, setPoster] = useState<PickedFile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const days = nextDays();
@@ -50,7 +56,7 @@ export default function CreateEventScreen() {
     if (!match) return setError('Scrivi l’orario come 19:30');
     const start = new Date(days[dayIndex].date);
     start.setHours(Number(match[1]), Number(match[2]));
-    if (start.getTime() < Date.now()) return setError('Scegli un orario nel futuro');
+    if (isInPast(start)) return setError('Scegli un orario nel futuro');
 
     setLoading(true);
     try {
@@ -59,6 +65,7 @@ export default function CreateEventScreen() {
         title,
         location,
         date_time: start.toISOString(),
+        poster,
       });
       router.replace({ pathname: '/event/[id]', params: { id: event.id } });
     } catch (e) {
@@ -126,6 +133,32 @@ export default function CreateEventScreen() {
 
           <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
           <TextField label="Luogo" value={location} onChangeText={setLocation} placeholder="Es. Darsena, lato Viale Gorizia" />
+
+          <View className="gap-2">
+            <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
+            {poster ? (
+              <View className="flex-row items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3">
+                <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} color={colors.brandDark} />
+                <Text numberOfLines={1} className="flex-1 text-ink">
+                  {poster.name}
+                </Text>
+                <Button title="Rimuovi" size="sm" variant="muted" onPress={() => setPoster(null)} />
+              </View>
+            ) : (
+              <Button
+                title="Aggiungi PDF o immagine"
+                icon="attach"
+                variant="secondary"
+                onPress={async () => {
+                  try {
+                    setPoster(await pickPoster());
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'File non valido');
+                  }
+                }}
+              />
+            )}
+          </View>
 
           {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
           <Button title="Crea evento" icon="calendar" onPress={handleCreate} loading={loading} />

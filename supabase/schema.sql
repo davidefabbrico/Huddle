@@ -24,6 +24,9 @@ create table public.users (
   is_relocated  boolean not null default false,
   relocated_at  date,  -- roughly when they moved to the city ("In città da 3 mesi")
   interests     text[] not null default '{}',
+  -- Avatar: photo (Storage bucket "avatars") or GitHub-style pixel avatar generated from the seed
+  avatar_url    text,
+  avatar_seed   text default substr(md5(random()::text), 1, 10),
   role          public.user_role not null default 'solo',
   intent        public.user_intent not null default 'friends',
   created_at    timestamptz not null default now()
@@ -54,10 +57,21 @@ create table public.events (
   title       text not null check (char_length(title) between 1 and 150),
   date_time   timestamptz not null,
   location    text not null default '',
+  -- Optional poster ("locandina") in the Storage bucket "event-posters": a PDF or an image
+  poster_url  text,
+  poster_mime text check (poster_mime is null or poster_mime = 'application/pdf' or poster_mime like 'image/%'),
   created_at  timestamptz not null default now()
 );
 create index events_group_id_date_time_idx on public.events (group_id, date_time);
 create index events_date_time_idx on public.events (date_time);
+
+-- External chat of a group (WhatsApp, Telegram…). Kept out of "groups" because groups are
+-- readable by every signed-in user, while an invite link must stay with members and guests.
+create table public.group_links (
+  group_id    uuid primary key references public.groups (id) on delete cascade,
+  chat_url    text not null check (chat_url like 'https://%'),
+  updated_at  timestamptz not null default now()
+);
 
 -- Check-ins at events: they drive the member ranks (lib/ranks.ts)
 create table public.event_attendees (
@@ -320,6 +334,7 @@ alter table public.join_requests   enable row level security;
 alter table public.chat_messages   enable row level security;
 alter table public.friendships     enable row level security;
 alter table public.notifications   enable row level security;
+alter table public.group_links     enable row level security;
 
 -- users: any signed-in user can read profiles; you can only create/edit your own
 create policy "users: read" on public.users
@@ -403,6 +418,16 @@ create policy "chat_messages: post with access" on public.chat_messages
 create policy "chat_messages: delete own" on public.chat_messages
   for delete to authenticated using (user_id = (select auth.uid()));
 
+-- group_links: only members and guests can read the invite link; only the admin sets it
+create policy "group_links: read with access" on public.group_links
+  for select to authenticated using (public.can_access_chat(group_id));
+create policy "group_links: admin insert" on public.group_links
+  for insert to authenticated with check (public.is_group_admin(group_id));
+create policy "group_links: admin update" on public.group_links
+  for update to authenticated using (public.is_group_admin(group_id)) with check (public.is_group_admin(group_id));
+create policy "group_links: admin delete" on public.group_links
+  for delete to authenticated using (public.is_group_admin(group_id));
+
 -- notifications: your own only; you can mark them read or delete them (rows come from triggers)
 create policy "notifications: read own" on public.notifications
   for select to authenticated using (user_id = (select auth.uid()));
@@ -419,3 +444,34 @@ create policy "friendships: read own" on public.friendships
 -- Broadcast new chat messages (Realtime respects the RLS policies above)
 alter publication supabase_realtime add table public.chat_messages;
 alter publication supabase_realtime add table public.notifications;
+
+-- ---------- Storage (Supabase Storage buckets for uploaded files) ----------
+-- avatars:       avatars/<user_id>/avatar        (images, max 2 MB) — you write only your own folder
+-- event-posters: event-posters/<group_id>/<id>   (PDF or images, max 10 MB) — only the group admin writes
+-- Both buckets are public for reading, so the app can show the files with a plain URL.
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('avatars', 'avatars', true, 2097152, array['image/*']),
+  ('event-posters', 'event-posters', true, 10485760, array['application/pdf', 'image/*'])
+on conflict (id) do nothing;
+
+create policy "avatars: upload own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "avatars: replace own" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "avatars: delete own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "event-posters: admin upload" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));
+create policy "event-posters: admin replace" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));
+create policy "event-posters: admin delete" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));

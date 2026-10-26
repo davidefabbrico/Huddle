@@ -32,6 +32,8 @@ jobs:
 
       - run: npm run typecheck
 
+      - run: npm run lint
+
       # Exports to dist/ and adds 404.html (client-side routing fallback) + .nojekyll
       - run: npm run build:web
         env:

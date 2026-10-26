@@ -8,6 +8,7 @@ import type {
   EventAttendee,
   Friendship,
   Group,
+  GroupLink,
   GroupMember,
   JoinRequest,
   Notification,
@@ -41,6 +42,8 @@ export const users: User[] = [
     bio: 'Appena trasferita da Bari per lavoro (UX designer). Cerco gente con cui correre e fare brunch la domenica.',
     is_relocated: true,
     relocated_at: monthsAgo(0),
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['running', 'brunch', 'cinema', 'design'],
     role: 'solo',
     intent: 'friends',
@@ -51,6 +54,8 @@ export const users: User[] = [
     bio: 'Ingegnere, arrivato da Monaco a settembre. Padel, birra artigianale e montagna.',
     is_relocated: true,
     relocated_at: monthsAgo(2),
+    avatar_url: null,
+    avatar_seed: 'lukas', // pixel avatar when set
     interests: ['padel', 'birra artigianale', 'hiking'],
     role: 'solo',
     intent: 'group',
@@ -61,6 +66,8 @@ export const users: User[] = [
     bio: 'Milanese doc, organizzo le corse sui Navigli da tre anni. Tutti i ritmi sono benvenuti!',
     is_relocated: false,
     relocated_at: null,
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['running', 'fotografia', 'aperitivo'],
     role: 'group',
     intent: 'friends',
@@ -71,6 +78,8 @@ export const users: User[] = [
     bio: 'Sviluppatore di giorno, master di giochi da tavolo la sera. Ho più giochi che scaffali.',
     is_relocated: false,
     relocated_at: null,
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['giochi da tavolo', 'videogiochi', 'pizza'],
     role: 'group',
     intent: 'friends',
@@ -81,6 +90,8 @@ export const users: User[] = [
     bio: 'Da Londra a Milano per un lavoro in finanza. Yoga, mostre e cucina di ogni parte del mondo.',
     is_relocated: true,
     relocated_at: monthsAgo(4),
+    avatar_url: null,
+    avatar_seed: 'aisha', // pixel avatar when set
     interests: ['yoga', 'mostre', 'cucina', 'viaggi'],
     role: 'solo',
     intent: 'friends_and_dating',
@@ -91,6 +102,8 @@ export const users: User[] = [
     bio: 'Padel ogni giovedì sera, e spesso ci manca il quarto. Fatti avanti!',
     is_relocated: false,
     relocated_at: null,
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['padel', 'calcio', 'cucina'],
     role: 'group',
     intent: 'friends',
@@ -101,6 +114,8 @@ export const users: User[] = [
     bio: 'Arrivata da Torino due anni fa, so cosa vuol dire non conoscere nessuno. Ho fondato l’aperitivo del mercoledì.',
     is_relocated: true,
     relocated_at: monthsAgo(26),
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['aperitivo', 'lingue', 'teatro'],
     role: 'group',
     intent: 'friends',
@@ -111,6 +126,8 @@ export const users: User[] = [
     bio: 'Da Madrid, lavoro in una startup. Corro male ma con entusiasmo.',
     is_relocated: true,
     relocated_at: monthsAgo(3),
+    avatar_url: null,
+    avatar_seed: 'tomas', // pixel avatar when set
     interests: ['running', 'calcio', 'musica live'],
     role: 'solo',
     intent: 'group',
@@ -121,6 +138,8 @@ export const users: User[] = [
     bio: 'Ogni weekend in montagna. Organizzo uscite facili e medie, partenza in treno da Centrale.',
     is_relocated: false,
     relocated_at: null,
+    avatar_url: null,
+    avatar_seed: null,
     interests: ['hiking', 'montagna', 'fotografia'],
     role: 'group',
     intent: 'friends',
@@ -131,6 +150,8 @@ export const users: User[] = [
     bio: 'Ricercatrice al Politecnico, da Varsavia. Leggo tanto e parlo ancora poco italiano.',
     is_relocated: true,
     relocated_at: monthsAgo(7),
+    avatar_url: null,
+    avatar_seed: 'nina', // pixel avatar when set
     interests: ['libri', 'scrittura', 'caffè'],
     role: 'group',
     intent: 'friends',
@@ -223,7 +244,16 @@ export const groupMembers: GroupMember[] = [
   { user_id: 'u9', group_id: 'g6', role: 'member' },
 ];
 
-const upcomingEvents: Event[] = [
+// Demo posters live in public/demo and are served by GitHub Pages (also reachable from the phone app)
+const DEMO_ASSETS = 'https://davidefabbrico.github.io/Huddle/demo';
+const posters: Record<string, Pick<Event, 'poster_url' | 'poster_mime'>> = {
+  e7: { poster_url: `${DEMO_ASSETS}/locandina-aperitivo.pdf`, poster_mime: 'application/pdf' },
+  e9: { poster_url: `${DEMO_ASSETS}/locandina-monte-barro.png`, poster_mime: 'image/png' },
+};
+
+type EventBase = Omit<Event, 'poster_url' | 'poster_mime'>;
+
+const upcomingEvents: EventBase[] = [
   // Started 20 minutes ago: check-in is open, so the rank flow can be tried right away
   { id: 'e0', group_id: 'g1', title: 'Allenamento libero in Darsena', date_time: minutesAgo(20), location: 'Darsena, lato Viale Gorizia' },
   { id: 'e1', group_id: 'g1', title: 'Corsa serale 6 km', date_time: inDays(1, 19, 30), location: 'Darsena, lato Viale Gorizia' },
@@ -241,7 +271,7 @@ const upcomingEvents: Event[] = [
 ];
 
 // Past events, one per week going back: ids `${prefix}1`, `${prefix}2`, ... (1 = most recent)
-function pastSeries(prefix: string, group_id: string, title: string, location: string, count: number, hour = 19): Event[] {
+function pastSeries(prefix: string, group_id: string, title: string, location: string, count: number, hour = 19): EventBase[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `${prefix}${i + 1}`,
     group_id,
@@ -251,7 +281,7 @@ function pastSeries(prefix: string, group_id: string, title: string, location: s
   }));
 }
 
-const pastEvents: Event[] = [
+const pastEvents: EventBase[] = [
   ...pastSeries('p1-', 'g1', 'Corsa serale', 'Darsena, lato Viale Gorizia', 8),
   ...pastSeries('p2-', 'g2', 'Serata giochi', 'Bar Frida, Via Pollaiuolo 3', 5),
   ...pastSeries('p3-', 'g3', 'Padel del giovedì', 'Padel Club Leonardo', 5, 21),
@@ -260,7 +290,11 @@ const pastEvents: Event[] = [
   ...pastSeries('p6-', 'g6', 'Cena del book club', 'Trattoria Da Pino, Via Pascoli 12', 4),
 ];
 
-export const events: Event[] = [...upcomingEvents, ...pastEvents];
+export const events: Event[] = [...upcomingEvents, ...pastEvents].map((e) => ({
+  ...e,
+  poster_url: posters[e.id]?.poster_url ?? null,
+  poster_mime: posters[e.id]?.poster_mime ?? null,
+}));
 
 // Check-ins at the most recent `count` past events of a series. They drive the ranks (lib/ranks.ts).
 function checkIns(user_id: string, prefix: string, count: number): EventAttendee[] {
@@ -321,6 +355,13 @@ export const chatMessages: ChatMessage[] = [
 
 // Unused in the MVP
 export const friendships: Friendship[] = [];
+
+// External group chats. Demo links (they don't lead to real groups).
+export const groupLinks: GroupLink[] = [
+  { group_id: 'g1', chat_url: 'https://chat.whatsapp.com/HuddleDemoRunnersNavigli' },
+  { group_id: 'g2', chat_url: 'https://t.me/+HuddleDemoBoardGames' },
+  { group_id: 'g4', chat_url: 'https://chat.whatsapp.com/HuddleDemoAperitivo' },
+];
 
 // Activity feed. In Supabase these rows are created by triggers (see schema.sql).
 export const notifications: Notification[] = [
