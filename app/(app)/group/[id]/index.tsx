@@ -1,10 +1,11 @@
 // Group detail: description, join button, upcoming events, members.
-// Join flow: "Chiedi di unirti" -> "In attesa…" -> (simulated acceptance) -> opens the chat.
-// Members and guests see the button to the external chat (WhatsApp, Telegram…) if the admin set one.
-// The admin also sees "Gestisci il gruppo": edit, pending requests and a "Nuovo evento" button.
+// Join flow: "Chiedi di unirti" -> "In attesa…" -> the admin accepts (you get a notification).
+// Members and guests see the button to the external chat (WhatsApp, Telegram…) if the admin set one,
+// and the group's points leaderboard. Members can organize events and invite friends.
+// The admin also sees "Gestisci il gruppo": edit and pending requests.
 
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
@@ -12,6 +13,7 @@ import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
 import { EventCard } from '../../../../components/EventCard';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
+import { InviteButton } from '../../../../components/InviteButton';
 import { GroupIcon } from '../../../../components/GroupIcon';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
@@ -20,7 +22,8 @@ import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
 import { hasChatAccess, useJoinStore, type GroupAccess } from '../../../../hooks/useJoinStore';
 import * as api from '../../../../lib/api';
-import type { Group, JoinStatus } from '../../../../lib/types';
+import { parkingGroupUrl } from '../../../../lib/smartpark';
+import type { Group, JoinStatus, LeaderboardEntry } from '../../../../lib/types';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,13 +33,16 @@ export default function GroupDetailScreen() {
 
   const details = useAsync(
     async () => {
-      const [group, members, events, chatLink] = await Promise.all([
+      const withAccess = hasChatAccess(access);
+      const [group, members, events, links, answers, leaderboard] = await Promise.all([
         api.getGroupById(id),
         api.getGroupMembers(id),
         api.getGroupEvents(id),
-        api.getGroupChatLink(user.id, id),
+        api.getGroupLinks(id),
+        api.getMyAnswers(user.id),
+        withAccess ? api.getGroupLeaderboard(id) : Promise.resolve([]),
       ]);
-      return { group, members, events, chatLink };
+      return { group, members, events, links, answers, leaderboard };
     },
     [id, user.id, access], // refetch after joining so the member list updates
     { refetchOnFocus: true }, // and after editing the group
@@ -79,7 +85,8 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const { members, events, chatLink } = details.data;
+  const { members, events, links, answers, leaderboard } = details.data;
+  const isMember = access === 'member';
 
   return (
     <Screen>
@@ -88,10 +95,12 @@ export default function GroupDetailScreen() {
         <View className="items-center gap-2">
           <GroupIcon name={group.name} size={72} />
           <Text className="text-center text-2xl font-bold text-ink">{group.name}</Text>
-          <View className="flex-row items-center gap-1">
-            <Ionicons name="location-outline" size={14} color={colors.muted} />
-            <Text className="text-stone-500">{group.location}</Text>
-          </View>
+          {group.location ? (
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="location-outline" size={14} color={colors.muted} />
+              <Text className="text-stone-500">{group.location}</Text>
+            </View>
+          ) : null}
           {group.type === 'open_to_new' ? (
             <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" centered />
           ) : (
@@ -99,22 +108,43 @@ export default function GroupDetailScreen() {
           )}
         </View>
 
-        <Text className="text-base leading-6 text-stone-700">{group.description}</Text>
+        {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
 
         <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 
-        {chatLink && hasChatAccess(access) ? <ExternalChatButton url={chatLink} /> : null}
+        {links.chat_url && hasChatAccess(access) ? <ExternalChatButton url={links.chat_url} /> : null}
+        {links.parking_code && hasChatAccess(access) ? <ParkingGroupButton code={links.parking_code} /> : null}
+
+        {isMember ? (
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button
+                title="Organizza"
+                icon="calendar"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/create-event', params: { groupId: group.id } })}
+              />
+            </View>
+            <View className="flex-1">
+              <InviteButton groupId={group.id} groupName={group.name} />
+            </View>
+          </View>
+        ) : null}
 
         {group.admin_id === user.id ? <AdminSection groupId={group.id} onChanged={details.reload} /> : null}
 
         <View className="gap-3">
           <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
           {events.length === 0 ? (
-            <Text className="text-stone-500">Nessun evento in programma.</Text>
+            <Text className="text-stone-500">
+              Nessun evento in programma.{isMember ? ' Organizzane uno: i membri riceveranno una notifica.' : ''}
+            </Text>
           ) : (
-            events.map((event) => <EventCard key={event.id} event={event} />)
+            events.map((event) => <EventCard key={event.id} event={event} answer={answers[event.id]} />)
           )}
         </View>
+
+        {leaderboard.length > 0 ? <Leaderboard entries={leaderboard} myId={user.id} /> : null}
 
         <View className="gap-3">
           <Text className="text-lg font-semibold text-ink">Membri ({members.length})</Text>
@@ -168,7 +198,7 @@ function JoinSection({ group, access, onRequest }: { group: Group; access: Group
       <View className="gap-2">
         <Button title="In attesa di risposta…" icon="hourglass-outline" variant="muted" disabled />
         <Text className="text-center text-sm text-stone-500">
-          Abbiamo avvisato l’admin. Ti portiamo in chat appena accetta.
+          Abbiamo avvisato l’admin: riceverai una notifica quando risponde.
         </Text>
       </View>
     );
@@ -214,24 +244,12 @@ function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () =
         <Text className="text-base font-semibold text-brand-700">Gestisci il gruppo</Text>
       </View>
 
-      <View className="flex-row gap-2">
-        <View className="flex-1">
-          <Button
-            title="Nuovo evento"
-            icon="calendar"
-            variant="secondary"
-            onPress={() => router.push({ pathname: '/create-event', params: { groupId } })}
-          />
-        </View>
-        <View className="flex-1">
-          <Button
-            title="Modifica"
-            icon="create-outline"
-            variant="secondary"
-            onPress={() => router.push({ pathname: '/edit-group', params: { id: groupId } })}
-          />
-        </View>
-      </View>
+      <Button
+        title="Modifica il gruppo"
+        icon="create-outline"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/edit-group', params: { id: groupId } })}
+      />
 
       <Text className="mt-1 text-sm font-semibold text-stone-600">
         Richieste e ospiti{list.length ? ` (${list.length})` : ''}
@@ -285,5 +303,59 @@ function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () =
         ))
       )}
     </View>
+  );
+}
+
+// Points earned in this group: organizing, attending, thanks received (lib/points.ts)
+function Leaderboard({ entries, myId }: { entries: LeaderboardEntry[]; myId: string }) {
+  const medals = ['🥇', '🥈', '🥉'];
+  return (
+    <View className="gap-3">
+      <Text className="text-lg font-semibold text-ink">Classifica del gruppo</Text>
+      <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+        {entries.map((entry, index) => (
+          <View
+            key={entry.user.id}
+            className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-stone-100' : ''} ${entry.user.id === myId ? 'bg-brand-50' : ''}`}
+          >
+            <Text className="w-7 text-center text-base font-semibold text-stone-500">
+              {entry.points > 0 && index < 3 ? medals[index] : index + 1}
+            </Text>
+            <Avatar {...avatarOf(entry.user)} size={34} />
+            <View className="flex-1">
+              <Text numberOfLines={1} className="font-semibold text-ink">
+                {entry.user.full_name}
+                {entry.user.id === myId ? ' (tu)' : ''}
+              </Text>
+              <Text className="text-xs text-stone-500">
+                {entry.attended} eventi · {entry.organized} organizzati · {entry.thanks_received} 🙏
+                {entry.passengers ? ` · ${entry.passengers} 🚗` : ''}
+              </Text>
+            </View>
+            <Text className="text-base font-bold text-brand-600">{entry.points} pt</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// The friends' parking group on SmartPark: shared parking spots, and not everyone heading to the same place
+function ParkingGroupButton({ code }: { code: string }) {
+  return (
+    <Pressable
+      onPress={() => Linking.openURL(parkingGroupUrl(code))}
+      accessibilityRole="link"
+      className="flex-row items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 active:bg-sky-100"
+    >
+      <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
+        <Text className="text-lg font-extrabold text-white">P</Text>
+      </View>
+      <View className="flex-1">
+        <Text className="font-semibold text-ink">Parcheggi del gruppo su SmartPark</Text>
+        <Text className="text-xs text-stone-500">Codice {code} · scoprite insieme dove si trova posto</Text>
+      </View>
+      <Ionicons name="open-outline" size={18} color={colors.muted} />
+    </Pressable>
   );
 }

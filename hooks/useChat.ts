@@ -17,23 +17,31 @@ export function useChat(groupId: string, enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    // Subscribe first so nothing sent during the initial load is missed
-    const unsubscribe = api.subscribeToMessages(groupId, (message) => {
-      setMessages((prev) => merge(prev, [message]));
-    });
-    api.getMessages(groupId).then((initial) => {
-      if (!active) return;
-      setMessages((prev) => merge(initial, prev));
-      setLoading(false);
-    });
+    const load = () =>
+      api.getMessages(groupId).then((latest) => {
+        if (!active) return;
+        setMessages((prev) => merge(latest, prev));
+        setLoading(false);
+      });
+    // Live updates; when the subscription is ready, reload to catch anything sent while it was connecting
+    const unsubscribe = api.subscribeToMessages(
+      groupId,
+      (message) => setMessages((prev) => merge(prev, [message])),
+      load,
+    );
+    load();
     return () => {
       active = false;
       unsubscribe();
     };
   }, [groupId, enabled]);
 
-  // The new message comes back through the subscription
-  const send = (userId: string, content: string) => api.sendMessage(groupId, userId, content);
+  // Shown right away; the copy coming back through the subscription is merged by id
+  const send = async (userId: string, content: string) => {
+    const message = await api.sendMessage(groupId, userId, content);
+    setMessages((prev) => merge(prev, [message]));
+    return message;
+  };
 
   return { messages, loading, send };
 }

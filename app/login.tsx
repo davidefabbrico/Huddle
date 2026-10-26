@@ -1,20 +1,14 @@
-// Login screen, with one-tap demo accounts for testing the mock data
+// Login screen: email + password, "password dimenticata", and resend of the confirmation email
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { Button } from '../components/Button';
+import { PasswordField } from '../components/PasswordField';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
-import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
-
-// Must exist in mockAccounts (lib/mockData.ts)
-const demoAccounts = [
-  { email: 'giulia@huddle.app', label: 'Giulia', hint: 'nuova in città, cerca un gruppo' },
-  { email: 'sofia@huddle.app', label: 'Sofia', hint: 'admin dei Runners dei Navigli' },
-];
+import * as api from '../lib/api';
 
 export default function LoginScreen() {
   const signIn = useAuth((state) => state.signIn);
@@ -22,16 +16,31 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [notConfirmed, setNotConfirmed] = useState(false);
+  const [resent, setResent] = useState(false);
 
-  // On success the route guard in app/_layout.tsx moves us to the home feed
-  async function handleSignIn(withEmail = email) {
+  // On success the route guard in app/_layout.tsx moves us to the app
+  async function handleSignIn() {
+    if (!email.trim() || !password) return setError('Inserisci email e password');
     setError(undefined);
+    setNotConfirmed(false);
     setLoading(true);
     try {
-      await signIn(withEmail, password);
+      await signIn(email, password);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Accesso non riuscito');
+      const message = e instanceof Error ? e.message : 'Accesso non riuscito';
+      setError(message);
+      setNotConfirmed(message.startsWith('Prima conferma'));
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    try {
+      await api.resendConfirmation(email);
+      setResent(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invio non riuscito');
     }
   }
 
@@ -40,12 +49,10 @@ export default function LoginScreen() {
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="flex-grow justify-center gap-8 px-6 py-10" keyboardShouldPersistTaps="handled">
           <View className="items-center">
-            <View className="h-20 w-20 items-center justify-center rounded-3xl bg-brand-500">
-              <Ionicons name="people" size={42} color={colors.white} />
-            </View>
+            <Image source={require('../assets/icon.png')} style={{ width: 84, height: 84, borderRadius: 22 }} accessibilityIgnoresInvertColors />
             <Text className="mt-4 text-4xl font-bold text-ink">Huddle</Text>
             <Text className="mt-2 max-w-xs text-center text-base text-stone-600">
-              Da poco in una nuova città? Non partire da zero: entra in un gruppo che esiste già.
+              Organizza eventi con i tuoi gruppi e scopri chi c’è.
             </Text>
           </View>
 
@@ -59,38 +66,28 @@ export default function LoginScreen() {
               autoComplete="email"
               keyboardType="email-address"
             />
-            <TextField
+            <PasswordField
               label="Password"
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              secureTextEntry
-              autoComplete="password"
-              onSubmitEditing={() => handleSignIn()}
+              autoComplete="current-password"
+              onSubmitEditing={handleSignIn}
             />
+            <Link href="/forgot-password" className="self-end text-sm font-semibold text-brand-600">
+              Password dimenticata?
+            </Link>
             {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-            <Button title="Accedi" onPress={() => handleSignIn()} loading={loading} />
-          </View>
-
-          <View className="gap-2 rounded-3xl bg-brand-50 p-4">
-            <Text className="text-sm font-semibold text-brand-700">Prova con un account demo</Text>
-            {demoAccounts.map((account) => (
-              <Pressable
-                key={account.email}
-                onPress={() => {
-                  setEmail(account.email);
-                  handleSignIn(account.email);
-                }}
-                disabled={loading}
-                className="flex-row items-center justify-between rounded-2xl bg-white px-4 py-3 active:bg-stone-100"
-              >
-                <View>
-                  <Text className="font-semibold text-ink">{account.label}</Text>
-                  <Text className="text-xs text-stone-500">{account.hint}</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={18} color={colors.brand} />
-              </Pressable>
-            ))}
+            {notConfirmed ? (
+              <Button
+                title={resent ? 'Email inviata ✓' : 'Rimanda l’email di conferma'}
+                variant="secondary"
+                size="sm"
+                disabled={resent}
+                onPress={handleResend}
+              />
+            ) : null}
+            <Button title="Accedi" onPress={handleSignIn} loading={loading} />
           </View>
 
           <View className="flex-row justify-center gap-1">

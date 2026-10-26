@@ -6,12 +6,15 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, Vi
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { ArrivalPicker } from '../components/ArrivalPicker';
+import { passwordError } from '../components/NewPasswordForm';
+import { PasswordField } from '../components/PasswordField';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
+import * as api from '../lib/api';
 import { dateMonthsAgo, intentLabels, interestOptions } from '../lib/format';
 import type { UserIntent, UserRole } from '../lib/types';
 
@@ -25,6 +28,7 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [repeat, setRepeat] = useState('');
   const [role, setRole] = useState<UserRole>('solo');
   const [intent, setIntent] = useState<UserIntent>('friends');
   const [isRelocated, setIsRelocated] = useState(true);
@@ -32,20 +36,22 @@ export default function SignupScreen() {
   const [interests, setInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [checkEmail, setCheckEmail] = useState(false); // account created, waiting for the email link
+  const [resent, setResent] = useState(false);
 
   const toggleInterest = (interest: string) =>
     setInterests((prev) => (prev.includes(interest) ? prev.filter((i) => i !== interest) : [...prev, interest]));
 
-  // On success the route guard in app/_layout.tsx moves us to the home feed
+  // With a session the route guard in app/_layout.tsx moves us to the app;
+  // with email confirmation on, we ask to open the link first.
   async function handleSignUp() {
-    if (!fullName.trim() || !email.includes('@') || password.length < 6) {
-      setError('Inserisci nome, una email valida e una password di almeno 6 caratteri');
-      return;
-    }
+    if (!fullName.trim() || !email.includes('@')) return setError('Inserisci nome e una email valida');
+    const invalidPassword = passwordError(password, repeat);
+    if (invalidPassword) return setError(invalidPassword);
     setError(undefined);
     setLoading(true);
     try {
-      await signUp({
+      const result = await signUp({
         full_name: fullName,
         email,
         password,
@@ -55,10 +61,48 @@ export default function SignupScreen() {
         relocated_at: relocatedAt,
         interests,
       });
+      if (result.needsEmailConfirmation) {
+        setCheckEmail(true);
+        setLoading(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Registrazione non riuscita');
       setLoading(false);
     }
+  }
+
+  if (checkEmail) {
+    return (
+      <Screen>
+        <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10">
+          <View className="items-center gap-3 rounded-3xl bg-white p-6">
+            <Ionicons name="mail-unread-outline" size={44} color={colors.brand} />
+            <Text className="text-center text-2xl font-bold text-ink">Controlla la posta</Text>
+            <Text className="text-center text-base text-stone-600">
+              Ti abbiamo mandato un link a {email.trim()}. Aprilo per confermare l’account: entrerai direttamente in
+              Huddle. Guarda anche nello spam.
+            </Text>
+          </View>
+          <Button
+            title={resent ? 'Email inviata di nuovo ✓' : 'Non è arrivata? Rimandala'}
+            variant="secondary"
+            disabled={resent}
+            onPress={async () => {
+              try {
+                await api.resendConfirmation(email);
+                setResent(true);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'Invio non riuscito');
+              }
+            }}
+          />
+          {error ? <Text className="text-center text-sm text-red-600">{error}</Text> : null}
+          <Link href="/login" className="text-center font-semibold text-brand-600">
+            Vai all’accesso
+          </Link>
+        </ScrollView>
+      </Screen>
+    );
   }
 
   return (
@@ -81,14 +125,14 @@ export default function SignupScreen() {
               autoComplete="email"
               keyboardType="email-address"
             />
-            <TextField
+            <PasswordField
               label="Password"
               value={password}
               onChangeText={setPassword}
               placeholder="Almeno 6 caratteri"
-              secureTextEntry
               autoComplete="new-password"
             />
+            <PasswordField label="Ripeti la password" value={repeat} onChangeText={setRepeat} autoComplete="new-password" />
           </View>
 
           <View className="gap-3">

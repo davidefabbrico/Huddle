@@ -1,18 +1,22 @@
-// Data model types. They mirror the tables in supabase/schema.sql one-to-one,
-// so the mock layer and the future Supabase layer return the same shapes.
+// Data model types. They mirror the tables in supabase/schema.sql
+// (lib/api.ts maps the Supabase rows to these shapes).
 
 export type UserRole = 'solo' | 'group';
 export type UserIntent = 'friends' | 'group' | 'friends_and_dating';
 export type GroupType = 'closed' | 'open_to_new';
 export type MemberRole = 'admin' | 'member';
 export type JoinStatus = 'pending' | 'guest' | 'accepted' | 'rejected';
+export type RsvpStatus = 'going' | 'not_going'; // "Ci sono" / "Non ci sono"
+export type Transport = 'car' | 'need_ride' | 'own'; // "In auto" / "Mi serve un passaggio" / "Per conto mio"
 export type NotificationType =
   | 'join_request' // to the admin: someone wants to join
   | 'request_accepted'
   | 'request_guest'
   | 'request_rejected'
   | 'new_event' // to members: a new event in their group
-  | 'rank_up'; // to you: you reached a new rank in a group
+  | 'rank_up' // to you: you reached a new rank in a group
+  | 'thanks' // to you: someone thanked you for an event
+  | 'ride'; // to you (driver): someone is coming in your car
 
 // ---- Tables ----
 
@@ -48,25 +52,49 @@ export interface GroupMember {
 export interface Event {
   id: string;
   group_id: string;
+  created_by: string | null; // the organizer
   title: string;
   date_time: string; // ISO 8601
   location: string;
+  lat: number | null; // coordinates of the place, for "Trova parcheggio" (SmartPark)
+  lon: number | null;
   // Optional poster ("locandina"): a PDF or an image
   poster_url: string | null;
   poster_mime: string | null;
 }
 
-// External chat of a group (WhatsApp, Telegram…). Separate table so only members and guests can read it.
-export interface GroupLink {
-  group_id: string;
-  chat_url: string;
+// Private links of a group, readable only by members and guests (separate table)
+export interface GroupLinks {
+  chat_url: string | null; // WhatsApp, Telegram…
+  parking_code: string | null; // SmartPark group code: shared parking among the friends
 }
 
-// RSVP ("Ci sarò") and check-in ("Sono qui"). Check-ins drive the member ranks (lib/ranks.ts).
+// Where a driver left the car: shared with their passengers only, until 12 hours after the event
+export interface CarSpot {
+  event_id: string;
+  user_id: string;
+  lat: number;
+  lon: number;
+}
+
+// Answer ("Ci sono" / "Non ci sono") and check-in ("Sono qui").
+// Attended = checked in, or "Ci sono" for an event that has started: drives ranks and points.
 export interface EventAttendee {
   event_id: string;
   user_id: string;
+  status: RsvpStatus;
   checked_in: boolean;
+  transport: Transport | null;
+  seats: number; // free seats offered by a driver
+  ride_with: string | null; // the driver a passenger travels with
+}
+
+// A "grazie" sent to the organizer or to someone who came to an event
+export interface Thanks {
+  id: string;
+  event_id: string;
+  from_user: string;
+  to_user: string;
 }
 
 export interface JoinRequest {
@@ -120,7 +148,11 @@ export interface EventWithGroup extends Event {
 }
 
 export interface AttendeeWithProfile extends User {
+  status: RsvpStatus;
   checked_in: boolean;
+  transport: Transport | null;
+  seats: number;
+  ride_with: string | null;
 }
 
 export interface ChatMessageWithAuthor extends ChatMessage {
@@ -151,11 +183,29 @@ export interface AdminGroup {
   pending_requests: number;
 }
 
-// Everything the profile needs for ranks and achievements
-export interface ProfileStats {
+// Points come from organizing, attending and receiving thanks (lib/points.ts)
+export interface PointsBreakdown {
+  organized: number; // events you organized that already started
+  attended: number;
+  thanks_received: number;
+  passengers: number; // people who came to an event in your car
+  points: number;
+}
+
+// Everything the profile needs for points, ranks and achievements
+export interface ProfileStats extends PointsBreakdown {
   memberships: Membership[];
-  checked_in_events: Event[];
-  message_count: number;
+  attended_events: Event[];
+  thanks_sent: number;
+}
+
+export interface LeaderboardEntry extends PointsBreakdown {
+  user: User;
+}
+
+export interface SignUpResult {
+  user: User | null;
+  needsEmailConfirmation: boolean; // true: the account is created, the user must click the email link
 }
 
 // ---- Inputs ----
@@ -179,6 +229,7 @@ export interface NewGroupInput {
   location: string;
   type: GroupType;
   chat_url?: string | null;
+  parking_code?: string | null;
 }
 
 export interface NewEventInput {
@@ -186,8 +237,11 @@ export interface NewEventInput {
   title: string;
   date_time: string;
   location: string;
+  lat?: number | null;
+  lon?: number | null;
   poster?: PickedFile | null;
 }
+
 
 // A file chosen with expo-image-picker / expo-document-picker, before upload
 export interface PickedFile {

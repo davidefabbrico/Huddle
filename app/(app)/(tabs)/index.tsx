@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { RelocatedBadge } from '../../../components/Badge';
+import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
 import { GroupCard } from '../../../components/GroupCard';
 import { Screen } from '../../../components/Screen';
@@ -74,9 +75,16 @@ export default function GroupsScreen() {
         ) : feed.error ? (
           <Text className="text-red-600">{feed.error}</Text>
         ) : visibleGroups.length === 0 ? (
-          <Text className="mt-6 text-center text-stone-500">
-            {filter === 'mine' ? 'Non fai ancora parte di nessun gruppo.' : 'Nessun gruppo trovato.'}
-          </Text>
+          <View className="mt-6 items-center gap-3">
+            <Text className="text-center text-stone-500">
+              {filter === 'mine'
+                ? 'Non fai ancora parte di nessun gruppo.'
+                : filter === 'open'
+                  ? 'Nessun gruppo aperto a nuovi membri.'
+                  : 'Ancora nessun gruppo. Crea quello dei tuoi amici e invitali!'}
+            </Text>
+            {filter === 'all' ? <Button title="Crea un gruppo" icon="people" onPress={() => router.push('/create-group')} /> : null}
+          </View>
         ) : (
           <View className="gap-3">
             {visibleGroups.map((group) => (

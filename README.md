@@ -1,60 +1,107 @@
 # Huddle
 
-App per chi si è trasferito per lavoro: invece di cercare amici da zero, trovi ed entri in **gruppi che esistono già** nella tua città.
+App per organizzare eventi con i propri gruppi di amici e sapere chi c'è: nata per chi si è trasferito
+per lavoro e vuole entrare in **gruppi che esistono già** nella sua città.
 
-Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblicato su GitHub Pages.
+Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblicato su GitHub Pages,
+con i dati su **Supabase** (login, database, file, tempo reale).
 
 **Sito:** https://davidefabbrico.github.io/Huddle/
 
-> L'MVP usa dati finti (mock) in memoria: ricaricando la pagina tutto torna allo stato iniziale. Per entrare velocemente usa gli account demo nella schermata di login.
-
 ## Funzioni
 
+- **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
+  La sessione resta attiva anche chiudendo e riaprendo l'app.
 - **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
-- **Gruppi**: elenco con filtri e la campanella **Attività** (notifiche) in alto a destra
-- **Join flow**: "Chiedi di unirti" → in attesa → accettazione (simulata) → chat
-- **Eventi**: "Ci sarò" e check-in **"Sono qui"** mentre l'evento è in corso
-- **Gradi** in ogni gruppo, che salgono con i check-in: Turista per caso → Faccia nota → Prezzemolo → Anima della festa → Colonna portante → Leggenda vivente
-- **Profilo**: data di arrivo in città, traguardi, gradi, modifica profilo
-- **➕ Crea**: nuovo gruppo (chiunque), nuovo evento e richieste da approvare (admin)
-- **Chat esterna**: l'admin può collegare il gruppo WhatsApp/Telegram/Signal/Discord; il link lo vedono solo membri e ospiti
-- **Locandine**: PDF o immagine allegati agli eventi (gli eventi demo "Aperitivo di benvenuto" e "Anello del Monte Barro" ne hanno una)
-- **Avatar**: foto profilo, avatar a pixel stile GitHub (predefinito per i nuovi utenti) o iniziali
-- **Icona app**: quando salvi il sito nella schermata Home (iPhone: Condividi → Aggiungi a Home) compare l'icona di Huddle
+- **Gruppi**: chiunque crea un gruppo (ne diventa admin) e invita gli amici con un link;
+  chi vuole entrare chiede, l'admin accetta. Campanella **Attività** per le notifiche.
+- **Eventi**: qualunque membro organizza un evento; tutti rispondono **"Ci sono" / "Non ci sono"**
+  e vedono chi non ha ancora risposto. Check-in **"Sono qui"** durante l'evento. Locandina PDF o immagine.
+- **Grazie e punti**: dopo l'evento si ringraziano l'organizzatore e chi c'era.
+  Punti: organizzare +10, partecipare +5, ricevere un grazie +2. Classifica in ogni gruppo.
+- **Gradi** in ogni gruppo: Turista per caso → Faccia nota → Prezzemolo → Anima della festa →
+  Colonna portante → Leggenda vivente. **Traguardi** nel profilo.
+- **Come ci arrivi?**: in ogni evento chi va in auto offre posti, chi cerca un passaggio sale con un clic
+  (+5 punti all'autista per ogni passeggero). L'autista può mostrare ai suoi passeggeri dove ha lasciato l'auto.
+- **SmartPark** (l'app dei parcheggi, vedi sotto): "Trova parcheggio" dall'evento, arrivo rilevato da SmartPark,
+  parcheggi condivisi nel gruppo.
+- **Chat** del gruppo in tempo reale, più il link al gruppo WhatsApp/Telegram (visibile solo ai membri).
+- **Avatar**: foto profilo, avatar a pixel stile GitHub o iniziali.
+- **Icona app**: salvando il sito nella schermata Home (iPhone: Condividi → Aggiungi a Home) compare l'icona di Huddle.
 
-Account demo: **Giulia** (nuova in città, nessun gruppo) e **Sofia** (admin dei Runners dei Navigli, ha una richiesta da approvare).
-L'evento "Allenamento libero in Darsena" è sempre "in corso", per provare subito il check-in.
+## Collegamento con SmartPark
+
+Huddle e [SmartPark](https://davidefabbrico.github.io/parking_test/) hanno server separati e si parlano **solo con link**,
+sempre perché l'utente tocca qualcosa:
+
+| Da → a | Cosa succede |
+|---|---|
+| Evento Huddle → SmartPark | **Trova parcheggio** apre Trova sul luogo dell'evento (`?meta=lat,lon&nome=…&arrivo=…`), con la stima dei posti **per l'ora dell'evento** e il pulsante "Torna all'evento su Huddle". |
+| SmartPark → evento Huddle | Quando SmartPark rileva che hai parcheggiato vicino all'evento (entro ~1,2 km, da 3 ore prima a 6 ore dopo), propone "Segnami su Huddle": l'evento si apre con `?smartpark=arrivato&auto=lat,lon` e lì scegli se fare il check-in e se mostrare l'auto ai tuoi passeggeri. |
+| Gruppo Huddle → SmartPark | Se l'admin inserisce il **codice del gruppo SmartPark**, i membri vedono "Parcheggi del gruppo su SmartPark" (`?gruppo=CODICE`): così gli amici scoprono insieme dove si parcheggia e non finiscono tutti nello stesso posto. |
+
+Il luogo dell'evento si sceglie dai suggerimenti di indirizzo (OpenStreetMap), che salvano le coordinate.
+L'indirizzo di SmartPark è in [lib/smartpark.ts](lib/smartpark.ts); il lato SmartPark è nel repo `parking_test` (`js/huddle.js`).
 
 ## Stack
 
 - Expo SDK 58 + Expo Router (TypeScript), react-native-web
-- NativeWind 4 (Tailwind) per lo stile
-- Zustand per lo stato (sessione, flusso di join)
-- Supabase (Auth, Postgres, Realtime) — predisposto, non ancora collegato
+- NativeWind 4 (Tailwind) per lo stile, Zustand per lo stato
+- Supabase: Auth, Postgres con Row Level Security, Storage, Realtime
 
 ## Struttura
 
 ```
-app/                 schermate (Expo Router)
-  login.tsx, signup.tsx
+app/                         schermate (Expo Router)
+  login.tsx, signup.tsx, forgot-password.tsx, reset-password.tsx
   (app)/(tabs)/              barra in basso: Gruppi · Eventi · Crea · Chat · Profilo
-  (app)/group/[id]/index.tsx dettaglio gruppo + "Chiedi di unirti" + gestione admin
-  (app)/group/[id]/chat.tsx  lobby/chat del gruppo
-  (app)/event/[id].tsx       dettaglio evento, "Ci sarò", check-in
+  (app)/group/[id]/index.tsx gruppo: entra, organizza, invita, classifica, gestione admin
+  (app)/group/[id]/chat.tsx  chat del gruppo
+  (app)/event/[id].tsx       evento: Ci sono / Non ci sono, check-in, grazie, locandina
   (app)/activity.tsx         notifiche
-  (app)/create-group.tsx, create-event.tsx, edit-profile.tsx
-components/          componenti UI
-hooks/               store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
+  (app)/create-group.tsx, edit-group.tsx, create-event.tsx, edit-profile.tsx, change-password.tsx
+components/                  componenti UI
+hooks/                       store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
 lib/
-  api.ts             UNICO punto di accesso ai dati (oggi mock, domani Supabase)
-  mockData.ts        dati finti
-  types.ts           tipi = tabelle del database
-  ranks.ts           scala dei gradi nei gruppi (da "Turista per caso" a "Leggenda vivente")
-  achievements.ts    traguardi del profilo
-  eventTiming.ts     quando un evento è "in corso" e accetta check-in
-  supabase.ts        client Supabase (letto da variabili d'ambiente)
-supabase/schema.sql  schema completo con Row Level Security
+  api.ts                     UNICO punto di accesso ai dati (Supabase)
+  supabase.ts                client Supabase (URL e chiave da variabili d'ambiente)
+  types.ts                   tipi = tabelle del database
+  points.ts, ranks.ts, achievements.ts   punti, gradi, traguardi
+supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
+
+## Mettere online con Supabase (una volta sola)
+
+### 1. Progetto e database
+
+1. Crea un progetto su [supabase.com](https://supabase.com) (regione consigliata: Europa, es. Frankfurt).
+2. **SQL Editor** → incolla tutto [supabase/schema.sql](supabase/schema.sql) → **Run**.
+3. **Table Editor**: ogni tabella deve risultare con **RLS enabled** (lo schema la attiva già).
+
+### 2. Login ed email
+
+4. **Authentication → URL Configuration**
+   - **Site URL**: `https://davidefabbrico.github.io/Huddle/`
+   - **Redirect URLs**: aggiungi `https://davidefabbrico.github.io/Huddle/**` e `http://localhost:8081/**`
+5. **Email** (importante per gli amici): il servizio email incluso in Supabase serve solo per prove,
+   spedisce pochissime email all'ora e solo agli indirizzi del team del progetto. Per far registrare gli amici:
+   - **subito**: Authentication → Sign In / Providers → Email → disattiva **Confirm email**
+     (ci si registra e si entra senza email di conferma);
+   - **meglio**: Authentication → Emails → **SMTP Settings** con un servizio email
+     (es. Brevo, Resend, o Gmail con una "password per le app"). Serve anche per "Password dimenticata".
+   - Facoltativo: in Authentication → Emails → Templates puoi tradurre le email in italiano.
+
+### 3. Chiavi e pubblicazione
+
+6. **Project Settings → API Keys**: copia il **Project URL** e la **Publishable key** (`sb_publishable_…`).
+   Non usare mai la secret/service_role key nell'app.
+7. GitHub → repo → **Settings → Secrets and variables → Actions → Variables** → crea:
+   - `EXPO_PUBLIC_SUPABASE_URL` = Project URL
+   - `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = Publishable key
+8. Fai `git push` (o Actions → "Deploy to GitHub Pages" → **Run workflow**): dopo 1–2 minuti il sito usa Supabase.
+
+La publishable key finisce nel JavaScript pubblico: è previsto, i dati sono protetti dalle regole RLS.
+Per questo la RLS deve restare sempre attiva (e va scritta per ogni tabella nuova).
 
 ## Avvio in locale
 
@@ -62,9 +109,12 @@ Serve Node.js 22.13 o più recente (consigliato 24, lo stesso usato dalla GitHub
 
 ```bash
 npm install
-npx expo start --web      # browser: http://localhost:8081
-npx expo start            # telefono: scansiona il QR con Expo Go (versione per SDK 58)
+cp .env.example .env.local   # poi inserisci URL e publishable key del progetto Supabase
+npx expo start --web         # browser: http://localhost:8081
+npx expo start               # telefono: scansiona il QR con Expo Go (versione per SDK 58)
 ```
+
+Senza `.env.local` l'app mostra la schermata "Supabase non configurato".
 
 Controlli utili:
 
@@ -80,54 +130,16 @@ icone del manifest) ne sono l'esportazione. `public/index.html` e `public/manife
 
 ## Pubblicazione su GitHub Pages
 
-La pubblicazione è automatica: a ogni `git push` sul branch `main` la GitHub Action
-[.github/workflows/deploy.yml](.github/workflows/deploy.yml) esegue la build (`npm run build:web`)
-e pubblica la cartella `dist/`.
+A ogni `git push` sul branch `main` la GitHub Action [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+controlla il codice (TypeScript + lint), fa la build (`npm run build:web`) e pubblica la cartella `dist/`.
 
-### Da fare una sola volta
+Da fare una sola volta: GitHub → **Settings → Pages → Source: GitHub Actions**. La repo deve essere pubblica
+(con un account gratuito Pages non funziona sulle repo private).
 
-1. Su GitHub apri la repo → **Settings → Pages**.
-2. In **Build and deployment → Source** scegli **GitHub Actions** (non "Deploy from a branch").
-3. La repo deve essere **pubblica** (con un account gratuito Pages non funziona sulle repo private).
-
-### A ogni aggiornamento
-
-```bash
-git add .
-git commit -m "Descrizione della modifica"
-git push
-```
-
-Segui l'avanzamento nella tab **Actions**; dopo 1–2 minuti il sito è aggiornato.
-Puoi anche rilanciare la pubblicazione a mano: Actions → "Deploy to GitHub Pages" → **Run workflow**.
-
-### Come funziona (dettagli tecnici)
+Dettagli tecnici:
 
 - `app.json` → `experiments.baseUrl: "/Huddle"`: il sito vive in `davidefabbrico.github.io/Huddle/`.
-  Se rinomini la repo, aggiorna questo valore.
 - `web.output: "single"`: la build produce un solo `index.html` (Single Page Application).
-- `404.html` è una copia di `index.html`: GitHub Pages la serve per gli indirizzi che non esistono
-  come file (es. `/Huddle/group/g1`), così i link diretti e il refresh funzionano.
-- `.nojekyll` evita che GitHub ignori la cartella `_expo/` (inizia con un underscore).
-
-## Supabase (quando sarà il momento)
-
-1. Crea un progetto su [supabase.com](https://supabase.com).
-2. **SQL Editor** → incolla ed esegui [supabase/schema.sql](supabase/schema.sql).
-3. **Controlla che la Row Level Security sia attiva su tutte le tabelle** (Table Editor → ogni tabella deve mostrare "RLS enabled").
-   Lo schema la abilita già, ma se aggiungi tabelle nuove dovrai abilitarla e scrivere le policy.
-4. In locale: copia `.env.example` in `.env.local` e inserisci URL e anon key (Project Settings → API).
-5. Su GitHub (Settings → Secrets and variables → Actions):
-   - **Variables**: `EXPO_PUBLIC_SUPABASE_URL`
-   - **Secrets**: `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-6. Riscrivi le funzioni di `lib/api.ts` con le query indicate nei commenti
-   (l'upload dei file è in `uploadFile`: oggi tiene il file in memoria, con Supabase va su Storage).
-
-Lo schema crea anche i bucket di **Storage**: `avatars` (ognuno scrive solo nella propria cartella) e
-`event-posters` (solo l'admin del gruppo), entrambi leggibili pubblicamente tramite URL.
-
-Note di sicurezza:
-
-- **Mai** committare `.env.local` né la `service_role` key. Nell'app va solo la **anon key**.
-- La anon key finisce comunque nel JavaScript pubblico: è normale, i dati sono protetti dalle policy RLS.
-  Per questo la RLS deve restare sempre attiva.
+- `404.html` è una copia di `index.html`: GitHub Pages la serve per gli indirizzi che non esistono come file
+  (es. `/Huddle/group/…` o `/Huddle/reset-password`), così i link diretti, i link delle email e il refresh funzionano.
+- `.nojekyll` evita che GitHub ignori la cartella `_expo/`.

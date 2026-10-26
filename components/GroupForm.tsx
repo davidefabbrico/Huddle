@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
+import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
 import type { NewGroupInput } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
@@ -15,23 +16,33 @@ interface Props {
   onSubmit: (values: NewGroupInput) => Promise<void>;
 }
 
-const empty: NewGroupInput = { name: '', description: '', location: '', type: 'open_to_new', chat_url: '' };
+const empty: NewGroupInput = { name: '', description: '', location: '', type: 'open_to_new', chat_url: '', parking_code: '' };
 
 export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: Props) {
-  const [values, setValues] = useState<NewGroupInput>({ ...initial, chat_url: initial.chat_url ?? '' });
+  const [values, setValues] = useState<NewGroupInput>({
+    ...initial,
+    chat_url: initial.chat_url ?? '',
+    parking_code: initial.parking_code ?? '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const set = (changes: Partial<NewGroupInput>) => setValues((v) => ({ ...v, ...changes }));
 
   const chatUrl = values.chat_url ?? '';
+  const parkingCode = values.parking_code ?? '';
   const linkError = validateChatLink(chatUrl);
 
   async function handleSubmit() {
-    if (linkError) return setError(linkError);
+    const invalid = linkError ?? validateParkingCode(parkingCode);
+    if (invalid) return setError(invalid);
     setError(undefined);
     setLoading(true);
     try {
-      await onSubmit({ ...values, chat_url: chatUrl.trim() || null });
+      await onSubmit({
+        ...values,
+        chat_url: chatUrl.trim() || null,
+        parking_code: parkingCode.trim() ? normalizeParkingCode(parkingCode) : null,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Salvataggio non riuscito');
       setLoading(false);
@@ -74,6 +85,21 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
             {chatUrl.trim() && !linkError
               ? `Riconosciuto: ${detectChatApp(chatUrl).name}. Lo vedranno solo membri e ospiti.`
               : 'WhatsApp, Telegram, Signal o Discord. Lo vedranno solo membri e ospiti, non chi cerca gruppi.'}
+          </Text>
+        </View>
+
+        <View className="gap-1.5">
+          <TextField
+            label="Codice del gruppo SmartPark (facoltativo)"
+            value={parkingCode}
+            onChangeText={(parking_code) => set({ parking_code: parking_code.toUpperCase() })}
+            placeholder="es. 622066EA"
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+          <Text className="text-xs text-stone-500">
+            Con SmartPark gli amici scoprono insieme dove si parcheggia e non finiscono tutti nello stesso posto. Il codice
+            lo vedranno solo membri e ospiti.
           </Text>
         </View>
 

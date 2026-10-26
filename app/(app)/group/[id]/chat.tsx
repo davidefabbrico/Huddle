@@ -11,6 +11,7 @@ import { Button } from '../../../../components/Button';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
+import { bottomPadding } from '../../../../components/safeArea';
 import { colors } from '../../../../components/theme';
 import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
@@ -27,9 +28,9 @@ export default function GroupChatScreen() {
   const info = useAsync(async () => {
     const [group, allowed, request, chatLink] = await Promise.all([
       api.getGroupById(id),
-      api.canAccessChat(user.id, id),
+      api.canAccessChat(id),
       api.getJoinRequest(user.id, id),
-      api.getGroupChatLink(user.id, id),
+      api.getGroupLinks(id).then((links) => links.chat_url),
     ]);
     return { group, allowed, isGuest: request?.status === 'guest', chatLink };
   }, [id, user.id]);
@@ -114,7 +115,7 @@ export default function GroupChatScreen() {
 
         <View
           className="flex-row items-center gap-2 border-t border-stone-200 bg-white px-3 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          style={bottomPadding(insets.bottom, 12)}
         >
           <TextInput
             value={draft}

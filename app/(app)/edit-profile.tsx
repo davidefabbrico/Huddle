@@ -27,7 +27,7 @@ export default function EditProfileScreen() {
   const [isRelocated, setIsRelocated] = useState(user.is_relocated);
   const [relocatedAt, setRelocatedAt] = useState(user.relocated_at);
   const [intent, setIntent] = useState<UserIntent>(user.intent);
-  // Keep custom interests (e.g. from the mock data) selectable too
+  // Keep interests that are not in the standard list selectable too
   const [interests, setInterests] = useState<string[]>(user.interests);
   const allInterests = [...new Set([...interestOptions, ...user.interests])];
   // Avatar choice: a new photo to upload, the current photo, a pixel avatar (seed) or initials

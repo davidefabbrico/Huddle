@@ -1,15 +1,11 @@
 // Join flow store: the signed-in user's relationship with each group.
-// Flow: "none" -> requestToJoin -> "pending" -> (simulated admin acceptance) -> "accepted".
-// With Supabase, replace the setTimeout with a Realtime subscription on join_requests.
+// Flow: "none" -> requestToJoin -> "pending" -> the admin accepts (or makes you a guest) in the app.
 
 import { create } from 'zustand';
 import * as api from '../lib/api';
 import type { JoinStatus } from '../lib/types';
 
 export type GroupAccess = 'loading' | 'none' | 'member' | JoinStatus;
-
-// How long the fake admin takes to accept a request
-const SIMULATED_ACCEPT_MS = 3000;
 
 interface JoinState {
   access: Record<string, GroupAccess>; // group_id -> access
@@ -18,7 +14,7 @@ interface JoinState {
   reset: () => void;
 }
 
-// Statuses that open the lobby/chat (same rule as can_access_chat() in SQL)
+// Statuses that open the lobby/chat and the event details (same rule as can_access_chat() in SQL)
 export function hasChatAccess(access: GroupAccess | undefined): boolean {
   return access === 'member' || access === 'guest' || access === 'accepted';
 }
@@ -31,10 +27,7 @@ export const useJoinStore = create<JoinState>((set) => {
     access: {},
 
     load: async (userId, groupId) => {
-      const [request, members] = await Promise.all([
-        api.getJoinRequest(userId, groupId),
-        api.getGroupMembers(groupId),
-      ]);
+      const [request, members] = await Promise.all([api.getJoinRequest(userId, groupId), api.getGroupMembers(groupId)]);
       if (members.some((m) => m.id === userId)) setAccess(groupId, 'member');
       else setAccess(groupId, request?.status ?? 'none');
     },
@@ -42,13 +35,6 @@ export const useJoinStore = create<JoinState>((set) => {
     requestToJoin: async (userId, groupId) => {
       const request = await api.requestToJoin(userId, groupId);
       setAccess(groupId, request.status);
-      if (request.status !== 'pending') return;
-
-      // Simulate the group admin accepting the request
-      setTimeout(async () => {
-        const accepted = await api.updateJoinRequestStatus(request.id, 'accepted');
-        setAccess(groupId, accepted.status);
-      }, SIMULATED_ACCEPT_MS);
     },
 
     reset: () => set({ access: {} }),

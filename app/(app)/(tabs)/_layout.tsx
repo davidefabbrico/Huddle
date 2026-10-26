@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, avatarOf } from '../../../components/Avatar';
+import { barWithSafeArea } from '../../../components/safeArea';
 import { colors } from '../../../components/theme';
 import { useAuth } from '../../../hooks/useAuth';
 
@@ -37,7 +38,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: '#E7E5E4',
-          height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
+          ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
         },
         // Wide enough for the ➕ square (44px) and the avatar ring; the default box is 31x28
         tabBarIconStyle: { width: 48, height: TAB_BAR_CONTENT_HEIGHT - 2 * TAB_PADDING },

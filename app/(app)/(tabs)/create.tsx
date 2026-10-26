@@ -1,4 +1,4 @@
-// Crea tab (➕): new event (admins), new group (anyone), and the requests waiting for you
+// Crea tab (➕): new event (members of a group), new group (anyone), and the requests waiting for you (admins)
 
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -13,10 +13,18 @@ import * as api from '../../../lib/api';
 
 export default function CreateScreen() {
   const user = useAuth((state) => state.user)!;
-  const adminGroups = useAsync(() => api.getAdminGroups(user.id), [user.id], { refetchOnFocus: true });
+  const data = useAsync(
+    async () => {
+      const [adminGroups, memberships] = await Promise.all([api.getAdminGroups(user.id), api.getMemberships(user.id)]);
+      return { adminGroups, memberCount: memberships.length };
+    },
+    [user.id],
+    { refetchOnFocus: true },
+  );
 
-  const groups = adminGroups.data ?? [];
+  const groups = data.data?.adminGroups ?? [];
   const isAdmin = groups.length > 0;
+  const isMember = (data.data?.memberCount ?? 0) > 0;
   const pendingTotal = groups.reduce((sum, g) => sum + g.pending_requests, 0);
 
   return (
@@ -25,15 +33,15 @@ export default function CreateScreen() {
         <View className="gap-1">
           <Text className="text-3xl font-bold text-ink">Crea</Text>
           <Text className="text-base text-stone-600">
-            {isAdmin ? 'Organizza il prossimo evento o gestisci chi vuole entrare.' : 'Hai già una compagnia? Portala su Huddle.'}
+            {isMember ? 'Organizza il prossimo evento: i membri del gruppo riceveranno una notifica.' : 'Hai già una compagnia? Portala su Huddle.'}
           </Text>
         </View>
 
-        {!adminGroups.data && adminGroups.loading ? (
+        {!data.data && data.loading ? (
           <ActivityIndicator color={colors.brand} className="mt-6" />
         ) : (
           <>
-            {isAdmin ? (
+            {isMember ? (
               <ActionCard
                 href="/create-event"
                 icon="calendar"
@@ -45,7 +53,7 @@ export default function CreateScreen() {
               href="/create-group"
               icon="people"
               title="Nuovo gruppo"
-              text={isAdmin ? 'Crea un altro gruppo di cui sarai admin.' : 'Crea il tuo gruppo e accogli chi è da poco in città.'}
+              text={isMember ? 'Crea un altro gruppo di cui sarai admin.' : 'Crea il gruppo dei tuoi amici e invitali.'}
             />
 
             {isAdmin ? (

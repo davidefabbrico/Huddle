@@ -1,4 +1,4 @@
-// New event form, for groups you administer. Optional ?groupId= preselects the group.
+// New event form: any member can organize in their groups. Optional ?groupId= preselects the group.
 // Date = a chip for each of the next 14 days; time = "HH:MM" text (no extra libraries needed).
 // Optional poster ("locandina"): a PDF or an image.
 
@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
+import { PlaceField, type PlaceValue } from '../../components/PlaceField';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../components/theme';
@@ -34,19 +35,19 @@ function nextDays(count = 14) {
 export default function CreateEventScreen() {
   const { groupId } = useLocalSearchParams<{ groupId?: string }>();
   const user = useAuth((state) => state.user)!;
-  const adminGroups = useAsync(() => api.getAdminGroups(user.id), [user.id]);
+  const memberships = useAsync(() => api.getMemberships(user.id), [user.id]);
 
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(groupId);
   const [title, setTitle] = useState('');
   const [dayIndex, setDayIndex] = useState(1); // tomorrow
   const [time, setTime] = useState('19:30');
-  const [location, setLocation] = useState('');
+  const [place, setPlace] = useState<PlaceValue>({ text: '', lat: null, lon: null });
   const [poster, setPoster] = useState<PickedFile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const days = nextDays();
 
-  const groups = adminGroups.data ?? [];
+  const groups = memberships.data ?? [];
   const groupIdToUse = selectedGroup ?? (groups.length === 1 ? groups[0].group.id : undefined);
 
   async function handleCreate() {
@@ -63,7 +64,9 @@ export default function CreateEventScreen() {
       const event = await api.createEvent(user.id, {
         group_id: groupIdToUse,
         title,
-        location,
+        location: place.text,
+        lat: place.lat,
+        lon: place.lon,
         date_time: start.toISOString(),
         poster,
       });
@@ -74,7 +77,7 @@ export default function CreateEventScreen() {
     }
   }
 
-  if (!adminGroups.data) {
+  if (!memberships.data) {
     return (
       <Screen>
         <Header title="Nuovo evento" />
@@ -88,7 +91,7 @@ export default function CreateEventScreen() {
       <Screen>
         <Header title="Nuovo evento" />
         <View className="flex-1 items-center justify-center gap-4 px-8">
-          <Text className="text-center text-stone-600">Puoi creare eventi solo nei gruppi di cui sei admin.</Text>
+          <Text className="text-center text-stone-600">Per organizzare un evento entra in un gruppo, oppure creane uno tuo.</Text>
           <Button title="Crea un gruppo" icon="people" onPress={() => router.replace('/create-group')} />
         </View>
       </Screen>
@@ -132,7 +135,7 @@ export default function CreateEventScreen() {
           </View>
 
           <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
-          <TextField label="Luogo" value={location} onChangeText={setLocation} placeholder="Es. Darsena, lato Viale Gorizia" />
+          <PlaceField label="Luogo" value={place} onChange={setPlace} placeholder="Es. Via Pascal 12, Milano" />
 
           <View className="gap-2">
             <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>

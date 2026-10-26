@@ -20,8 +20,12 @@ export default function EventsScreen() {
 
   const data = useAsync(
     async () => {
-      const [events, memberships] = await Promise.all([api.getUpcomingEvents(50), api.getMemberships(user.id)]);
-      return { events, myGroupIds: new Set(memberships.map((m) => m.group.id)) };
+      const [events, memberships, answers] = await Promise.all([
+        api.getUpcomingEvents(50),
+        api.getMemberships(user.id),
+        api.getMyAnswers(user.id),
+      ]);
+      return { events, answers, myGroupIds: new Set(memberships.map((m) => m.group.id)) };
     },
     [user.id],
     { refetchOnFocus: true },
@@ -42,7 +46,7 @@ export default function EventsScreen() {
       <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4">
         <View className="gap-1">
           <Text className="text-3xl font-bold text-ink">Eventi</Text>
-          <Text className="text-base text-stone-600">Il modo più facile per conoscere un gruppo è andare a un evento.</Text>
+          <Text className="text-base text-stone-600">Rispondi “Ci sono” o “Non ci sono”: così chi organizza sa su chi contare.</Text>
         </View>
 
         <View className="flex-row gap-2">
@@ -63,7 +67,7 @@ export default function EventsScreen() {
             <View key={day.label} className="gap-3">
               <Text className="text-sm font-semibold uppercase tracking-wide text-stone-500">{day.label}</Text>
               {day.events.map((event) => (
-                <EventCard key={event.id} event={event} showGroup />
+                <EventCard key={event.id} event={event} showGroup answer={data.data?.answers[event.id]} />
               ))}
             </View>
           ))

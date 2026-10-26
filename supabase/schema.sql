@@ -11,8 +11,10 @@ create type public.user_intent as enum ('friends', 'group', 'friends_and_dating'
 create type public.group_type  as enum ('closed', 'open_to_new');
 create type public.member_role as enum ('admin', 'member');
 create type public.join_status as enum ('pending', 'guest', 'accepted', 'rejected');
+create type public.rsvp_status as enum ('going', 'not_going'); -- "Ci sono" / "Non ci sono"
+create type public.transport as enum ('car', 'need_ride', 'own');  -- "In auto" / "Mi serve un passaggio" / "Per conto mio"
 create type public.notification_type as enum
-  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up');
+  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride');
 
 -- ---------- Tables ----------
 
@@ -51,12 +53,17 @@ create table public.group_members (
 );
 create index group_members_group_id_idx on public.group_members (group_id);
 
+-- Any member can organize an event (created_by = the organizer)
 create table public.events (
   id          uuid primary key default gen_random_uuid(),
   group_id    uuid not null references public.groups (id) on delete cascade,
+  created_by  uuid references public.users (id) on delete set null,
   title       text not null check (char_length(title) between 1 and 150),
   date_time   timestamptz not null,
   location    text not null default '',
+  -- Coordinates of the place (from the address search): used by "Trova parcheggio" in SmartPark
+  lat         double precision check (lat between -90 and 90),
+  lon         double precision check (lon between -180 and 180),
   -- Optional poster ("locandina") in the Storage bucket "event-posters": a PDF or an image
   poster_url  text,
   poster_mime text check (poster_mime is null or poster_mime = 'application/pdf' or poster_mime like 'image/%'),
@@ -65,21 +72,58 @@ create table public.events (
 create index events_group_id_date_time_idx on public.events (group_id, date_time);
 create index events_date_time_idx on public.events (date_time);
 
--- External chat of a group (WhatsApp, Telegram…). Kept out of "groups" because groups are
--- readable by every signed-in user, while an invite link must stay with members and guests.
+-- Private links of a group: external chat (WhatsApp, Telegram…) and the SmartPark group code
+-- (shared parking among the friends). Kept out of "groups" because groups are readable by every
+-- signed-in user, while these must stay with members and guests.
 create table public.group_links (
-  group_id    uuid primary key references public.groups (id) on delete cascade,
-  chat_url    text not null check (chat_url like 'https://%'),
-  updated_at  timestamptz not null default now()
+  group_id      uuid primary key references public.groups (id) on delete cascade,
+  chat_url      text check (chat_url like 'https://%'),
+  parking_code  text check (parking_code ~ '^[A-Z0-9]{4,16}$'),
+  updated_at    timestamptz not null default now()
 );
 
--- Check-ins at events: they drive the member ranks (lib/ranks.ts)
+-- Who's coming ("Ci sono" / "Non ci sono") and who checked in ("Sono qui").
+-- An event counts as attended if you checked in, or said "Ci sono" and it has started:
+-- that drives ranks (lib/ranks.ts) and points (lib/points.ts).
 create table public.event_attendees (
   event_id    uuid not null references public.events (id) on delete cascade,
   user_id     uuid not null references public.users (id) on delete cascade,
+  status      public.rsvp_status not null default 'going',
   checked_in  boolean not null default false,
+  -- Getting there: drivers offer seats, passengers pick a driver (ride_with)
+  transport   public.transport,
+  seats       smallint not null default 0 check (seats between 0 and 8),
+  ride_with   uuid references public.users (id) on delete set null,
+  updated_at  timestamptz not null default now(),
+  primary key (event_id, user_id),
+  check (ride_with is distinct from user_id)
+);
+create index event_attendees_user_id_idx on public.event_attendees (user_id);
+create index event_attendees_ride_with_idx on public.event_attendees (event_id, ride_with);
+
+-- Where a driver left the car (from SmartPark, only if the driver chooses to share it):
+-- visible only to the driver and their passengers, and only until 12 hours after the event
+create table public.car_spots (
+  event_id    uuid not null references public.events (id) on delete cascade,
+  user_id     uuid not null references public.users (id) on delete cascade,
+  lat         double precision not null check (lat between -90 and 90),
+  lon         double precision not null check (lon between -180 and 180),
+  shared_at   timestamptz not null default now(),
   primary key (event_id, user_id)
 );
+
+-- "Grazie" to the organizer or to someone who came to an event (+ points for them)
+create table public.thanks (
+  id          uuid primary key default gen_random_uuid(),
+  event_id    uuid not null references public.events (id) on delete cascade,
+  from_user   uuid not null references public.users (id) on delete cascade,
+  to_user     uuid not null references public.users (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  unique (event_id, from_user, to_user),
+  check (from_user <> to_user)
+);
+create index thanks_to_user_idx on public.thanks (to_user);
+create index thanks_event_id_idx on public.thanks (event_id);
 
 create table public.join_requests (
   id          uuid primary key default gen_random_uuid(),
@@ -115,7 +159,7 @@ create table public.notifications (
 );
 create index notifications_user_id_created_at_idx on public.notifications (user_id, created_at desc);
 
--- Unused in the MVP. Each pair is stored once, with user_a < user_b.
+-- Unused for now. Each pair is stored once, with user_a < user_b.
 create table public.friendships (
   user_a         uuid not null references public.users (id) on delete cascade,
   user_b         uuid not null references public.users (id) on delete cascade,
@@ -145,7 +189,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- Members, guests and accepted requesters may use the lobby/chat
+-- Members, guests and accepted requesters may use the lobby/chat and the events' details
 create or replace function public.can_access_chat(gid uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select public.is_group_member(gid) or exists (
@@ -156,15 +200,24 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- Rank name for a number of check-ins in a group. Keep in sync with lib/ranks.ts.
-create or replace function public.rank_name(checkins integer)
+-- The event's organizer or the group's admin
+create or replace function public.can_manage_event(eid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.events e
+    where e.id = eid and (e.created_by = (select auth.uid()) or public.is_group_admin(e.group_id))
+  );
+$$;
+
+-- Rank name for a number of attended events in a group. Keep in sync with lib/ranks.ts.
+create or replace function public.rank_name(attended integer)
 returns text language sql immutable set search_path = '' as $$
   select case
-    when checkins >= 15 then 'Leggenda vivente 👑'
-    when checkins >= 10 then 'Colonna portante 🏛️'
-    when checkins >= 6  then 'Anima della festa 🎉'
-    when checkins >= 3  then 'Prezzemolo 🌿'
-    when checkins >= 1  then 'Faccia nota 👋'
+    when attended >= 15 then 'Leggenda vivente 👑'
+    when attended >= 10 then 'Colonna portante 🏛️'
+    when attended >= 6  then 'Anima della festa 🎉'
+    when attended >= 3  then 'Prezzemolo 🌿'
+    when attended >= 1  then 'Faccia nota 👋'
     else 'Turista per caso 🧳'
   end;
 $$;
@@ -181,18 +234,20 @@ $$;
 -- ---------- Triggers ----------
 
 -- Create the public profile when someone signs up.
--- The app passes full_name/role/intent/is_relocated in signUp's options.data.
+-- The app passes full_name/role/intent/is_relocated/relocated_at/interests in signUp's options.data.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
 begin
-  insert into public.users (id, full_name, is_relocated, relocated_at, role, intent)
+  insert into public.users (id, full_name, is_relocated, relocated_at, interests, role, intent)
   values (
     new.id,
     coalesce(nullif(meta ->> 'full_name', ''), split_part(new.email, '@', 1), 'Utente'),
     coalesce((meta ->> 'is_relocated')::boolean, false),
     nullif(meta ->> 'relocated_at', '')::date,
+    coalesce(array(select jsonb_array_elements_text(
+      case when jsonb_typeof(meta -> 'interests') = 'array' then meta -> 'interests' else '[]'::jsonb end)), '{}'),
     coalesce((meta ->> 'role')::public.user_role, 'solo'),
     coalesce((meta ->> 'intent')::public.user_intent, 'friends')
   );
@@ -279,15 +334,21 @@ create trigger on_join_request_updated
   before update on public.join_requests
   for each row execute function public.handle_join_request_update();
 
--- Tell the group's members (except the admin) about a new event
+-- New event: the organizer is automatically "Ci sono", the other members get a notification
 create or replace function public.handle_new_event()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  if new.created_by is not null then
+    insert into public.event_attendees (event_id, user_id, status)
+    values (new.id, new.created_by, 'going')
+    on conflict do nothing;
+  end if;
+
   insert into public.notifications (user_id, type, title, body, group_id, event_id)
   select m.user_id, 'new_event', 'Nuovo evento', g.name || ': ' || new.title, g.id, new.id
   from public.group_members m
   join public.groups g on g.id = m.group_id
-  where m.group_id = new.group_id and m.user_id <> g.admin_id;
+  where m.group_id = new.group_id and m.user_id is distinct from new.created_by;
   return new;
 end;
 $$;
@@ -295,6 +356,86 @@ $$;
 create trigger on_event_created
   after insert on public.events
   for each row execute function public.handle_new_event();
+
+-- Keep attendee rows consistent: a check-in can't be undone and always means "Ci sono"
+create or replace function public.normalize_attendee()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' and old.checked_in then
+    new.checked_in := true;
+  end if;
+  if new.checked_in then
+    new.status := 'going';
+  end if;
+  if new.status = 'not_going' then
+    new.transport := null;
+  end if;
+  if new.transport is distinct from 'need_ride' then
+    new.ride_with := null;
+  end if;
+  if new.transport is distinct from 'car' then
+    new.seats := 0;
+  end if;
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+-- A passenger can only pick someone who drives to this event and still has a free seat
+create or replace function public.check_ride()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  driver_seats smallint;
+  taken integer;
+begin
+  if new.ride_with is null or (tg_op = 'UPDATE' and new.ride_with is not distinct from old.ride_with) then
+    return new;
+  end if;
+  select seats into driver_seats from public.event_attendees
+  where event_id = new.event_id and user_id = new.ride_with and status = 'going' and transport = 'car';
+  if driver_seats is null then
+    raise exception 'Questa persona non viene in auto';
+  end if;
+  select count(*) into taken from public.event_attendees
+  where event_id = new.event_id and ride_with = new.ride_with and user_id <> new.user_id;
+  if taken >= driver_seats then
+    raise exception 'Non ci sono più posti in quest''auto';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger before_ride_change
+  before insert or update of ride_with on public.event_attendees
+  for each row execute function public.check_ride();
+
+-- When a driver stops driving (or says "Non ci sono"), their passengers are free again;
+-- when someone gets in a car, the driver gets a notification
+create or replace function public.handle_ride_change()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' and old.transport = 'car' and new.transport is distinct from 'car' then
+    update public.event_attendees set ride_with = null
+    where event_id = new.event_id and ride_with = new.user_id;
+    delete from public.car_spots where event_id = new.event_id and user_id = new.user_id;
+  end if;
+  if new.ride_with is not null and (tg_op = 'INSERT' or new.ride_with is distinct from old.ride_with) then
+    insert into public.notifications (user_id, type, title, body, group_id, event_id)
+    select new.ride_with, 'ride', u.full_name || ' viene in auto con te 🚗', 'Per «' || e.title || '»', e.group_id, e.id
+    from public.users u, public.events e
+    where u.id = new.user_id and e.id = new.event_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger after_ride_change
+  after insert or update on public.event_attendees
+  for each row execute function public.handle_ride_change();
+
+create trigger before_attendee_change
+  before insert or update on public.event_attendees
+  for each row execute function public.normalize_attendee();
 
 -- On check-in, congratulate the user when they reach a new rank in that group
 create or replace function public.handle_check_in()
@@ -307,9 +448,11 @@ begin
     return new;
   end if;
   select group_id into gid from public.events where id = new.event_id;
+  -- Attended events in this group, counting this one
   select count(*) into total
   from public.event_attendees a join public.events e on e.id = a.event_id
-  where a.user_id = new.user_id and a.checked_in and e.group_id = gid;
+  where a.user_id = new.user_id and e.group_id = gid
+    and (a.checked_in or (a.status = 'going' and e.date_time <= now()) or a.event_id = new.event_id);
   if public.rank_name(total) <> public.rank_name(total - 1) then
     insert into public.notifications (user_id, type, title, body, group_id)
     select new.user_id, 'rank_up', 'Nuovo grado: ' || public.rank_name(total), g.name, g.id
@@ -323,6 +466,22 @@ create trigger on_check_in
   after insert or update of checked_in on public.event_attendees
   for each row execute function public.handle_check_in();
 
+-- Tell people when someone thanks them
+create or replace function public.handle_new_thanks()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.notifications (user_id, type, title, body, group_id, event_id)
+  select new.to_user, 'thanks', u.full_name || ' ti ha ringraziato 🙏', 'Per «' || e.title || '»', e.group_id, e.id
+  from public.users u, public.events e
+  where u.id = new.from_user and e.id = new.event_id;
+  return new;
+end;
+$$;
+
+create trigger on_thanks_created
+  after insert on public.thanks
+  for each row execute function public.handle_new_thanks();
+
 -- ---------- Row Level Security ----------
 
 alter table public.users           enable row level security;
@@ -330,11 +489,13 @@ alter table public.groups          enable row level security;
 alter table public.group_members   enable row level security;
 alter table public.events          enable row level security;
 alter table public.event_attendees enable row level security;
+alter table public.thanks          enable row level security;
 alter table public.join_requests   enable row level security;
 alter table public.chat_messages   enable row level security;
 alter table public.friendships     enable row level security;
 alter table public.notifications   enable row level security;
 alter table public.group_links     enable row level security;
+alter table public.car_spots       enable row level security;
 
 -- users: any signed-in user can read profiles; you can only create/edit your own
 create policy "users: read" on public.users
@@ -366,34 +527,89 @@ create policy "group_members: admin update" on public.group_members
 create policy "group_members: leave or admin remove" on public.group_members
   for delete to authenticated using (user_id = (select auth.uid()) or public.is_group_admin(group_id));
 
--- events: readable by signed-in users (home feed); managed by the group admin
+-- events: readable by signed-in users; any member organizes (as themselves);
+-- the organizer or the admin edits/deletes
 create policy "events: read" on public.events
   for select to authenticated using (true);
-create policy "events: admin insert" on public.events
-  for insert to authenticated with check (public.is_group_admin(group_id));
-create policy "events: admin update" on public.events
-  for update to authenticated using (public.is_group_admin(group_id)) with check (public.is_group_admin(group_id));
-create policy "events: admin delete" on public.events
-  for delete to authenticated using (public.is_group_admin(group_id));
+create policy "events: member organizes" on public.events
+  for insert to authenticated
+  with check (created_by = (select auth.uid()) and public.is_group_member(group_id));
+create policy "events: organizer or admin update" on public.events
+  for update to authenticated
+  using (created_by = (select auth.uid()) or public.is_group_admin(group_id))
+  with check (public.is_group_member(group_id) or public.is_group_admin(group_id));
+create policy "events: organizer or admin delete" on public.events
+  for delete to authenticated
+  using (created_by = (select auth.uid()) or public.is_group_admin(group_id));
 
--- event_attendees: visible to people with chat access; you RSVP for yourself.
--- checked_in = true is accepted only inside the check-in window, and a check-in can't be undone.
+-- event_attendees: visible to people with access to the group; you answer for yourself.
+-- checked_in = true is accepted only inside the check-in window (the trigger keeps it from being undone).
 create policy "event_attendees: read" on public.event_attendees
   for select to authenticated using (
     exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
   );
-create policy "event_attendees: rsvp self" on public.event_attendees
+create policy "event_attendees: answer self" on public.event_attendees
   for insert to authenticated with check (
     user_id = (select auth.uid())
     and exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
     and (not checked_in or public.is_checkin_open(event_id))
   );
-create policy "event_attendees: check in self" on public.event_attendees
+create policy "event_attendees: change own answer" on public.event_attendees
   for update to authenticated
-  using (user_id = (select auth.uid()) and not checked_in)
+  using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()) and (not checked_in or public.is_checkin_open(event_id)));
-create policy "event_attendees: cancel rsvp" on public.event_attendees
+create policy "event_attendees: remove own answer" on public.event_attendees
   for delete to authenticated using (user_id = (select auth.uid()) and not checked_in);
+
+-- car_spots: the driver shares where the car is; only the driver and their passengers see it,
+-- and only until 12 hours after the event
+create policy "car_spots: driver and passengers" on public.car_spots
+  for select to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and now() < e.date_time + interval '12 hours')
+    and (
+      user_id = (select auth.uid())
+      or exists (
+        select 1 from public.event_attendees a
+        where a.event_id = car_spots.event_id and a.user_id = (select auth.uid()) and a.ride_with = car_spots.user_id
+      )
+    )
+  );
+create policy "car_spots: share own" on public.car_spots
+  for insert to authenticated with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.event_attendees a
+      where a.event_id = car_spots.event_id and a.user_id = (select auth.uid()) and a.transport = 'car'
+    )
+  );
+create policy "car_spots: update own" on public.car_spots
+  for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "car_spots: stop sharing" on public.car_spots
+  for delete to authenticated using (user_id = (select auth.uid()));
+
+-- thanks: visible to the group; you thank as yourself, only the organizer or someone who said "Ci sono"
+create policy "thanks: read" on public.thanks
+  for select to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
+  );
+create policy "thanks: send" on public.thanks
+  for insert to authenticated with check (
+    from_user = (select auth.uid())
+    and exists (
+      select 1 from public.events e
+      where e.id = event_id
+        and public.can_access_chat(e.group_id)
+        and (
+          e.created_by = to_user
+          or exists (
+            select 1 from public.event_attendees a
+            where a.event_id = e.id and a.user_id = to_user and a.status = 'going'
+          )
+        )
+    )
+  );
+create policy "thanks: take back" on public.thanks
+  for delete to authenticated using (from_user = (select auth.uid()));
 
 -- join_requests: you see your own, the group admin sees the group's.
 -- You can only create a 'pending' request for an open group; only the admin changes status.
@@ -436,19 +652,20 @@ create policy "notifications: mark read" on public.notifications
 create policy "notifications: delete own" on public.notifications
   for delete to authenticated using (user_id = (select auth.uid()));
 
--- friendships (unused in MVP): read-only for the two people involved
+-- friendships (unused for now): read-only for the two people involved
 create policy "friendships: read own" on public.friendships
   for select to authenticated using ((select auth.uid()) in (user_a, user_b));
 
 -- ---------- Realtime ----------
--- Broadcast new chat messages (Realtime respects the RLS policies above)
+-- Broadcast new chat messages and notifications (Realtime respects the RLS policies above)
 alter publication supabase_realtime add table public.chat_messages;
 alter publication supabase_realtime add table public.notifications;
 
 -- ---------- Storage (Supabase Storage buckets for uploaded files) ----------
--- avatars:       avatars/<user_id>/avatar        (images, max 2 MB) — you write only your own folder
--- event-posters: event-posters/<group_id>/<id>   (PDF or images, max 10 MB) — only the group admin writes
--- Both buckets are public for reading, so the app can show the files with a plain URL.
+-- avatars:       avatars/<user_id>/avatar               (images, max 2 MB) — you write only your own folder
+-- event-posters: event-posters/<group_id>/<event_id>    (PDF or images, max 10 MB) — organizer or admin
+-- Both buckets are public for reading, so the app shows the files with a plain URL.
+-- The select policies are needed by the Storage API to overwrite (upsert) a file.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
@@ -456,6 +673,9 @@ values
   ('event-posters', 'event-posters', true, 10485760, array['application/pdf', 'image/*'])
 on conflict (id) do nothing;
 
+create policy "avatars: see own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "avatars: upload own" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
@@ -466,12 +686,20 @@ create policy "avatars: delete own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
-create policy "event-posters: admin upload" on storage.objects
+-- The second path segment is the event id: the event's organizer or the group's admin may write it
+create policy "event-posters: see managed" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'event-posters' and exists (
+    select 1 from public.events e where e.id::text = split_part(name, '/', 2) and public.can_manage_event(e.id)));
+create policy "event-posters: upload managed" on storage.objects
   for insert to authenticated
-  with check (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));
-create policy "event-posters: admin replace" on storage.objects
+  with check (bucket_id = 'event-posters' and exists (
+    select 1 from public.events e where e.id::text = split_part(name, '/', 2) and public.can_manage_event(e.id)));
+create policy "event-posters: replace managed" on storage.objects
   for update to authenticated
-  using (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));
-create policy "event-posters: admin delete" on storage.objects
+  using (bucket_id = 'event-posters' and exists (
+    select 1 from public.events e where e.id::text = split_part(name, '/', 2) and public.can_manage_event(e.id)));
+create policy "event-posters: delete managed" on storage.objects
   for delete to authenticated
-  using (bucket_id = 'event-posters' and public.is_group_admin(((storage.foldername(name))[1])::uuid));
+  using (bucket_id = 'event-posters' and exists (
+    select 1 from public.events e where e.id::text = split_part(name, '/', 2) and public.can_manage_event(e.id)));

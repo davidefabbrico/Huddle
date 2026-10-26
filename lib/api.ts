@@ -1,28 +1,30 @@
-// Data-access layer. Screens and hooks import ONLY from this file.
-// Today it reads/writes an in-memory copy of lib/mockData.ts (reset on reload).
-// To switch to Supabase, re-implement each function with the query shown in
-// its comment (client in lib/supabase.ts); signatures stay the same.
-// Notifications are created here by hand; in Supabase the triggers in schema.sql do it.
+// Data-access layer on Supabase. Screens and hooks import ONLY from this file.
+// Who can read/write what is enforced by Row Level Security (supabase/schema.sql);
+// notifications are created by database triggers.
 
+import { appUrl } from './appUrl';
 import { validateChatLink } from './chatLinks';
-import { eventPhase } from './eventTiming';
-import { randomSeed } from './identicon';
-import * as mock from './mockData';
+import { normalizeParkingCode, validateParkingCode } from './smartpark';
+import { CHECKIN_CLOSES_AFTER_MS } from './eventTiming';
+import { isAttended, pointsBreakdown } from './points';
 import { rankFor, type Rank } from './ranks';
+import { supabase } from './supabase';
 import type {
   AdminGroup,
   AttendeeWithProfile,
-  ChatMessage,
+  CarSpot,
   ChatMessageWithAuthor,
   ChatPreview,
   Event,
   EventAttendee,
   EventWithGroup,
   Group,
+  GroupLinks,
   GroupSummary,
   JoinRequest,
   JoinRequestWithUser,
   JoinStatus,
+  LeaderboardEntry,
   Membership,
   MemberWithProfile,
   NewEventInput,
@@ -30,580 +32,651 @@ import type {
   Notification,
   PickedFile,
   ProfileStats,
+  RsvpStatus,
   SignUpInput,
+  SignUpResult,
+  Thanks,
+  Transport,
   User,
 } from './types';
 
-// ---- In-memory "database" (cloned so the mock constants stay untouched) ----
+// Rows come back untyped from supabase-js; each function maps them to lib/types.ts shapes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
 
-const db = {
-  users: mock.users.map((u) => ({ ...u, interests: [...u.interests] })),
-  groups: mock.groups.map((g) => ({ ...g })),
-  groupMembers: mock.groupMembers.map((m) => ({ ...m })),
-  events: mock.events.map((e) => ({ ...e })),
-  eventAttendees: mock.eventAttendees.map((a) => ({ ...a })),
-  joinRequests: mock.joinRequests.map((r) => ({ ...r })),
-  chatMessages: mock.chatMessages.map((m) => ({ ...m })),
-  notifications: mock.notifications.map((n) => ({ ...n })),
-  groupLinks: mock.groupLinks.map((l) => ({ ...l })),
-  accounts: { ...mock.mockAccounts },
-};
+// ---- Errors ----
 
-let currentUserId: string | null = null;
+// Supabase/Auth messages -> Italian
+const errorMessages: [RegExp, string][] = [
+  [/invalid login credentials/i, 'Email o password non validi'],
+  [/email not confirmed/i, 'Prima conferma l’email: apri il link che ti abbiamo mandato (guarda anche nello spam)'],
+  [/user already registered|already been registered/i, 'Esiste già un account con questa email'],
+  [/password should be at least|weak password/i, 'La password deve avere almeno 6 caratteri'],
+  [/should be different from the old password/i, 'La nuova password deve essere diversa da quella attuale'],
+  [/rate limit|too many requests|for security purposes/i, 'Troppi tentativi: riprova tra qualche minuto'],
+  [/unable to validate email|invalid email|email address .* is invalid/i, 'Email non valida'],
+  [/row-level security|permission denied/i, 'Non hai i permessi per questa azione'],
+  [/duplicate key/i, 'Già fatto'],
+  [/auth session missing|jwt expired/i, 'Sessione scaduta: accedi di nuovo'],
+  [/failed to fetch|network request failed|load failed/i, 'Connessione assente: controlla internet e riprova'],
+];
 
-// Simulated network latency, so loading states are visible in the UI
-const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-const isMember = (userId: string, groupId: string) =>
-  db.groupMembers.some((m) => m.user_id === userId && m.group_id === groupId);
-
-// Same rule as can_access_chat() in SQL: members, guests and accepted requesters
-function hasGroupAccess(userId: string, groupId: string): boolean {
-  const request = db.joinRequests.find((r) => r.user_id === userId && r.group_id === groupId);
-  return isMember(userId, groupId) || request?.status === 'guest' || request?.status === 'accepted';
+function toError(error: { message?: string } | null | undefined): Error {
+  const message = error?.message ?? 'Errore sconosciuto';
+  return new Error(errorMessages.find(([pattern]) => pattern.test(message))?.[1] ?? message);
 }
 
-// Check-ins of a user at a group's events (drives the rank)
-function attendedInGroup(userId: string, groupId: string): number {
-  const groupEventIds = new Set(db.events.filter((e) => e.group_id === groupId).map((e) => e.id));
-  return db.eventAttendees.filter((a) => a.user_id === userId && a.checked_in && groupEventIds.has(a.event_id)).length;
+function check<T>(result: { data: T; error: { message?: string } | null }): NonNullable<T> {
+  if (result.error) throw toError(result.error);
+  return result.data as NonNullable<T>;
 }
 
-const groupName = (groupId: string) => db.groups.find((g) => g.id === groupId)?.name ?? '';
-const userName = (userId: string) => db.users.find((u) => u.id === userId)?.full_name ?? 'Qualcuno';
+// ---- Row mappers ----
 
-function withGroupName(event: Event): EventWithGroup {
-  return { ...event, group_name: groupName(event.group_id) };
-}
+const EVENT_SELECT = '*, groups(name)';
+const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
 
-function withAuthor(message: ChatMessage): ChatMessageWithAuthor {
-  const user = db.users.find((u) => u.id === message.user_id);
+function toEvent(row: Row): EventWithGroup {
   return {
-    ...message,
-    author: {
-      id: message.user_id,
-      full_name: user?.full_name ?? 'Utente',
-      is_relocated: user?.is_relocated ?? false,
-      avatar_url: user?.avatar_url ?? null,
-      avatar_seed: user?.avatar_seed ?? null,
-    },
+    id: row.id,
+    group_id: row.group_id,
+    created_by: row.created_by,
+    title: row.title,
+    date_time: row.date_time,
+    location: row.location,
+    lat: row.lat,
+    lon: row.lon,
+    poster_url: row.poster_url,
+    poster_mime: row.poster_mime,
+    group_name: row.groups?.name ?? '',
   };
 }
 
-// Stores a picked file and returns its URL.
-// MOCK: keeps the local URI (blob: on web, file:// on the phone), valid until the app reloads.
-// Supabase: supabase.storage.from(bucket).upload(path, file, { contentType: file.mimeType, upsert: true })
-// then supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
-// (on web upload the asset's `file`; on native fetch(uri) -> blob/arrayBuffer first).
-async function uploadFile(_bucket: 'avatars' | 'event-posters', _path: string, file: PickedFile): Promise<string> {
-  await delay(400);
-  return file.uri;
+function toMessage(row: Row): ChatMessageWithAuthor {
+  return {
+    id: row.id,
+    group_id: row.group_id,
+    user_id: row.user_id,
+    content: row.content,
+    created_at: row.created_at,
+    author: row.users ?? { id: row.user_id, full_name: 'Utente', is_relocated: false, avatar_url: null, avatar_seed: null },
+  };
 }
 
-function notify(n: Omit<Notification, 'id' | 'read_at' | 'created_at'>) {
-  db.notifications.push({ ...n, id: newId('n'), read_at: null, created_at: new Date().toISOString() });
+// ---- Files (Supabase Storage) ----
+
+// Uploads a picked file (blob: URL on web, file:// on the phone) and returns its public URL.
+// "?v=" makes browsers show the new file when it replaces an old one at the same path.
+async function uploadFile(bucket: 'avatars' | 'event-posters', path: string, file: PickedFile): Promise<string> {
+  const body = await (await fetch(file.uri)).arrayBuffer();
+  const { error } = await supabase.storage.from(bucket).upload(path, body, { contentType: file.mimeType, upsert: true });
+  if (error) throw toError(error);
+  return `${supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
 }
 
 // ---- Auth ----
 
-// supabase.auth.signInWithPassword({ email, password }), then getUserById(session.user.id)
-export async function signIn(email: string, _password: string): Promise<User> {
-  await delay();
-  const userId = db.accounts[email.trim().toLowerCase()];
-  const user = db.users.find((u) => u.id === userId);
-  if (!user) throw new Error('Email o password non validi');
-  currentUserId = user.id;
-  return { ...user };
+// The signed-in user's profile, or null (used at startup to restore the session)
+export async function getSessionUser(): Promise<User | null> {
+  const { data } = await supabase.auth.getSession();
+  const id = data.session?.user.id;
+  return id ? getUserById(id) : null;
 }
 
-// supabase.auth.signUp({ email, password, options: { data: { full_name, role, intent, is_relocated, relocated_at } } })
-// The handle_new_user trigger in schema.sql creates the public.users row.
-export async function signUp(input: SignUpInput): Promise<User> {
-  await delay();
-  const email = input.email.trim().toLowerCase();
-  if (db.accounts[email]) throw new Error('Esiste già un account con questa email');
-  const user: User = {
-    id: newId('u'),
-    full_name: input.full_name.trim(),
-    bio: input.bio ?? '',
-    is_relocated: input.is_relocated,
-    relocated_at: input.is_relocated ? (input.relocated_at ?? null) : null,
-    interests: input.interests ?? [],
-    avatar_url: null,
-    avatar_seed: randomSeed(), // pixel avatar by default, like GitHub
-    role: input.role,
-    intent: input.intent,
-  };
-  db.users.push(user);
-  db.accounts[email] = user.id;
-  currentUserId = user.id;
-  return { ...user };
+export type AuthEvent = 'signed_in' | 'signed_out' | 'password_recovery';
+
+// Session changes coming from outside the screens: email links, expiry, other tabs.
+// Don't call Supabase directly inside the callback (supabase-js warns about deadlocks): defer it.
+export function onAuthEvent(callback: (event: AuthEvent, userId: string | null) => void): () => void {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    const userId = session?.user.id ?? null;
+    if (event === 'PASSWORD_RECOVERY') callback('password_recovery', userId);
+    else if (event === 'SIGNED_IN') callback('signed_in', userId);
+    else if (event === 'SIGNED_OUT') callback('signed_out', null);
+  });
+  return () => data.subscription.unsubscribe();
 }
 
-// supabase.auth.signOut()
+export async function signIn(email: string, password: string): Promise<User> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw toError(error);
+  const user = await getUserById(data.user.id);
+  if (!user) throw new Error('Profilo non trovato');
+  return user;
+}
+
+// Creates the account. The handle_new_user trigger creates the profile from options.data.
+// With email confirmation on (Supabase default), there is no session until the user clicks the link.
+export async function signUp(input: SignUpInput): Promise<SignUpResult> {
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email.trim(),
+    password: input.password,
+    options: {
+      emailRedirectTo: appUrl('/'),
+      data: {
+        full_name: input.full_name.trim(),
+        role: input.role,
+        intent: input.intent,
+        is_relocated: input.is_relocated,
+        relocated_at: input.is_relocated ? input.relocated_at : null,
+        interests: input.interests ?? [],
+      },
+    },
+  });
+  if (error) throw toError(error);
+  // Supabase answers an existing, confirmed email with a user without identities (no error, to hide it)
+  if (data.user && data.user.identities?.length === 0) throw new Error('Esiste già un account con questa email');
+  if (!data.session || !data.user) return { user: null, needsEmailConfirmation: true };
+  return { user: await getUserById(data.user.id), needsEmailConfirmation: false };
+}
+
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: appUrl('/') } });
+  if (error) throw toError(error);
+}
+
 export async function signOut(): Promise<void> {
-  await delay(100);
-  currentUserId = null;
+  const { error } = await supabase.auth.signOut();
+  if (error) throw toError(error);
 }
 
-// supabase.auth.getSession(), then getUserById(session.user.id)
-export async function getCurrentUser(): Promise<User | null> {
-  await delay(100);
-  const user = db.users.find((u) => u.id === currentUserId);
-  return user ? { ...user } : null;
+// Sends the "reset your password" email; its link opens the app's /reset-password page
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl('/reset-password') });
+  if (error) throw toError(error);
 }
 
-// supabase.from('users').update(changes).eq('id', userId).select().single()
-export async function updateProfile(userId: string, changes: Partial<Omit<User, 'id'>>): Promise<User> {
-  await delay();
-  const user = db.users.find((u) => u.id === userId);
-  if (!user) throw new Error('Utente non trovato');
-  if (changes.full_name !== undefined && !changes.full_name.trim()) throw new Error('Il nome non può essere vuoto');
-  Object.assign(user, changes);
-  if (!user.is_relocated) user.relocated_at = null;
-  return { ...user, interests: [...user.interests] };
+// New password for the signed-in user (also used after the reset email link)
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw toError(error);
 }
 
-// Profile photo. Supabase: uploadFile('avatars', `${userId}/avatar`, file), then updateProfile({ avatar_url })
-export async function uploadAvatar(userId: string, file: PickedFile): Promise<string> {
-  return uploadFile('avatars', `${userId}/avatar`, file);
+export async function getCurrentEmail(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.email ?? null;
 }
 
 // ---- Users ----
 
-// supabase.from('users').select('*').eq('id', userId).maybeSingle()
 export async function getUserById(userId: string): Promise<User | null> {
-  await delay(100);
-  const user = db.users.find((u) => u.id === userId);
-  return user ? { ...user } : null;
+  return check(await supabase.from('users').select('*').eq('id', userId).maybeSingle()) as User | null;
+}
+
+export async function updateProfile(userId: string, changes: Partial<Omit<User, 'id'>>): Promise<User> {
+  if (changes.full_name !== undefined && !changes.full_name.trim()) throw new Error('Il nome non può essere vuoto');
+  const patch = { ...changes };
+  if (patch.is_relocated === false) patch.relocated_at = null;
+  return check(await supabase.from('users').update(patch).eq('id', userId).select().single()) as User;
+}
+
+export async function uploadAvatar(userId: string, file: PickedFile): Promise<string> {
+  return uploadFile('avatars', `${userId}/avatar`, file);
 }
 
 // ---- Groups ----
 
-// supabase.from('groups').select('*, group_members(user_id, users(is_relocated))')
-// then map to member_count / relocated_count
 export async function getGroups(): Promise<GroupSummary[]> {
-  await delay();
-  return db.groups.map((group) => {
-    const memberIds = db.groupMembers.filter((m) => m.group_id === group.id).map((m) => m.user_id);
-    const relocated = db.users.filter((u) => memberIds.includes(u.id) && u.is_relocated);
-    return { ...group, member_count: memberIds.length, relocated_count: relocated.length };
-  });
+  const rows: Row[] = check(
+    await supabase.from('groups').select('*, group_members(user_id, users(is_relocated))').order('created_at'),
+  );
+  return rows.map(({ group_members, ...group }) => ({
+    ...group,
+    member_count: group_members.length,
+    relocated_count: group_members.filter((m: Row) => m.users?.is_relocated).length,
+  }));
 }
 
-// supabase.from('groups').select('*').eq('id', groupId).maybeSingle()
 export async function getGroupById(groupId: string): Promise<Group | null> {
-  await delay(150);
-  const group = db.groups.find((g) => g.id === groupId);
-  return group ? { ...group } : null;
+  return check(await supabase.from('groups').select('*').eq('id', groupId).maybeSingle()) as Group | null;
 }
 
-// supabase.from('group_members').select('role, users(*)').eq('group_id', groupId)
 export async function getGroupMembers(groupId: string): Promise<MemberWithProfile[]> {
-  await delay(150);
-  return db.groupMembers
-    .filter((m) => m.group_id === groupId)
-    .map((m) => {
-      const user = db.users.find((u) => u.id === m.user_id)!;
-      return { ...user, member_role: m.role };
-    })
+  const rows: Row[] = check(await supabase.from('group_members').select('role, users(*)').eq('group_id', groupId));
+  return rows
+    .filter((r) => r.users)
+    .map((r) => ({ ...r.users, member_role: r.role }))
     // Admin first, then alphabetical
     .sort((a, b) => (a.member_role === b.member_role ? a.full_name.localeCompare(b.full_name) : a.member_role === 'admin' ? -1 : 1));
 }
 
-// supabase.from('groups').insert({ ...input, admin_id: userId }).select().single()
-// The on_group_created trigger adds the creator as admin member.
+// The creator becomes admin (on_group_created trigger)
+function validateLinks(input: Partial<NewGroupInput>) {
+  const error = validateChatLink(input.chat_url ?? '') ?? validateParkingCode(input.parking_code ?? '');
+  if (error) throw new Error(error);
+}
+
 export async function createGroup(userId: string, input: NewGroupInput): Promise<Group> {
-  await delay();
   if (!input.name.trim()) throw new Error('Dai un nome al gruppo');
-  const linkError = validateChatLink(input.chat_url ?? '');
-  if (linkError) throw new Error(linkError);
-  const group: Group = {
-    id: newId('g'),
-    name: input.name.trim(),
-    description: input.description.trim(),
-    location: input.location.trim(),
-    type: input.type,
-    admin_id: userId,
-  };
-  db.groups.push(group);
-  db.groupMembers.push({ user_id: userId, group_id: group.id, role: 'admin' });
-  if (input.chat_url?.trim()) db.groupLinks.push({ group_id: group.id, chat_url: input.chat_url.trim() });
-  return { ...group };
+  validateLinks(input);
+  const group: Group = check(
+    await supabase
+      .from('groups')
+      .insert({
+        name: input.name.trim(),
+        description: input.description.trim(),
+        location: input.location.trim(),
+        type: input.type,
+        admin_id: userId,
+      })
+      .select()
+      .single(),
+  );
+  await setGroupLinks(group.id, { chat_url: input.chat_url ?? null, parking_code: input.parking_code ?? null });
+  return group;
 }
 
-// Admin only. supabase.from('groups').update(changes).eq('id', groupId), and for the chat link
-// supabase.from('group_links').upsert({ group_id, chat_url }) or .delete().eq('group_id', groupId)
-export async function updateGroup(userId: string, groupId: string, changes: Partial<NewGroupInput>): Promise<Group> {
-  await delay();
-  const group = db.groups.find((g) => g.id === groupId);
-  if (!group || group.admin_id !== userId) throw new Error('Solo l’admin può modificare il gruppo');
+export async function updateGroup(groupId: string, changes: Partial<NewGroupInput>): Promise<Group> {
   if (changes.name !== undefined && !changes.name.trim()) throw new Error('Dai un nome al gruppo');
-  const { chat_url, ...fields } = changes;
-  if (chat_url !== undefined) {
-    const linkError = validateChatLink(chat_url ?? '');
-    if (linkError) throw new Error(linkError);
-    db.groupLinks = db.groupLinks.filter((l) => l.group_id !== groupId);
-    if (chat_url?.trim()) db.groupLinks.push({ group_id: groupId, chat_url: chat_url.trim() });
+  const { chat_url, parking_code, ...fields } = changes;
+  if (chat_url !== undefined || parking_code !== undefined) {
+    validateLinks(changes);
+    const current = await getGroupLinks(groupId);
+    await setGroupLinks(groupId, {
+      chat_url: chat_url !== undefined ? chat_url : current.chat_url,
+      parking_code: parking_code !== undefined ? parking_code : current.parking_code,
+    });
   }
-  Object.assign(group, fields);
-  return { ...group };
+  return check(await supabase.from('groups').update(fields).eq('id', groupId).select().single()) as Group;
 }
 
-// The external chat link, only for members and guests (RLS on group_links does the same).
-// supabase.from('group_links').select('chat_url').eq('group_id', groupId).maybeSingle()
-export async function getGroupChatLink(userId: string, groupId: string): Promise<string | null> {
-  await delay(100);
-  if (!hasGroupAccess(userId, groupId)) return null;
-  return db.groupLinks.find((l) => l.group_id === groupId)?.chat_url ?? null;
+// One row per group; removed when both links are empty
+async function setGroupLinks(groupId: string, links: GroupLinks) {
+  const chat_url = links.chat_url?.trim() || null;
+  const parking_code = links.parking_code?.trim() ? normalizeParkingCode(links.parking_code) : null;
+  if (chat_url || parking_code) {
+    check(await supabase.from('group_links').upsert({ group_id: groupId, chat_url, parking_code, updated_at: new Date().toISOString() }));
+  } else {
+    check(await supabase.from('group_links').delete().eq('group_id', groupId));
+  }
 }
 
-// Groups the user belongs to, with check-ins at that group's events (drives the rank).
-// Supabase: supabase.from('group_members').select('role, groups(*)').eq('user_id', userId)
-// plus supabase.from('event_attendees').select('events!inner(group_id)').eq('user_id', userId).eq('checked_in', true)
-// and count the check-ins per group_id.
+// External chat and SmartPark code: only members and guests get them (RLS on group_links)
+export async function getGroupLinks(groupId: string): Promise<GroupLinks> {
+  const row: Row = check(await supabase.from('group_links').select('chat_url, parking_code').eq('group_id', groupId).maybeSingle());
+  return { chat_url: row?.chat_url ?? null, parking_code: row?.parking_code ?? null };
+}
+
+// Your answers to events, with each event's group and date (for ranks and points)
+async function myAttendance(userId: string) {
+  const rows: Row[] = check(
+    await supabase.from('event_attendees').select('status, checked_in, events(*)').eq('user_id', userId),
+  );
+  return rows.filter((r) => r.events).map((r) => ({ status: r.status, checked_in: r.checked_in, event: r.events as Event }));
+}
+
 export async function getMemberships(userId: string): Promise<Membership[]> {
-  await delay();
-  return membershipsOf(userId);
-}
-
-function membershipsOf(userId: string): Membership[] {
-  return db.groupMembers
-    .filter((m) => m.user_id === userId)
-    .map((m) => {
-      const group = db.groups.find((g) => g.id === m.group_id)!;
-      return { group: { ...group }, member_role: m.role, attended_events: attendedInGroup(userId, group.id) };
-    })
+  const [rows, attendance]: [Row[], Awaited<ReturnType<typeof myAttendance>>] = await Promise.all([
+    supabase.from('group_members').select('role, groups(*)').eq('user_id', userId).then(check),
+    myAttendance(userId),
+  ]);
+  return rows
+    .filter((r) => r.groups)
+    .map((r) => ({
+      group: r.groups as Group,
+      member_role: r.role,
+      attended_events: attendance.filter((a) => a.event.group_id === r.groups.id && isAttended(a, a.event.date_time)).length,
+    }))
     .sort((a, b) => b.attended_events - a.attended_events);
 }
 
-// Groups you administer, with pending requests.
-// supabase.from('groups').select('*, join_requests(count)').eq('admin_id', userId).eq('join_requests.status', 'pending')
+// Groups you administer, with pending requests
 export async function getAdminGroups(userId: string): Promise<AdminGroup[]> {
-  await delay();
-  return db.groups
-    .filter((g) => g.admin_id === userId)
-    .map((group) => ({
-      group: { ...group },
-      pending_requests: db.joinRequests.filter((r) => r.group_id === group.id && r.status === 'pending').length,
-    }));
+  const rows: Row[] = check(await supabase.from('groups').select('*, join_requests(status)').eq('admin_id', userId));
+  return rows.map(({ join_requests, ...group }) => ({
+    group,
+    pending_requests: join_requests.filter((r: Row) => r.status === 'pending').length,
+  }));
 }
 
-// ---- Profile ----
+// ---- Points & profile ----
 
-// Data for ranks and achievements. Supabase: getMemberships + check-ins joined with events
-// + supabase.from('chat_messages').select('id', { count: 'exact', head: true }).eq('user_id', userId)
 export async function getProfileStats(userId: string): Promise<ProfileStats> {
-  await delay();
-  const checkedInIds = new Set(db.eventAttendees.filter((a) => a.user_id === userId && a.checked_in).map((a) => a.event_id));
+  const nowIso = new Date().toISOString();
+  const [memberships, attendance, organized, thanksReceived, thanksSent, passengerRows] = await Promise.all([
+    getMemberships(userId),
+    myAttendance(userId),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('created_by', userId).lte('date_time', nowIso),
+    supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('to_user', userId),
+    supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('from_user', userId),
+    supabase.from('event_attendees').select('status, checked_in, events(date_time)').eq('ride_with', userId).then(check),
+  ]);
+  const attendedEvents = attendance.filter((a) => isAttended(a, a.event.date_time)).map((a) => a.event);
+  const passengers = (passengerRows as Row[]).filter((r) => r.events && isAttended(r, r.events.date_time)).length;
   return {
-    memberships: membershipsOf(userId),
-    checked_in_events: db.events.filter((e) => checkedInIds.has(e.id)).map((e) => ({ ...e })),
-    message_count: db.chatMessages.filter((m) => m.user_id === userId).length,
+    ...pointsBreakdown(organized.count ?? 0, attendedEvents.length, thanksReceived.count ?? 0, passengers),
+    memberships,
+    attended_events: attendedEvents,
+    thanks_sent: thanksSent.count ?? 0,
   };
+}
+
+// Points of each member, counting only this group's events (members and guests can see it)
+export async function getGroupLeaderboard(groupId: string): Promise<LeaderboardEntry[]> {
+  const now = Date.now();
+  const [members, events, answers, thanks]: [MemberWithProfile[], Row[], Row[], Row[]] = await Promise.all([
+    getGroupMembers(groupId),
+    supabase.from('events').select('id, created_by, date_time').eq('group_id', groupId).then(check),
+    supabase
+      .from('event_attendees')
+      .select('user_id, status, checked_in, ride_with, events!inner(group_id, date_time)')
+      .eq('events.group_id', groupId)
+      .then(check),
+    supabase.from('thanks').select('to_user, events!inner(group_id)').eq('events.group_id', groupId).then(check),
+  ]);
+  return members
+    .map(({ member_role: _role, ...user }) => {
+      const organized = events.filter((e) => e.created_by === user.id && new Date(e.date_time).getTime() <= now).length;
+      const attended = answers.filter((a) => a.user_id === user.id && isAttended(a, a.events.date_time, now)).length;
+      const received = thanks.filter((t) => t.to_user === user.id).length;
+      const passengers = answers.filter((a) => a.ride_with === user.id && isAttended(a, a.events.date_time, now)).length;
+      return { user, ...pointsBreakdown(organized, attended, received, passengers) };
+    })
+    .sort((a, b) => b.points - a.points || a.user.full_name.localeCompare(b.user.full_name));
 }
 
 // ---- Events ----
 
-// Upcoming and live events (live = started less than 6 hours ago, see lib/eventTiming.ts).
-// supabase.from('events').select('*, groups(name)').gte('date_time', sixHoursAgo).order('date_time').limit(limit)
-export async function getUpcomingEvents(limit = 20): Promise<EventWithGroup[]> {
-  await delay();
-  return db.events
-    .filter((e) => eventPhase(e.date_time) !== 'ended')
-    .sort((a, b) => a.date_time.localeCompare(b.date_time))
-    .slice(0, limit)
-    .map(withGroupName);
+// Upcoming and live events (live = started less than 6 hours ago, see lib/eventTiming.ts)
+export async function getUpcomingEvents(limit = 50): Promise<EventWithGroup[]> {
+  const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
+  const rows: Row[] = check(
+    await supabase.from('events').select(EVENT_SELECT).gte('date_time', since).order('date_time').limit(limit),
+  );
+  return rows.map(toEvent);
 }
 
-// Same as above with .eq('group_id', groupId)
 export async function getGroupEvents(groupId: string): Promise<EventWithGroup[]> {
-  const upcoming = await getUpcomingEvents(Number.MAX_SAFE_INTEGER);
-  return upcoming.filter((e) => e.group_id === groupId);
+  const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
+  const rows: Row[] = check(
+    await supabase.from('events').select(EVENT_SELECT).eq('group_id', groupId).gte('date_time', since).order('date_time'),
+  );
+  return rows.map(toEvent);
 }
 
-// supabase.from('events').select('*, groups(name)').eq('id', eventId).maybeSingle()
 export async function getEventById(eventId: string): Promise<EventWithGroup | null> {
-  await delay(150);
-  const event = db.events.find((e) => e.id === eventId);
-  return event ? withGroupName(event) : null;
+  const row: Row = check(await supabase.from('events').select(EVENT_SELECT).eq('id', eventId).maybeSingle());
+  return row ? toEvent(row) : null;
 }
 
-// Admin only. supabase.from('events').insert(input).select('*, groups(name)').single()
-// The on_event_created trigger notifies the group's members.
+// Any member can organize. The organizer is automatically "Ci sono" and the members get a notification (triggers).
 export async function createEvent(userId: string, input: NewEventInput): Promise<EventWithGroup> {
-  await delay();
-  const group = db.groups.find((g) => g.id === input.group_id);
-  if (!group || group.admin_id !== userId) throw new Error('Solo l’admin del gruppo può creare eventi');
   if (!input.title.trim()) throw new Error('Dai un titolo all’evento');
-  const id = newId('e');
-  const event: Event = {
-    id,
-    group_id: group.id,
-    title: input.title.trim(),
-    date_time: input.date_time,
-    location: input.location.trim(),
-    poster_url: input.poster ? await uploadFile('event-posters', `${group.id}/${id}`, input.poster) : null,
-    poster_mime: input.poster?.mimeType ?? null,
-  };
-  db.events.push(event);
-  for (const m of db.groupMembers.filter((m) => m.group_id === group.id && m.user_id !== userId)) {
-    notify({ user_id: m.user_id, type: 'new_event', title: 'Nuovo evento', body: `${group.name}: ${event.title}`, group_id: group.id, event_id: event.id });
+  const row: Row = check(
+    await supabase
+      .from('events')
+      .insert({
+        group_id: input.group_id,
+        created_by: userId,
+        title: input.title.trim(),
+        date_time: input.date_time,
+        location: input.location.trim(),
+        lat: input.lat ?? null,
+        lon: input.lon ?? null,
+      })
+      .select(EVENT_SELECT)
+      .single(),
+  );
+  const event = toEvent(row);
+  return input.poster ? setEventPoster(event, input.poster) : event;
+}
+
+// Organizer or admin: add, replace or remove (file = null) the poster
+export async function setEventPoster(event: Pick<Event, 'id' | 'group_id'>, file: PickedFile | null): Promise<EventWithGroup> {
+  const path = `${event.group_id}/${event.id}`;
+  let poster = { poster_url: null as string | null, poster_mime: null as string | null };
+  if (file) {
+    poster = { poster_url: await uploadFile('event-posters', path, file), poster_mime: file.mimeType };
+  } else {
+    await supabase.storage.from('event-posters').remove([path]);
   }
-  return withGroupName(event);
+  const row: Row = check(await supabase.from('events').update(poster).eq('id', event.id).select(EVENT_SELECT).single());
+  return toEvent(row);
 }
 
-// Admin only: add, replace or remove (file = null) the event poster.
-// Supabase: uploadFile('event-posters', `${groupId}/${eventId}`, file), then
-// supabase.from('events').update({ poster_url, poster_mime }).eq('id', eventId)
-export async function setEventPoster(userId: string, eventId: string, file: PickedFile | null): Promise<EventWithGroup> {
-  await delay();
-  const event = db.events.find((e) => e.id === eventId);
-  const group = event && db.groups.find((g) => g.id === event.group_id);
-  if (!event || !group || group.admin_id !== userId) throw new Error('Solo l’admin può cambiare la locandina');
-  event.poster_url = file ? await uploadFile('event-posters', `${group.id}/${event.id}`, file) : null;
-  event.poster_mime = file?.mimeType ?? null;
-  return withGroupName(event);
+// Organizer or admin
+export async function deleteEvent(eventId: string): Promise<void> {
+  check(await supabase.from('events').delete().eq('id', eventId));
 }
 
-// Who's coming (RSVP) and who checked in.
-// supabase.from('event_attendees').select('checked_in, users(*)').eq('event_id', eventId)
+// Everyone who answered, "Ci sono" first (people on site first), then "Non ci sono"
 export async function getEventAttendees(eventId: string): Promise<AttendeeWithProfile[]> {
-  await delay(150);
-  return db.eventAttendees
-    .filter((a) => a.event_id === eventId)
-    .map((a) => ({ ...db.users.find((u) => u.id === a.user_id)!, checked_in: a.checked_in }))
-    .sort((a, b) => Number(b.checked_in) - Number(a.checked_in) || a.full_name.localeCompare(b.full_name));
+  const rows: Row[] = check(
+    // users!…user_id: the person who answered (ride_with is a second link to users, the driver)
+    await supabase
+      .from('event_attendees')
+      .select('status, checked_in, transport, seats, ride_with, users!event_attendees_user_id_fkey(*)')
+      .eq('event_id', eventId),
+  );
+  return rows
+    .filter((r) => r.users)
+    .map((r) => ({ ...r.users, status: r.status, checked_in: r.checked_in, transport: r.transport, seats: r.seats, ride_with: r.ride_with }))
+    .sort(
+      (a, b) =>
+        Number(a.status === 'not_going') - Number(b.status === 'not_going') ||
+        Number(b.checked_in) - Number(a.checked_in) ||
+        a.full_name.localeCompare(b.full_name),
+    );
 }
 
-// supabase.from('event_attendees').select('*').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
 export async function getAttendance(userId: string, eventId: string): Promise<EventAttendee | null> {
-  await delay(100);
-  const row = db.eventAttendees.find((a) => a.event_id === eventId && a.user_id === userId);
-  return row ? { ...row } : null;
+  return check(
+    await supabase.from('event_attendees').select('*').eq('event_id', eventId).eq('user_id', userId).maybeSingle(),
+  ) as EventAttendee | null;
 }
 
-// RSVP "Ci sarò" (attending = true) or cancel it.
-// supabase.from('event_attendees').upsert({ event_id, user_id }) / .delete().eq(...)
-export async function setAttending(userId: string, eventId: string, attending: boolean): Promise<void> {
-  await delay();
-  const event = db.events.find((e) => e.id === eventId);
-  if (!event || !hasGroupAccess(userId, event.group_id)) throw new Error('Entra nel gruppo per partecipare');
-  const index = db.eventAttendees.findIndex((a) => a.event_id === eventId && a.user_id === userId);
-  if (attending && index === -1) db.eventAttendees.push({ event_id: eventId, user_id: userId, checked_in: false });
-  // A check-in can't be undone
-  if (!attending && index !== -1 && !db.eventAttendees[index].checked_in) db.eventAttendees.splice(index, 1);
+// Your answers to events: event_id -> answer (for the badges on event cards)
+export async function getMyAnswers(userId: string): Promise<Record<string, EventAttendee>> {
+  const rows: EventAttendee[] = check(await supabase.from('event_attendees').select('*').eq('user_id', userId));
+  return Object.fromEntries(rows.map((r) => [r.event_id, r]));
 }
 
-// "Sono qui": check-in while the event is live. Returns the new rank if you climbed one.
-// supabase.from('event_attendees').upsert({ event_id, user_id, checked_in: true })
-// (RLS only accepts it inside the check-in window; the on_check_in trigger sends the rank_up notification)
-export async function checkIn(userId: string, eventId: string): Promise<{ attended: number; newRank: Rank | null }> {
-  await delay();
-  const event = db.events.find((e) => e.id === eventId);
-  if (!event || !hasGroupAccess(userId, event.group_id)) throw new Error('Entra nel gruppo per partecipare');
-  if (eventPhase(event.date_time) !== 'live') throw new Error('Il check-in è aperto solo durante l’evento');
-
-  const before = attendedInGroup(userId, event.group_id);
-  const row = db.eventAttendees.find((a) => a.event_id === eventId && a.user_id === userId);
-  if (row) row.checked_in = true;
-  else db.eventAttendees.push({ event_id: eventId, user_id: userId, checked_in: true });
-  const after = attendedInGroup(userId, event.group_id);
-
-  const newRank = rankFor(after).level > rankFor(before).level ? rankFor(after) : null;
-  if (newRank) {
-    notify({ user_id: userId, type: 'rank_up', title: `Nuovo grado: ${newRank.name} ${newRank.emoji}`, body: groupName(event.group_id), group_id: event.group_id, event_id: null });
+// "Ci sono" / "Non ci sono"; null removes the answer (not possible after a check-in)
+export async function setRsvp(userId: string, eventId: string, status: RsvpStatus | null): Promise<void> {
+  if (status === null) {
+    check(await supabase.from('event_attendees').delete().eq('event_id', eventId).eq('user_id', userId));
+  } else {
+    check(await supabase.from('event_attendees').upsert({ event_id: eventId, user_id: userId, status }));
   }
-  return { attended: after, newRank };
+}
+
+// "Sono qui" while the event is live. Returns the new rank if you climbed one (the database also notifies you).
+export async function checkIn(userId: string, event: Pick<Event, 'id' | 'group_id' | 'date_time'>): Promise<{ newRank: Rank | null }> {
+  const attendance = (await myAttendance(userId)).filter((a) => a.event.group_id === event.group_id);
+  const before = attendance.filter((a) => isAttended(a, a.event.date_time)).length;
+  const alreadyCounted = attendance.some((a) => a.event.id === event.id && isAttended(a, a.event.date_time));
+  check(
+    await supabase.from('event_attendees').upsert({ event_id: event.id, user_id: userId, status: 'going', checked_in: true }),
+  );
+  const after = alreadyCounted ? before : before + 1;
+  return { newRank: rankFor(after).level > rankFor(before).level ? rankFor(after) : null };
+}
+
+// ---- Getting there: carpool and where the car is ----
+
+// "In auto" (with free seats), "Mi serve un passaggio" or "Per conto mio" (you're "Ci sono").
+// The database frees your passengers if you stop driving.
+export async function setTransport(userId: string, eventId: string, transport: Transport, seats = 0): Promise<void> {
+  check(
+    await supabase
+      .from('event_attendees')
+      .upsert({ event_id: eventId, user_id: userId, status: 'going', transport, seats: transport === 'car' ? seats : 0 }),
+  );
+}
+
+// Get in a driver's car (null = get out). The database checks the free seats and notifies the driver.
+export async function rideWith(userId: string, eventId: string, driverId: string | null): Promise<void> {
+  check(
+    await supabase
+      .from('event_attendees')
+      .upsert({ event_id: eventId, user_id: userId, status: 'going', transport: 'need_ride', ride_with: driverId }),
+  );
+}
+
+// Car positions you can see for this event: yours, and your driver's if they shared it (RLS)
+export async function getCarSpots(eventId: string): Promise<CarSpot[]> {
+  return check(await supabase.from('car_spots').select('event_id, user_id, lat, lon').eq('event_id', eventId)) as CarSpot[];
+}
+
+// Driver only: show your passengers where you left the car (from SmartPark)
+export async function shareCarSpot(userId: string, eventId: string, lat: number, lon: number): Promise<void> {
+  check(
+    await supabase
+      .from('car_spots')
+      .upsert({ event_id: eventId, user_id: userId, lat, lon, shared_at: new Date().toISOString() }),
+  );
+}
+
+export async function stopSharingCarSpot(userId: string, eventId: string): Promise<void> {
+  check(await supabase.from('car_spots').delete().eq('event_id', eventId).eq('user_id', userId));
+}
+
+// ---- Thanks ----
+
+export async function getEventThanks(eventId: string): Promise<Thanks[]> {
+  return check(await supabase.from('thanks').select('id, event_id, from_user, to_user').eq('event_id', eventId)) as Thanks[];
+}
+
+export async function sendThanks(eventId: string, fromUser: string, toUser: string): Promise<void> {
+  check(await supabase.from('thanks').insert({ event_id: eventId, from_user: fromUser, to_user: toUser }));
+}
+
+export async function removeThanks(eventId: string, fromUser: string, toUser: string): Promise<void> {
+  check(await supabase.from('thanks').delete().eq('event_id', eventId).eq('from_user', fromUser).eq('to_user', toUser));
 }
 
 // ---- Join requests ----
 
-// supabase.from('join_requests').select('*').eq('user_id', userId).eq('group_id', groupId).maybeSingle()
 export async function getJoinRequest(userId: string, groupId: string): Promise<JoinRequest | null> {
-  await delay(100);
-  const request = db.joinRequests.find((r) => r.user_id === userId && r.group_id === groupId);
-  return request ? { ...request } : null;
+  return check(
+    await supabase.from('join_requests').select('*').eq('user_id', userId).eq('group_id', groupId).maybeSingle(),
+  ) as JoinRequest | null;
 }
 
-// supabase.from('join_requests').insert({ user_id: userId, group_id: groupId }).select().single()
-// (RLS only allows status 'pending' and groups of type 'open_to_new'; on_join_request_created notifies the admin)
+// Creates a pending request (the admin gets a notification). A rejected user may ask again.
 export async function requestToJoin(userId: string, groupId: string): Promise<JoinRequest> {
-  await delay();
-  const group = db.groups.find((g) => g.id === groupId);
-  if (!group) throw new Error('Gruppo non trovato');
-  if (group.type === 'closed') throw new Error('Questo gruppo al momento non accetta nuovi membri');
-  if (isMember(userId, groupId)) throw new Error('Fai già parte di questo gruppo');
-  const existing = db.joinRequests.find((r) => r.user_id === userId && r.group_id === groupId);
-  if (existing) {
-    // A rejected user may ask again; otherwise keep the current request
-    if (existing.status === 'rejected') existing.status = 'pending';
-    return { ...existing };
+  const existing = await getJoinRequest(userId, groupId);
+  if (existing && existing.status !== 'rejected') return existing;
+  if (existing) check(await supabase.from('join_requests').delete().eq('id', existing.id));
+  const { data, error } = await supabase.from('join_requests').insert({ user_id: userId, group_id: groupId }).select().single();
+  if (error) {
+    throw /row-level security/i.test(error.message) ? new Error('Questo gruppo al momento non accetta nuovi membri') : toError(error);
   }
-  const request: JoinRequest = { id: newId('jr'), user_id: userId, group_id: groupId, status: 'pending' };
-  db.joinRequests.push(request);
-  notify({ user_id: group.admin_id, type: 'join_request', title: 'Nuova richiesta', body: `${userName(userId)} vuole entrare in ${group.name}`, group_id: groupId, event_id: null });
-  return { ...request };
+  return data as JoinRequest;
 }
 
-// Requests an admin still has to handle (pending first, then guests).
-// supabase.from('join_requests').select('*, users(*)').eq('group_id', groupId).in('status', ['pending', 'guest'])
+// Requests an admin still has to handle (pending first, then guests)
 export async function getGroupJoinRequests(groupId: string): Promise<JoinRequestWithUser[]> {
-  await delay(150);
-  return db.joinRequests
-    .filter((r) => r.group_id === groupId && (r.status === 'pending' || r.status === 'guest'))
-    .map((r) => ({ ...r, user: { ...db.users.find((u) => u.id === r.user_id)! } }))
+  const rows: Row[] = check(
+    await supabase.from('join_requests').select('*, users(*)').eq('group_id', groupId).in('status', ['pending', 'guest']),
+  );
+  return rows
+    .map(({ users, ...request }) => ({ ...request, user: users }))
     .sort((a, b) => (a.status === b.status ? 0 : a.status === 'pending' ? -1 : 1));
 }
 
-const statusNotification: Partial<Record<JoinStatus, { type: Notification['type']; title: string; body: (group: string) => string }>> = {
-  accepted: { type: 'request_accepted', title: 'Richiesta accettata 🎉', body: (g) => `Ora fai parte di ${g}. Presentati in chat!` },
-  guest: { type: 'request_guest', title: 'Sei ospite', body: (g) => `Puoi entrare nella lobby di ${g} e andare a un evento.` },
-  rejected: { type: 'request_rejected', title: 'Richiesta non accettata', body: (g) => `${g} al momento non può accoglierti.` },
-};
-
-// Admin action. supabase.from('join_requests').update({ status }).eq('id', requestId).select().single()
-// The on_join_request_updated trigger adds the member on 'accepted' and notifies the requester.
+// Admin. On 'accepted' the database adds the member; the requester gets a notification.
 export async function updateJoinRequestStatus(requestId: string, status: JoinStatus): Promise<JoinRequest> {
-  await delay();
-  const request = db.joinRequests.find((r) => r.id === requestId);
-  if (!request) throw new Error('Richiesta non trovata');
-  const changed = request.status !== status;
-  request.status = status;
-  if (status === 'accepted' && !isMember(request.user_id, request.group_id)) {
-    db.groupMembers.push({ user_id: request.user_id, group_id: request.group_id, role: 'member' });
-  }
-  const message = statusNotification[status];
-  if (changed && message) {
-    const name = groupName(request.group_id);
-    notify({ user_id: request.user_id, type: message.type, title: message.title, body: message.body(name), group_id: request.group_id, event_id: null });
-  }
-  return { ...request };
+  return check(await supabase.from('join_requests').update({ status }).eq('id', requestId).select().single()) as JoinRequest;
 }
 
-// Guests, accepted requesters and members may enter the lobby/chat.
-// Mirrors the can_access_chat() SQL function used by RLS.
-export async function canAccessChat(userId: string, groupId: string): Promise<boolean> {
-  await delay(100);
-  return hasGroupAccess(userId, groupId);
+// Members, guests and accepted requesters (same SQL function as the RLS policies)
+export async function canAccessChat(groupId: string): Promise<boolean> {
+  return Boolean(check(await supabase.rpc('can_access_chat', { gid: groupId })));
 }
 
 // ---- Notifications (Attività) ----
 
-// supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false })
 export async function getNotifications(userId: string): Promise<Notification[]> {
-  await delay();
-  return db.notifications
-    .filter((n) => n.user_id === userId)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .map((n) => ({ ...n }));
+  return check(
+    await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(60),
+  ) as Notification[];
 }
 
-// supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId).is('read_at', null)
 export async function getUnreadNotificationCount(userId: string): Promise<number> {
-  await delay(100);
-  return db.notifications.filter((n) => n.user_id === userId && !n.read_at).length;
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .is('read_at', null);
+  if (error) throw toError(error);
+  return count ?? 0;
 }
 
-// supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', userId).is('read_at', null)
 export async function markNotificationsRead(userId: string): Promise<void> {
-  await delay(100);
-  const now = new Date().toISOString();
-  db.notifications.filter((n) => n.user_id === userId && !n.read_at).forEach((n) => (n.read_at = now));
+  check(
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', userId).is('read_at', null),
+  );
 }
 
 // ---- Chat ----
 
-type MessageListener = (message: ChatMessageWithAuthor) => void;
-const listeners = new Map<string, Set<MessageListener>>(); // group_id -> listeners
-
-// supabase.from('chat_messages').select('*, users(id, full_name, is_relocated)')
-//   .eq('group_id', groupId).order('created_at')
 export async function getMessages(groupId: string): Promise<ChatMessageWithAuthor[]> {
-  await delay();
-  return db.chatMessages
-    .filter((m) => m.group_id === groupId)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .map(withAuthor);
+  const rows: Row[] = check(
+    await supabase.from('chat_messages').select(AUTHOR_SELECT).eq('group_id', groupId).order('created_at').limit(300),
+  );
+  return rows.map(toMessage);
 }
 
-// Chats the user can open (member, guest or accepted), most recent activity first.
-// Supabase: memberships + join_requests with status guest/accepted, then the latest
-// chat_messages row per group (e.g. a SQL view or an RPC function).
+// Chats you can open (member, guest or accepted), most recent activity first
 export async function getMyChats(userId: string): Promise<ChatPreview[]> {
-  await delay();
-  const previews: ChatPreview[] = [];
-  for (const group of db.groups) {
-    const request = db.joinRequests.find((r) => r.user_id === userId && r.group_id === group.id);
-    const access = isMember(userId, group.id)
-      ? 'member'
-      : request?.status === 'guest' || request?.status === 'accepted'
-        ? request.status
-        : null;
-    if (!access) continue;
-    const last = db.chatMessages
-      .filter((m) => m.group_id === group.id)
-      .reduce<ChatMessage | null>((latest, m) => (!latest || m.created_at > latest.created_at ? m : latest), null);
-    previews.push({ group: { ...group }, access, last_message: last ? withAuthor(last) : null });
+  const [memberRows, requestRows]: [Row[], Row[]] = await Promise.all([
+    supabase.from('group_members').select('groups(*)').eq('user_id', userId).then(check),
+    supabase.from('join_requests').select('status, groups(*)').eq('user_id', userId).in('status', ['guest', 'accepted']).then(check),
+  ]);
+  const chats = new Map<string, ChatPreview>();
+  for (const r of requestRows) if (r.groups) chats.set(r.groups.id, { group: r.groups, access: r.status, last_message: null });
+  for (const r of memberRows) if (r.groups) chats.set(r.groups.id, { group: r.groups, access: 'member', last_message: null });
+  if (chats.size === 0) return [];
+
+  const latest: Row[] = check(
+    await supabase
+      .from('chat_messages')
+      .select(AUTHOR_SELECT)
+      .in('group_id', [...chats.keys()])
+      .order('created_at', { ascending: false })
+      .limit(300),
+  );
+  for (const row of latest) {
+    const chat = chats.get(row.group_id);
+    if (chat && !chat.last_message) chat.last_message = toMessage(row);
   }
-  return previews.sort((a, b) => (b.last_message?.created_at ?? '').localeCompare(a.last_message?.created_at ?? ''));
+  return [...chats.values()].sort((a, b) => (b.last_message?.created_at ?? '').localeCompare(a.last_message?.created_at ?? ''));
 }
 
-// supabase.from('chat_messages').insert({ group_id, user_id, content }).select().single()
 export async function sendMessage(groupId: string, userId: string, content: string): Promise<ChatMessageWithAuthor> {
-  await delay(150);
   const text = content.trim();
   if (!text) throw new Error('Il messaggio è vuoto');
-  const message: ChatMessage = {
-    id: newId('m'),
-    group_id: groupId,
-    user_id: userId,
-    content: text,
-    created_at: new Date().toISOString(),
-  };
-  return publish(message);
-}
-
-function publish(message: ChatMessage): ChatMessageWithAuthor {
-  db.chatMessages.push(message);
-  const full = withAuthor(message);
-  listeners.get(message.group_id)?.forEach((listener) => listener(full));
-  simulateWelcomeReply(message);
-  return full;
-}
-
-// MOCK ONLY: the group admin answers someone's first message, so the chat feels alive.
-// Delete this when using Supabase (real people reply).
-const welcomed = new Set<string>(); // `${group_id}:${user_id}`
-function simulateWelcomeReply(message: ChatMessage) {
-  const group = db.groups.find((g) => g.id === message.group_id);
-  const key = `${message.group_id}:${message.user_id}`;
-  if (!group || group.admin_id === message.user_id || welcomed.has(key)) return;
-  welcomed.add(key);
-  const author = db.users.find((u) => u.id === message.user_id);
-  const name = author?.full_name.split(' ')[0] ?? '';
-  setTimeout(() => {
-    publish({
-      id: newId('m'),
-      group_id: group.id,
-      user_id: group.admin_id,
-      content: `Ciao ${name}, che bello averti qui! 👋 Ci vediamo al prossimo evento?`,
-      created_at: new Date().toISOString(),
-    });
-  }, 1800);
+  const row: Row = check(
+    await supabase.from('chat_messages').insert({ group_id: groupId, user_id: userId, content: text }).select(AUTHOR_SELECT).single(),
+  );
+  return toMessage(row);
 }
 
 // Realtime: calls onMessage for every new message in the group. Returns an unsubscribe function.
-// Supabase: supabase.channel(`chat:${groupId}`).on('postgres_changes',
-//   { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `group_id=eq.${groupId}` },
-//   (payload) => ...fetch author, then onMessage(...)).subscribe()
-// and return () => supabase.removeChannel(channel)
-export function subscribeToMessages(groupId: string, onMessage: MessageListener): () => void {
-  if (!listeners.has(groupId)) listeners.set(groupId, new Set());
-  listeners.get(groupId)!.add(onMessage);
+// onReady fires when the subscription is live: reload then, to catch messages sent while connecting.
+// Realtime confirms the channel (SUBSCRIBED) slightly before the database feed is attached
+// ("Subscribed to PostgreSQL"): messages in between would be missed, so onReady fires at both.
+export function subscribeToMessages(
+  groupId: string,
+  onMessage: (message: ChatMessageWithAuthor) => void,
+  onReady?: () => void,
+): () => void {
+  const authors = new Map<string, Promise<User | null>>(); // cache profiles while the chat is open
+  const channel = supabase
+    .channel(`chat:${groupId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `group_id=eq.${groupId}` }, (payload) => {
+      const row = payload.new as Row;
+      if (!authors.has(row.user_id)) authors.set(row.user_id, getUserById(row.user_id));
+      authors.get(row.user_id)!.then((user) => onMessage(toMessage({ ...row, users: user })));
+    })
+    .on('system', {}, (payload: { extension?: string; status?: string }) => {
+      if (payload?.extension === 'postgres_changes' && payload.status === 'ok') onReady?.();
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onReady?.();
+    });
   return () => {
-    listeners.get(groupId)?.delete(onMessage);
+    supabase.removeChannel(channel);
   };
 }

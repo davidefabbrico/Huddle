@@ -36,7 +36,8 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "scheme": "huddle",
     "experiments": {

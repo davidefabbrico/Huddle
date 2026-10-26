@@ -1,16 +1,22 @@
 // Upcoming event row: date tile + title, group, time and place.
-// `showGroup` adds the group name; tapping opens the event. Live events get an "In corso" badge.
+// `showGroup` adds the group name; tapping opens the event. Badges: live, poster, and your answer.
 
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { eventPhase } from '../lib/eventTiming';
 import { dateTile, formatEventDate } from '../lib/format';
-import type { EventWithGroup } from '../lib/types';
+import type { EventAttendee, EventWithGroup } from '../lib/types';
 import { Badge } from './Badge';
 import { colors } from './theme';
 
-export function EventCard({ event, showGroup = false }: { event: EventWithGroup; showGroup?: boolean }) {
+interface Props {
+  event: EventWithGroup;
+  showGroup?: boolean;
+  answer?: EventAttendee; // your "Ci sono" / "Non ci sono"
+}
+
+export function EventCard({ event, showGroup = false, answer }: Props) {
   const tile = dateTile(event.date_time);
 
   return (
@@ -23,6 +29,8 @@ export function EventCard({ event, showGroup = false }: { event: EventWithGroup;
         <View className="flex-1 justify-center">
           <View className="flex-row flex-wrap gap-1">
             {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
+            {answer?.status === 'going' ? <Badge label="Ci sei" tone="green" icon="checkmark" /> : null}
+            {answer?.status === 'not_going' ? <Badge label="Non ci sei" icon="close" /> : null}
             {event.poster_url ? <Badge label="Locandina" tone="brand" icon="attach" /> : null}
           </View>
           <Text numberOfLines={1} className="text-base font-semibold text-ink">

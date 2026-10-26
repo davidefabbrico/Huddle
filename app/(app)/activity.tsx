@@ -21,11 +21,13 @@ const typeStyle: Record<NotificationType, { icon: ComponentProps<typeof Ionicons
   request_rejected: { icon: 'close-circle', box: 'bg-stone-200', color: colors.muted },
   new_event: { icon: 'calendar', box: 'bg-brand-100', color: colors.brandDark },
   rank_up: { icon: 'trophy', box: 'bg-amber-100', color: '#B45309' },
+  thanks: { icon: 'heart', box: 'bg-amber-100', color: '#B45309' },
+  ride: { icon: 'car', box: 'bg-sky-100', color: colors.sky },
 };
 
 // Where tapping a notification takes you
 function destination(n: Notification): Href | null {
-  if (n.type === 'new_event' && n.event_id) return { pathname: '/event/[id]', params: { id: n.event_id } };
+  if ((n.type === 'new_event' || n.type === 'thanks' || n.type === 'ride') && n.event_id) return { pathname: '/event/[id]', params: { id: n.event_id } };
   if (n.type === 'rank_up') return '/profile';
   if ((n.type === 'request_accepted' || n.type === 'request_guest') && n.group_id) {
     return { pathname: '/group/[id]/chat', params: { id: n.group_id } };
@@ -52,7 +54,7 @@ export default function ActivityScreen() {
           <Ionicons name="notifications-outline" size={40} color={colors.muted} />
           <Text className="text-center text-lg font-semibold text-ink">Nessuna novità</Text>
           <Text className="text-center text-stone-500">
-            Qui trovi richieste accettate, nuovi eventi nei tuoi gruppi e i gradi che conquisti.
+            Qui trovi nuovi eventi nei tuoi gruppi, richieste accettate, i grazie ricevuti e i gradi che conquisti.
           </Text>
         </View>
       ) : (

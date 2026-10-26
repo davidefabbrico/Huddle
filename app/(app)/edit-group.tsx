@@ -14,8 +14,8 @@ export default function EditGroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuth((state) => state.user)!;
   const data = useAsync(async () => {
-    const [group, chatLink] = await Promise.all([api.getGroupById(id), api.getGroupChatLink(user.id, id)]);
-    return { group, chatLink };
+    const [group, links] = await Promise.all([api.getGroupById(id), api.getGroupLinks(id)]);
+    return { group, links };
   }, [id, user.id]);
 
   const group = data.data?.group;
@@ -34,11 +34,12 @@ export default function EditGroupScreen() {
             description: group.description,
             location: group.location,
             type: group.type,
-            chat_url: data.data.chatLink,
+            chat_url: data.data.links.chat_url,
+            parking_code: data.data.links.parking_code,
           }}
           submitLabel="Salva"
           onSubmit={async (values) => {
-            await api.updateGroup(user.id, id, values);
+            await api.updateGroup(id, values);
             router.back();
           }}
         />

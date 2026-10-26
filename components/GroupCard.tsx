@@ -18,16 +18,20 @@ export function GroupCard({ group }: { group: GroupSummary }) {
           <GroupIcon name={group.name} />
           <View className="flex-1">
             <Text className="text-base font-semibold text-ink">{group.name}</Text>
-            <View className="mt-0.5 flex-row items-center gap-1">
-              <Ionicons name="location-outline" size={13} color={colors.muted} />
-              <Text className="text-sm text-stone-500">{group.location}</Text>
-            </View>
+            {group.location ? (
+              <View className="mt-0.5 flex-row items-center gap-1">
+                <Ionicons name="location-outline" size={13} color={colors.muted} />
+                <Text className="text-sm text-stone-500">{group.location}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
-        <Text numberOfLines={2} className="mt-3 text-sm leading-5 text-stone-600">
-          {group.description}
-        </Text>
+        {group.description ? (
+          <Text numberOfLines={2} className="mt-3 text-sm leading-5 text-stone-600">
+            {group.description}
+          </Text>
+        ) : null}
 
         <View className="mt-3 flex-row flex-wrap items-center gap-2">
           <Badge label={`${group.member_count} membri`} icon="people" />

@@ -1,4 +1,4 @@
-// Profilo tab: who you are, your stats, achievements, your rank in each group and the full rank ladder
+// Profilo tab: who you are, points, achievements, your rank in each group, the rank ladder and your account
 
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { computeAchievements, type Achievement } from '../../../lib/achievements';
 import * as api from '../../../lib/api';
 import { arrivalLabel, intentLabels, roleLabels } from '../../../lib/format';
+import { pointsRules } from '../../../lib/points';
 import { nextRank, rankFor, rankProgress, RANKS } from '../../../lib/ranks';
 import type { Membership } from '../../../lib/types';
 
@@ -22,11 +23,11 @@ export default function ProfileScreen() {
   const user = useAuth((state) => state.user)!;
   const signOut = useAuth((state) => state.signOut);
   const stats = useAsync(() => api.getProfileStats(user.id), [user.id], { refetchOnFocus: true });
+  const email = useAsync(() => api.getCurrentEmail(), []);
 
   const list = stats.data?.memberships ?? [];
   const achievements = stats.data ? computeAchievements(stats.data) : [];
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
-  const totalEvents = list.reduce((sum, m) => sum + m.attended_events, 0);
   const bestRank = rankFor(Math.max(0, ...list.map((m) => m.attended_events)));
 
   return (
@@ -52,9 +53,26 @@ export default function ProfileScreen() {
 
         {/* Stats */}
         <View className="flex-row gap-3">
-          <Stat value={String(list.length)} label="Gruppi" />
-          <Stat value={String(totalEvents)} label="Eventi frequentati" />
-          <Stat value={list.length ? bestRank.emoji : '—'} label={list.length ? bestRank.name : 'Nessun grado'} />
+          <Stat value={String(stats.data?.points ?? '–')} label="Punti" highlight />
+          <Stat value={String(stats.data?.attended ?? '–')} label="Eventi frequentati" />
+          <Stat value={String(stats.data?.thanks_received ?? '–')} label="Grazie ricevuti 🙏" />
+        </View>
+        {list.length ? (
+          <Text className="-mt-3 text-center text-sm text-stone-500">
+            Grado più alto: {bestRank.emoji} {bestRank.name}
+          </Text>
+        ) : null}
+
+        {/* How points work */}
+        <View className="gap-2 rounded-3xl bg-white p-4">
+          <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
+          {pointsRules.map((rule) => (
+            <View key={rule.label} className="flex-row items-center gap-3">
+              <Text className="text-lg">{rule.emoji}</Text>
+              <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
+              <Text className="font-bold text-brand-600">+{rule.points}</Text>
+            </View>
+          ))}
         </View>
 
         {/* What you're looking for */}
@@ -131,17 +149,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Button title="Esci" icon="log-out-outline" variant="secondary" onPress={signOut} />
+        {/* Account */}
+        <View className="gap-3 rounded-3xl bg-white p-4">
+          <Text className="text-sm font-semibold text-stone-500">ACCOUNT</Text>
+          {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
+          <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
+          <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
+        </View>
       </ScrollView>
     </Screen>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label, highlight = false }: { value: string; label: string; highlight?: boolean }) {
   return (
-    <View className="flex-1 items-center justify-center gap-1 rounded-3xl bg-white px-2 py-4">
-      <Text className="text-2xl font-bold text-ink">{value}</Text>
-      <Text numberOfLines={2} className="text-center text-xs text-stone-500">
+    <View className={`flex-1 items-center justify-center gap-1 rounded-3xl px-2 py-4 ${highlight ? 'bg-brand-500' : 'bg-white'}`}>
+      <Text className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-ink'}`}>{value}</Text>
+      <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-white' : 'text-stone-500'}`}>
         {label}
       </Text>
     </View>

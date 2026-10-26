@@ -12,17 +12,19 @@ export interface Achievement {
 }
 
 export function computeAchievements(stats: ProfileStats): Achievement[] {
-  const hours = stats.checked_in_events.map((e) => new Date(e.date_time).getHours());
-  const groupsJoined = stats.memberships.length;
+  const hours = stats.attended_events.map((e) => new Date(e.date_time).getHours());
   const isFounder = stats.memberships.some((m) => m.member_role === 'admin');
 
   return [
-    { id: 'first-event', emoji: '🎟️', name: 'Prima volta', description: 'Fai check-in al tuo primo evento', unlocked: hours.length >= 1 },
-    { id: 'icebreaker', emoji: '🧊', name: 'Rompighiaccio', description: 'Scrivi il primo messaggio in una chat', unlocked: stats.message_count >= 1 },
-    { id: 'explorer', emoji: '🧭', name: 'Esploratore', description: 'Entra in 3 gruppi diversi', unlocked: groupsJoined >= 3 },
-    { id: 'early-bird', emoji: '🌅', name: 'Mattiniero', description: 'Check-in a un evento tra le 5 e le 10', unlocked: hours.some((h) => h >= 5 && h < 10) },
-    { id: 'night-owl', emoji: '🦉', name: 'Nottambulo', description: 'Check-in a un evento tra le 21 e le 5', unlocked: hours.some((h) => h >= 21 || h < 5) },
-    { id: 'steady', emoji: '🔥', name: 'Costanza', description: 'Partecipa a 10 eventi in totale', unlocked: hours.length >= 10 },
+    { id: 'first-event', emoji: '🎟️', name: 'Prima volta', description: 'Partecipa al tuo primo evento', unlocked: stats.attended >= 1 },
+    { id: 'organizer', emoji: '🗓️', name: 'Organizzatore', description: 'Organizza un evento', unlocked: stats.organized >= 1 },
+    { id: 'grateful', emoji: '🙏', name: 'Grazie mille', description: 'Ringrazia qualcuno per un evento', unlocked: stats.thanks_sent >= 1 },
+    { id: 'loved', emoji: '💛', name: 'Amato dal gruppo', description: 'Ricevi 5 grazie', unlocked: stats.thanks_received >= 5 },
+    { id: 'driver', emoji: '🚗', name: 'Autista', description: 'Porta un amico a un evento', unlocked: stats.passengers >= 1 },
+    { id: 'explorer', emoji: '🧭', name: 'Esploratore', description: 'Entra in 3 gruppi diversi', unlocked: stats.memberships.length >= 3 },
+    { id: 'early-bird', emoji: '🌅', name: 'Mattiniero', description: 'Vai a un evento tra le 5 e le 10', unlocked: hours.some((h) => h >= 5 && h < 10) },
+    { id: 'night-owl', emoji: '🦉', name: 'Nottambulo', description: 'Vai a un evento tra le 21 e le 5', unlocked: hours.some((h) => h >= 21 || h < 5) },
+    { id: 'steady', emoji: '🔥', name: 'Costanza', description: 'Partecipa a 10 eventi in totale', unlocked: stats.attended >= 10 },
     { id: 'founder', emoji: '🏗️', name: 'Fondatore', description: 'Crea o gestisci un gruppo', unlocked: isFounder },
   ];
 }
