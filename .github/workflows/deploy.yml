@@ -34,13 +34,28 @@ jobs:
 
       - run: npm run lint
 
+      # Supabase URL and publishable key, inlined in the public JavaScript at build time (the key is
+      # public by design: data is protected by RLS). Set them in Settings -> Secrets and variables ->
+      # Actions, as repository Variables (Secrets work too). Not inside an "Environment": this job has none.
+      - name: Check Supabase settings
+        run: |
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ] || [ -z "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Mancano EXPO_PUBLIC_SUPABASE_URL e/o EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Aggiungile in Settings -> Secrets and variables -> Actions -> Variables (a livello di repository), poi rilancia il workflow."
+            exit 1
+          fi
+          case "$EXPO_PUBLIC_SUPABASE_URL" in
+            https://*.supabase.co|https://*.supabase.co/) echo "Supabase URL ok: $EXPO_PUBLIC_SUPABASE_URL" ;;
+            *) echo "::error::EXPO_PUBLIC_SUPABASE_URL deve essere tipo https://<project-id>.supabase.co"; exit 1 ;;
+          esac
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+
       # Exports to dist/ and adds 404.html (client-side routing fallback) + .nojekyll
       - run: npm run build:web
         env:
-          # Inlined in the public JavaScript at build time (the publishable key is public by design:
-          # data is protected by RLS). Set them in Settings -> Secrets and variables -> Actions -> Variables.
-          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       - uses: actions/upload-pages-artifact@v4
         with:
