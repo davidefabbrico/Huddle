@@ -1,0 +1,40 @@
+{
+  "name": "huddle",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "babel-preset-expo": "~58.0.0",
+    "expo": "~58.0.19",
+    "expo-constants": "~58.0.13",
+    "expo-font": "~58.0.10",
+    "expo-linking": "~58.0.14",
+    "expo-router": "~58.0.26",
+    "expo-status-bar": "~58.0.4",
+    "nativewind": "4.2.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-reanimated": "4.7.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-web": "^0.21.4",
+    "react-native-worklets": "0.13.0",
+    "tailwindcss": "^3.4.17",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web && cp dist/index.html dist/404.html && touch dist/.nojekyll",
+    "typecheck": "tsc --noEmit"
+  },
+  "private": true
+}

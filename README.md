@@ -1,0 +1,101 @@
+# Huddle
+
+App per chi si è trasferito per lavoro: invece di cercare amici da zero, trovi ed entri in **gruppi che esistono già** nella tua città.
+
+Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblicato su GitHub Pages.
+
+**Sito:** https://davidefabbrico.github.io/Huddle/
+
+> L'MVP usa dati finti (mock) in memoria: ricaricando la pagina tutto torna allo stato iniziale. Per entrare velocemente usa gli account demo nella schermata di login.
+
+## Stack
+
+- Expo SDK 58 + Expo Router (TypeScript), react-native-web
+- NativeWind 4 (Tailwind) per lo stile
+- Zustand per lo stato (sessione, flusso di join)
+- Supabase (Auth, Postgres, Realtime) — predisposto, non ancora collegato
+
+## Struttura
+
+```
+app/                 schermate (Expo Router)
+  login.tsx, signup.tsx
+  (app)/index.tsx            home: eventi e gruppi
+  (app)/group/[id]/index.tsx dettaglio gruppo + "Chiedi di unirti"
+  (app)/group/[id]/chat.tsx  lobby/chat del gruppo
+components/          componenti UI
+hooks/               store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
+lib/
+  api.ts             UNICO punto di accesso ai dati (oggi mock, domani Supabase)
+  mockData.ts        dati finti
+  types.ts           tipi = tabelle del database
+  supabase.ts        client Supabase (letto da variabili d'ambiente)
+supabase/schema.sql  schema completo con Row Level Security
+```
+
+## Avvio in locale
+
+Serve Node.js 22.13 o più recente (consigliato 24, lo stesso usato dalla GitHub Action).
+
+```bash
+npm install
+npx expo start --web      # browser: http://localhost:8081
+npx expo start            # telefono: scansiona il QR con Expo Go (versione per SDK 58)
+```
+
+Controlli utili:
+
+```bash
+npm run typecheck         # TypeScript
+npm run build:web         # build di produzione in dist/ (come su GitHub Pages)
+```
+
+## Pubblicazione su GitHub Pages
+
+La pubblicazione è automatica: a ogni `git push` sul branch `main` la GitHub Action
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) esegue la build (`npm run build:web`)
+e pubblica la cartella `dist/`.
+
+### Da fare una sola volta
+
+1. Su GitHub apri la repo → **Settings → Pages**.
+2. In **Build and deployment → Source** scegli **GitHub Actions** (non "Deploy from a branch").
+3. La repo deve essere **pubblica** (con un account gratuito Pages non funziona sulle repo private).
+
+### A ogni aggiornamento
+
+```bash
+git add .
+git commit -m "Descrizione della modifica"
+git push
+```
+
+Segui l'avanzamento nella tab **Actions**; dopo 1–2 minuti il sito è aggiornato.
+Puoi anche rilanciare la pubblicazione a mano: Actions → "Deploy to GitHub Pages" → **Run workflow**.
+
+### Come funziona (dettagli tecnici)
+
+- `app.json` → `experiments.baseUrl: "/Huddle"`: il sito vive in `davidefabbrico.github.io/Huddle/`.
+  Se rinomini la repo, aggiorna questo valore.
+- `web.output: "single"`: la build produce un solo `index.html` (Single Page Application).
+- `404.html` è una copia di `index.html`: GitHub Pages la serve per gli indirizzi che non esistono
+  come file (es. `/Huddle/group/g1`), così i link diretti e il refresh funzionano.
+- `.nojekyll` evita che GitHub ignori la cartella `_expo/` (inizia con un underscore).
+
+## Supabase (quando sarà il momento)
+
+1. Crea un progetto su [supabase.com](https://supabase.com).
+2. **SQL Editor** → incolla ed esegui [supabase/schema.sql](supabase/schema.sql).
+3. **Controlla che la Row Level Security sia attiva su tutte le tabelle** (Table Editor → ogni tabella deve mostrare "RLS enabled").
+   Lo schema la abilita già, ma se aggiungi tabelle nuove dovrai abilitarla e scrivere le policy.
+4. In locale: copia `.env.example` in `.env.local` e inserisci URL e anon key (Project Settings → API).
+5. Su GitHub (Settings → Secrets and variables → Actions):
+   - **Variables**: `EXPO_PUBLIC_SUPABASE_URL`
+   - **Secrets**: `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+6. Riscrivi le funzioni di `lib/api.ts` con le query indicate nei commenti.
+
+Note di sicurezza:
+
+- **Mai** committare `.env.local` né la `service_role` key. Nell'app va solo la **anon key**.
+- La anon key finisce comunque nel JavaScript pubblico: è normale, i dati sono protetti dalle policy RLS.
+  Per questo la RLS deve restare sempre attiva.
