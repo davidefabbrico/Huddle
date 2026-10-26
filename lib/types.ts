@@ -6,6 +6,13 @@ export type UserIntent = 'friends' | 'group' | 'friends_and_dating';
 export type GroupType = 'closed' | 'open_to_new';
 export type MemberRole = 'admin' | 'member';
 export type JoinStatus = 'pending' | 'guest' | 'accepted' | 'rejected';
+export type NotificationType =
+  | 'join_request' // to the admin: someone wants to join
+  | 'request_accepted'
+  | 'request_guest'
+  | 'request_rejected'
+  | 'new_event' // to members: a new event in their group
+  | 'rank_up'; // to you: you reached a new rank in a group
 
 // ---- Tables ----
 
@@ -14,6 +21,7 @@ export interface User {
   full_name: string;
   bio: string;
   is_relocated: boolean;
+  relocated_at: string | null; // YYYY-MM-DD, roughly when they moved to the city
   interests: string[];
   role: UserRole;
   intent: UserIntent;
@@ -42,7 +50,7 @@ export interface Event {
   location: string;
 }
 
-// Unused in the MVP, kept for the schema
+// RSVP ("Ci sarò") and check-in ("Sono qui"). Check-ins drive the member ranks (lib/ranks.ts).
 export interface EventAttendee {
   event_id: string;
   user_id: string;
@@ -72,6 +80,18 @@ export interface Friendship {
   shared_points: number;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  group_id: string | null;
+  event_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
 // ---- Joined "view" shapes returned by the data layer ----
 
 export interface GroupSummary extends Group {
@@ -87,9 +107,46 @@ export interface EventWithGroup extends Event {
   group_name: string;
 }
 
+export interface AttendeeWithProfile extends User {
+  checked_in: boolean;
+}
+
 export interface ChatMessageWithAuthor extends ChatMessage {
   author: Pick<User, 'id' | 'full_name' | 'is_relocated'>;
 }
+
+export interface JoinRequestWithUser extends JoinRequest {
+  user: User;
+}
+
+// A group the user belongs to, with what drives their rank there
+export interface Membership {
+  group: Group;
+  member_role: MemberRole;
+  attended_events: number; // events of this group with checked_in = true
+}
+
+// A chat the user can open, for the chat list
+export interface ChatPreview {
+  group: Group;
+  access: 'member' | 'guest' | 'accepted';
+  last_message: ChatMessageWithAuthor | null;
+}
+
+// A group you administer, with requests waiting for you
+export interface AdminGroup {
+  group: Group;
+  pending_requests: number;
+}
+
+// Everything the profile needs for ranks and achievements
+export interface ProfileStats {
+  memberships: Membership[];
+  checked_in_events: Event[];
+  message_count: number;
+}
+
+// ---- Inputs ----
 
 // Data collected by the signup/onboarding screen
 export interface SignUpInput {
@@ -99,6 +156,21 @@ export interface SignUpInput {
   role: UserRole;
   intent: UserIntent;
   is_relocated: boolean;
+  relocated_at?: string | null;
   bio?: string;
   interests?: string[];
+}
+
+export interface NewGroupInput {
+  name: string;
+  description: string;
+  location: string;
+  type: GroupType;
+}
+
+export interface NewEventInput {
+  group_id: string;
+  title: string;
+  date_time: string;
+  location: string;
 }

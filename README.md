@@ -8,6 +8,19 @@ Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblic
 
 > L'MVP usa dati finti (mock) in memoria: ricaricando la pagina tutto torna allo stato iniziale. Per entrare velocemente usa gli account demo nella schermata di login.
 
+## Funzioni
+
+- **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
+- **Gruppi**: elenco con filtri e la campanella **Attività** (notifiche) in alto a destra
+- **Join flow**: "Chiedi di unirti" → in attesa → accettazione (simulata) → chat
+- **Eventi**: "Ci sarò" e check-in **"Sono qui"** mentre l'evento è in corso
+- **Gradi** in ogni gruppo, che salgono con i check-in: Turista per caso → Faccia nota → Prezzemolo → Anima della festa → Colonna portante → Leggenda vivente
+- **Profilo**: data di arrivo in città, traguardi, gradi, modifica profilo
+- **➕ Crea**: nuovo gruppo (chiunque), nuovo evento e richieste da approvare (admin)
+
+Account demo: **Giulia** (nuova in città, nessun gruppo) e **Sofia** (admin dei Runners dei Navigli, ha una richiesta da approvare).
+L'evento "Allenamento libero in Darsena" è sempre "in corso", per provare subito il check-in.
+
 ## Stack
 
 - Expo SDK 58 + Expo Router (TypeScript), react-native-web
@@ -20,15 +33,21 @@ Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblic
 ```
 app/                 schermate (Expo Router)
   login.tsx, signup.tsx
-  (app)/index.tsx            home: eventi e gruppi
-  (app)/group/[id]/index.tsx dettaglio gruppo + "Chiedi di unirti"
+  (app)/(tabs)/              barra in basso: Gruppi · Eventi · Crea · Chat · Profilo
+  (app)/group/[id]/index.tsx dettaglio gruppo + "Chiedi di unirti" + gestione admin
   (app)/group/[id]/chat.tsx  lobby/chat del gruppo
+  (app)/event/[id].tsx       dettaglio evento, "Ci sarò", check-in
+  (app)/activity.tsx         notifiche
+  (app)/create-group.tsx, create-event.tsx, edit-profile.tsx
 components/          componenti UI
 hooks/               store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
 lib/
   api.ts             UNICO punto di accesso ai dati (oggi mock, domani Supabase)
   mockData.ts        dati finti
   types.ts           tipi = tabelle del database
+  ranks.ts           scala dei gradi nei gruppi (da "Turista per caso" a "Leggenda vivente")
+  achievements.ts    traguardi del profilo
+  eventTiming.ts     quando un evento è "in corso" e accetta check-in
   supabase.ts        client Supabase (letto da variabili d'ambiente)
 supabase/schema.sql  schema completo con Row Level Security
 ```

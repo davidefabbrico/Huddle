@@ -11,6 +11,8 @@ create type public.user_intent as enum ('friends', 'group', 'friends_and_dating'
 create type public.group_type  as enum ('closed', 'open_to_new');
 create type public.member_role as enum ('admin', 'member');
 create type public.join_status as enum ('pending', 'guest', 'accepted', 'rejected');
+create type public.notification_type as enum
+  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up');
 
 -- ---------- Tables ----------
 
@@ -20,6 +22,7 @@ create table public.users (
   full_name     text not null check (char_length(full_name) between 1 and 100),
   bio           text not null default '',
   is_relocated  boolean not null default false,
+  relocated_at  date,  -- roughly when they moved to the city ("In città da 3 mesi")
   interests     text[] not null default '{}',
   role          public.user_role not null default 'solo',
   intent        public.user_intent not null default 'friends',
@@ -56,7 +59,7 @@ create table public.events (
 create index events_group_id_date_time_idx on public.events (group_id, date_time);
 create index events_date_time_idx on public.events (date_time);
 
--- Unused in the MVP
+-- Check-ins at events: they drive the member ranks (lib/ranks.ts)
 create table public.event_attendees (
   event_id    uuid not null references public.events (id) on delete cascade,
   user_id     uuid not null references public.users (id) on delete cascade,
@@ -83,6 +86,20 @@ create table public.chat_messages (
   created_at  timestamptz not null default now()
 );
 create index chat_messages_group_id_created_at_idx on public.chat_messages (group_id, created_at);
+
+-- Activity feed ("Attività"). Rows are created only by the triggers below.
+create table public.notifications (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.users (id) on delete cascade,
+  type        public.notification_type not null,
+  title       text not null,
+  body        text not null default '',
+  group_id    uuid references public.groups (id) on delete cascade,
+  event_id    uuid references public.events (id) on delete cascade,
+  read_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+create index notifications_user_id_created_at_idx on public.notifications (user_id, created_at desc);
 
 -- Unused in the MVP. Each pair is stored once, with user_a < user_b.
 create table public.friendships (
@@ -125,6 +142,28 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
+-- Rank name for a number of check-ins in a group. Keep in sync with lib/ranks.ts.
+create or replace function public.rank_name(checkins integer)
+returns text language sql immutable set search_path = '' as $$
+  select case
+    when checkins >= 15 then 'Leggenda vivente 👑'
+    when checkins >= 10 then 'Colonna portante 🏛️'
+    when checkins >= 6  then 'Anima della festa 🎉'
+    when checkins >= 3  then 'Prezzemolo 🌿'
+    when checkins >= 1  then 'Faccia nota 👋'
+    else 'Turista per caso 🧳'
+  end;
+$$;
+
+-- Check-in window: from 1 hour before the start to 6 hours after. Keep in sync with lib/eventTiming.ts.
+create or replace function public.is_checkin_open(eid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.events
+    where id = eid and now() between date_time - interval '1 hour' and date_time + interval '6 hours'
+  );
+$$;
+
 -- ---------- Triggers ----------
 
 -- Create the public profile when someone signs up.
@@ -134,11 +173,12 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
 begin
-  insert into public.users (id, full_name, is_relocated, role, intent)
+  insert into public.users (id, full_name, is_relocated, relocated_at, role, intent)
   values (
     new.id,
     coalesce(nullif(meta ->> 'full_name', ''), split_part(new.email, '@', 1), 'Utente'),
     coalesce((meta ->> 'is_relocated')::boolean, false),
+    nullif(meta ->> 'relocated_at', '')::date,
     coalesce((meta ->> 'role')::public.user_role, 'solo'),
     coalesce((meta ->> 'intent')::public.user_intent, 'friends')
   );
@@ -165,15 +205,57 @@ create trigger on_group_created
   after insert on public.groups
   for each row execute function public.handle_new_group();
 
--- Keep updated_at fresh, and add the member when a request is accepted
+-- Tell the admin about a new join request
+create or replace function public.handle_new_join_request()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.notifications (user_id, type, title, body, group_id)
+  select g.admin_id, 'join_request', 'Nuova richiesta', u.full_name || ' vuole entrare in ' || g.name, g.id
+  from public.groups g, public.users u
+  where g.id = new.group_id and u.id = new.user_id;
+  return new;
+end;
+$$;
+
+create trigger on_join_request_created
+  after insert on public.join_requests
+  for each row execute function public.handle_new_join_request();
+
+-- Keep updated_at fresh, add the member when a request is accepted, and tell the requester
 create or replace function public.handle_join_request_update()
 returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  group_name text;
 begin
   new.updated_at := now();
   if new.status = 'accepted' and old.status is distinct from 'accepted' then
     insert into public.group_members (user_id, group_id, role)
     values (new.user_id, new.group_id, 'member')
     on conflict (user_id, group_id) do nothing;
+  end if;
+
+  if new.status is distinct from old.status and new.status <> 'pending' then
+    select name into group_name from public.groups where id = new.group_id;
+    insert into public.notifications (user_id, type, title, body, group_id)
+    values (
+      new.user_id,
+      case new.status
+        when 'accepted' then 'request_accepted'
+        when 'guest' then 'request_guest'
+        else 'request_rejected'
+      end::public.notification_type,
+      case new.status
+        when 'accepted' then 'Richiesta accettata 🎉'
+        when 'guest' then 'Sei ospite'
+        else 'Richiesta non accettata'
+      end,
+      case new.status
+        when 'accepted' then 'Ora fai parte di ' || group_name || '. Presentati in chat!'
+        when 'guest' then 'Puoi entrare nella lobby di ' || group_name || ' e andare a un evento.'
+        else group_name || ' al momento non può accoglierti.'
+      end,
+      new.group_id
+    );
   end if;
   return new;
 end;
@@ -182,6 +264,50 @@ $$;
 create trigger on_join_request_updated
   before update on public.join_requests
   for each row execute function public.handle_join_request_update();
+
+-- Tell the group's members (except the admin) about a new event
+create or replace function public.handle_new_event()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.notifications (user_id, type, title, body, group_id, event_id)
+  select m.user_id, 'new_event', 'Nuovo evento', g.name || ': ' || new.title, g.id, new.id
+  from public.group_members m
+  join public.groups g on g.id = m.group_id
+  where m.group_id = new.group_id and m.user_id <> g.admin_id;
+  return new;
+end;
+$$;
+
+create trigger on_event_created
+  after insert on public.events
+  for each row execute function public.handle_new_event();
+
+-- On check-in, congratulate the user when they reach a new rank in that group
+create or replace function public.handle_check_in()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  gid uuid;
+  total integer;
+begin
+  if not new.checked_in or (tg_op = 'UPDATE' and old.checked_in) then
+    return new;
+  end if;
+  select group_id into gid from public.events where id = new.event_id;
+  select count(*) into total
+  from public.event_attendees a join public.events e on e.id = a.event_id
+  where a.user_id = new.user_id and a.checked_in and e.group_id = gid;
+  if public.rank_name(total) <> public.rank_name(total - 1) then
+    insert into public.notifications (user_id, type, title, body, group_id)
+    select new.user_id, 'rank_up', 'Nuovo grado: ' || public.rank_name(total), g.name, g.id
+    from public.groups g where g.id = gid;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_check_in
+  after insert or update of checked_in on public.event_attendees
+  for each row execute function public.handle_check_in();
 
 -- ---------- Row Level Security ----------
 
@@ -193,6 +319,7 @@ alter table public.event_attendees enable row level security;
 alter table public.join_requests   enable row level security;
 alter table public.chat_messages   enable row level security;
 alter table public.friendships     enable row level security;
+alter table public.notifications   enable row level security;
 
 -- users: any signed-in user can read profiles; you can only create/edit your own
 create policy "users: read" on public.users
@@ -234,7 +361,8 @@ create policy "events: admin update" on public.events
 create policy "events: admin delete" on public.events
   for delete to authenticated using (public.is_group_admin(group_id));
 
--- event_attendees (unused in MVP): visible to people with chat access; you RSVP for yourself
+-- event_attendees: visible to people with chat access; you RSVP for yourself.
+-- checked_in = true is accepted only inside the check-in window, and a check-in can't be undone.
 create policy "event_attendees: read" on public.event_attendees
   for select to authenticated using (
     exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
@@ -243,11 +371,14 @@ create policy "event_attendees: rsvp self" on public.event_attendees
   for insert to authenticated with check (
     user_id = (select auth.uid())
     and exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
+    and (not checked_in or public.is_checkin_open(event_id))
   );
-create policy "event_attendees: update self" on public.event_attendees
-  for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-create policy "event_attendees: cancel self" on public.event_attendees
-  for delete to authenticated using (user_id = (select auth.uid()));
+create policy "event_attendees: check in self" on public.event_attendees
+  for update to authenticated
+  using (user_id = (select auth.uid()) and not checked_in)
+  with check (user_id = (select auth.uid()) and (not checked_in or public.is_checkin_open(event_id)));
+create policy "event_attendees: cancel rsvp" on public.event_attendees
+  for delete to authenticated using (user_id = (select auth.uid()) and not checked_in);
 
 -- join_requests: you see your own, the group admin sees the group's.
 -- You can only create a 'pending' request for an open group; only the admin changes status.
@@ -272,6 +403,14 @@ create policy "chat_messages: post with access" on public.chat_messages
 create policy "chat_messages: delete own" on public.chat_messages
   for delete to authenticated using (user_id = (select auth.uid()));
 
+-- notifications: your own only; you can mark them read or delete them (rows come from triggers)
+create policy "notifications: read own" on public.notifications
+  for select to authenticated using (user_id = (select auth.uid()));
+create policy "notifications: mark read" on public.notifications
+  for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "notifications: delete own" on public.notifications
+  for delete to authenticated using (user_id = (select auth.uid()));
+
 -- friendships (unused in MVP): read-only for the two people involved
 create policy "friendships: read own" on public.friendships
   for select to authenticated using ((select auth.uid()) in (user_a, user_b));
@@ -279,3 +418,4 @@ create policy "friendships: read own" on public.friendships
 -- ---------- Realtime ----------
 -- Broadcast new chat messages (Realtime respects the RLS policies above)
 alter publication supabase_realtime add table public.chat_messages;
+alter publication supabase_realtime add table public.notifications;

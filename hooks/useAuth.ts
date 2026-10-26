@@ -10,10 +10,11 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
+  updateProfile: (changes: Partial<Omit<User, 'id'>>) => Promise<void>;
 }
 
 // Errors are thrown to the calling screen, which shows the message
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   signIn: async (email, password) => {
     set({ user: await api.signIn(email, password) });
@@ -25,5 +26,10 @@ export const useAuth = create<AuthState>((set) => ({
     await api.signOut();
     useJoinStore.getState().reset();
     set({ user: null });
+  },
+  updateProfile: async (changes) => {
+    const user = get().user;
+    if (!user) return;
+    set({ user: await api.updateProfile(user.id, changes) });
   },
 }));

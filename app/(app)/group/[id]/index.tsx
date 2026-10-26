@@ -1,7 +1,8 @@
 // Group detail: description, join button, upcoming events, members.
 // Join flow: "Chiedi di unirti" -> "In attesa…" -> (simulated acceptance) -> opens the chat.
+// The admin also sees "Gestisci il gruppo": pending requests and a "Nuovo evento" button.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,7 +18,7 @@ import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
 import { hasChatAccess, useJoinStore, type GroupAccess } from '../../../../hooks/useJoinStore';
 import * as api from '../../../../lib/api';
-import type { Group } from '../../../../lib/types';
+import type { Group, JoinStatus } from '../../../../lib/types';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -94,6 +95,8 @@ export default function GroupDetailScreen() {
         <Text className="text-base leading-6 text-stone-700">{group.description}</Text>
 
         <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
+
+        {group.admin_id === user.id ? <AdminSection groupId={group.id} onChanged={details.reload} /> : null}
 
         <View className="gap-3">
           <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
@@ -173,6 +176,93 @@ function JoinSection({ group, access, onRequest }: { group: Group; access: Group
       <Text className="text-center text-sm text-stone-500">
         Il gruppo vedrà il tuo profilo. Potrai partecipare alla chat appena ti accettano.
       </Text>
+    </View>
+  );
+}
+
+// Admin tools: approve/guest/reject requests and create events
+function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () => void }) {
+  const requests = useAsync(() => api.getGroupJoinRequests(groupId), [groupId]);
+  const [busyId, setBusyId] = useState<string>();
+
+  async function decide(requestId: string, status: JoinStatus) {
+    setBusyId(requestId);
+    try {
+      await api.updateJoinRequestStatus(requestId, status);
+      requests.reload();
+      onChanged(); // the member list may have changed
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
+  const list = requests.data ?? [];
+
+  return (
+    <View className="gap-3 rounded-3xl border border-brand-100 bg-brand-50 p-4">
+      <View className="flex-row items-center gap-2">
+        <Ionicons name="star" size={16} color={colors.brandDark} />
+        <Text className="text-base font-semibold text-brand-700">Gestisci il gruppo</Text>
+      </View>
+
+      <Button
+        title="Nuovo evento"
+        icon="calendar"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/create-event', params: { groupId } })}
+      />
+
+      <Text className="mt-1 text-sm font-semibold text-stone-600">
+        Richieste e ospiti{list.length ? ` (${list.length})` : ''}
+      </Text>
+      {!requests.data ? (
+        <ActivityIndicator color={colors.brand} />
+      ) : list.length === 0 ? (
+        <Text className="text-sm text-stone-500">Nessuna richiesta in attesa.</Text>
+      ) : (
+        list.map((request) => (
+          <View key={request.id} className="gap-3 rounded-2xl bg-white p-3">
+            <View className="flex-row gap-3">
+              <Avatar name={request.user.full_name} size={40} />
+              <View className="flex-1 gap-1">
+                <View className="flex-row flex-wrap items-center gap-2">
+                  <Text className="font-semibold text-ink">{request.user.full_name}</Text>
+                  {request.status === 'guest' ? <Badge label="Ospite" tone="sky" /> : null}
+                  {request.user.is_relocated ? <RelocatedBadge /> : null}
+                </View>
+                <Text numberOfLines={2} className="text-sm text-stone-500">
+                  {request.user.bio}
+                </Text>
+              </View>
+            </View>
+            <View className="flex-row flex-wrap gap-2">
+              <Button
+                title="Accetta"
+                icon="checkmark"
+                size="sm"
+                loading={busyId === request.id}
+                onPress={() => decide(request.id, 'accepted')}
+              />
+              {request.status === 'pending' ? (
+                <Button
+                  title="Solo ospite"
+                  size="sm"
+                  variant="secondary"
+                  disabled={busyId === request.id}
+                  onPress={() => decide(request.id, 'guest')}
+                />
+              ) : null}
+              <Button
+                title="Rifiuta"
+                size="sm"
+                variant="muted"
+                disabled={busyId === request.id}
+                onPress={() => decide(request.id, 'rejected')}
+              />
+            </View>
+          </View>
+        ))
+      )}
     </View>
   );
 }

@@ -1,6 +1,8 @@
 // Runs an async loader and tracks data/loading/error. Call `reload()` to fetch again.
+// With `refetchOnFocus`, it loads every time the screen gains focus (e.g. switching tabs).
 
 import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
+import { useFocusEffect } from 'expo-router';
 
 interface AsyncState<T> {
   data: T | undefined;
@@ -9,7 +11,11 @@ interface AsyncState<T> {
   reload: () => void;
 }
 
-export function useAsync<T>(loader: () => Promise<T>, deps: DependencyList): AsyncState<T> {
+export function useAsync<T>(
+  loader: () => Promise<T>,
+  deps: DependencyList,
+  { refetchOnFocus = false }: { refetchOnFocus?: boolean } = {},
+): AsyncState<T> {
   const [data, setData] = useState<T>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -35,7 +41,15 @@ export function useAsync<T>(loader: () => Promise<T>, deps: DependencyList): Asy
       });
   }, [run]);
 
-  useEffect(reload, [reload]);
+  useEffect(() => {
+    if (!refetchOnFocus) reload();
+  }, [reload, refetchOnFocus]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refetchOnFocus) reload();
+    }, [reload, refetchOnFocus]),
+  );
 
   return { data, loading, error, reload };
 }

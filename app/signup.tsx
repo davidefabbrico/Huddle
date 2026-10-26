@@ -5,21 +5,20 @@ import { useState, type ComponentProps } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
+import { ArrivalPicker } from '../components/ArrivalPicker';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
-import { intentLabels } from '../lib/format';
+import { dateMonthsAgo, intentLabels, interestOptions } from '../lib/format';
 import type { UserIntent, UserRole } from '../lib/types';
 
 const roleOptions: { value: UserRole; title: string; text: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
   { value: 'solo', title: 'Cerco un gruppo', text: 'Vorrei entrare in una compagnia già formata.', icon: 'person' },
   { value: 'group', title: 'Il mio gruppo cerca nuovi membri', text: 'Abbiamo spazio per qualcuno di nuovo.', icon: 'people' },
 ];
-
-const interestOptions = ['running', 'aperitivo', 'giochi da tavolo', 'padel', 'hiking', 'libri', 'cucina', 'musica live', 'yoga', 'cinema'];
 
 export default function SignupScreen() {
   const signUp = useAuth((state) => state.signUp);
@@ -29,6 +28,7 @@ export default function SignupScreen() {
   const [role, setRole] = useState<UserRole>('solo');
   const [intent, setIntent] = useState<UserIntent>('friends');
   const [isRelocated, setIsRelocated] = useState(true);
+  const [relocatedAt, setRelocatedAt] = useState<string | null>(dateMonthsAgo(0));
   const [interests, setInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -45,7 +45,16 @@ export default function SignupScreen() {
     setError(undefined);
     setLoading(true);
     try {
-      await signUp({ full_name: fullName, email, password, role, intent, is_relocated: isRelocated, interests });
+      await signUp({
+        full_name: fullName,
+        email,
+        password,
+        role,
+        intent,
+        is_relocated: isRelocated,
+        relocated_at: relocatedAt,
+        interests,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Registrazione non riuscita');
       setLoading(false);
@@ -111,19 +120,22 @@ export default function SignupScreen() {
             })}
           </View>
 
-          <View className="flex-row items-center justify-between gap-4 rounded-3xl bg-white p-4">
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-ink">Mi sono trasferito/a da poco</Text>
-              <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” sul tuo profilo.</Text>
+          <View className="gap-4 rounded-3xl bg-white p-4">
+            <View className="flex-row items-center justify-between gap-4">
+              <View className="flex-1">
+                <Text className="text-base font-semibold text-ink">Mi sono trasferito/a da poco</Text>
+                <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” sul tuo profilo.</Text>
+              </View>
+              <Switch
+                value={isRelocated}
+                onValueChange={setIsRelocated}
+                trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+                thumbColor={colors.white}
+                // react-native-web only: otherwise the "on" thumb is teal
+                {...({ activeThumbColor: colors.white } as object)}
+              />
             </View>
-            <Switch
-              value={isRelocated}
-              onValueChange={setIsRelocated}
-              trackColor={{ true: colors.brand, false: '#D6D3D1' }}
-              thumbColor={colors.white}
-              // react-native-web only: otherwise the "on" thumb is teal
-              {...({ activeThumbColor: colors.white } as object)}
-            />
+            {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
           </View>
 
           <View className="gap-3">

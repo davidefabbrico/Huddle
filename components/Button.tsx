@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from './theme';
 
 type Variant = 'primary' | 'secondary' | 'muted';
+type Size = 'md' | 'sm';
 
 // Full class names (not built dynamically) so Tailwind can find them
 const containerClass: Record<Variant, string> = {
@@ -31,23 +32,25 @@ interface Props {
   icon?: ComponentProps<typeof Ionicons>['name'];
   loading?: boolean;
   disabled?: boolean;
+  size?: Size;
 }
 
-export function Button({ title, onPress, variant = 'primary', icon, loading, disabled }: Props) {
+export function Button({ title, onPress, variant = 'primary', icon, loading, disabled, size = 'md' }: Props) {
+  const small = size === 'sm';
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
-      className={`h-12 flex-row items-center justify-center gap-2 rounded-2xl px-5 ${containerClass[variant]} ${disabled ? 'opacity-70' : ''}`}
+      className={`flex-row items-center justify-center gap-2 ${small ? 'h-9 rounded-xl px-3' : 'h-12 rounded-2xl px-5'} ${containerClass[variant]} ${disabled ? 'opacity-70' : ''}`}
     >
       {loading ? (
         <ActivityIndicator color={iconColor[variant]} />
       ) : (
         <>
-          {icon ? <Ionicons name={icon} size={18} color={iconColor[variant]} /> : null}
-          <Text className={`text-base font-semibold ${textClass[variant]}`}>{title}</Text>
+          {icon ? <Ionicons name={icon} size={small ? 15 : 18} color={iconColor[variant]} /> : null}
+          <Text className={`font-semibold ${small ? 'text-sm' : 'text-base'} ${textClass[variant]}`}>{title}</Text>
         </>
       )}
     </Pressable>

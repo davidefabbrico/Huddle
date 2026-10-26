@@ -1,24 +1,27 @@
 // Upcoming event row: date tile + title, group, time and place.
-// `showGroup` adds the group name (home feed); tapping opens the group.
+// `showGroup` adds the group name; tapping opens the event. Live events get an "In corso" badge.
 
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
+import { eventPhase } from '../lib/eventTiming';
 import { dateTile, formatEventDate } from '../lib/format';
 import type { EventWithGroup } from '../lib/types';
+import { Badge } from './Badge';
 import { colors } from './theme';
 
 export function EventCard({ event, showGroup = false }: { event: EventWithGroup; showGroup?: boolean }) {
   const tile = dateTile(event.date_time);
 
   return (
-    <Link href={{ pathname: '/group/[id]', params: { id: event.group_id } }} asChild>
+    <Link href={{ pathname: '/event/[id]', params: { id: event.id } }} asChild>
       <Pressable className="flex-row gap-3 rounded-3xl border border-stone-200 bg-white p-3 active:bg-stone-100">
         <View className="w-14 items-center justify-center rounded-2xl bg-brand-50 py-2">
           <Text className="text-xl font-bold text-brand-600">{tile.day}</Text>
           <Text className="text-xs font-semibold text-brand-600">{tile.month}</Text>
         </View>
         <View className="flex-1 justify-center">
+          {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
           <Text numberOfLines={1} className="text-base font-semibold text-ink">
             {event.title}
           </Text>

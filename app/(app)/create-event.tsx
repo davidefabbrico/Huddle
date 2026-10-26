@@ -1,0 +1,137 @@
+// New event form, for groups you administer. Optional ?groupId= preselects the group.
+// Date = a chip for each of the next 14 days; time = "HH:MM" text (no extra libraries needed).
+
+import { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Button } from '../../components/Button';
+import { Chip } from '../../components/Chip';
+import { Header } from '../../components/Header';
+import { Screen } from '../../components/Screen';
+import { TextField } from '../../components/TextField';
+import { colors } from '../../components/theme';
+import { useAsync } from '../../hooks/useAsync';
+import { useAuth } from '../../hooks/useAuth';
+import * as api from '../../lib/api';
+
+// Today + the next 13 days, as { label, date } with date at local midnight
+function nextDays(count = 14) {
+  return Array.from({ length: count }, (_, i) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + i);
+    const label =
+      i === 0 ? 'Oggi' : i === 1 ? 'Domani' : date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' });
+    return { label, date };
+  });
+}
+
+export default function CreateEventScreen() {
+  const { groupId } = useLocalSearchParams<{ groupId?: string }>();
+  const user = useAuth((state) => state.user)!;
+  const adminGroups = useAsync(() => api.getAdminGroups(user.id), [user.id]);
+
+  const [selectedGroup, setSelectedGroup] = useState<string | undefined>(groupId);
+  const [title, setTitle] = useState('');
+  const [dayIndex, setDayIndex] = useState(1); // tomorrow
+  const [time, setTime] = useState('19:30');
+  const [location, setLocation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const days = nextDays();
+
+  const groups = adminGroups.data ?? [];
+  const groupIdToUse = selectedGroup ?? (groups.length === 1 ? groups[0].group.id : undefined);
+
+  async function handleCreate() {
+    setError(undefined);
+    const match = time.trim().match(/^([01]?\d|2[0-3])[:.]([0-5]\d)$/);
+    if (!groupIdToUse) return setError('Scegli il gruppo');
+    if (!match) return setError('Scrivi l’orario come 19:30');
+    const start = new Date(days[dayIndex].date);
+    start.setHours(Number(match[1]), Number(match[2]));
+    if (start.getTime() < Date.now()) return setError('Scegli un orario nel futuro');
+
+    setLoading(true);
+    try {
+      const event = await api.createEvent(user.id, {
+        group_id: groupIdToUse,
+        title,
+        location,
+        date_time: start.toISOString(),
+      });
+      router.replace({ pathname: '/event/[id]', params: { id: event.id } });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Creazione non riuscita');
+      setLoading(false);
+    }
+  }
+
+  if (!adminGroups.data) {
+    return (
+      <Screen>
+        <Header title="Nuovo evento" />
+        <ActivityIndicator color={colors.brand} className="mt-10" />
+      </Screen>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <Screen>
+        <Header title="Nuovo evento" />
+        <View className="flex-1 items-center justify-center gap-4 px-8">
+          <Text className="text-center text-stone-600">Puoi creare eventi solo nei gruppi di cui sei admin.</Text>
+          <Button title="Crea un gruppo" icon="people" onPress={() => router.replace('/create-group')} />
+        </View>
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <Header title="Nuovo evento" />
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
+          {groups.length > 1 ? (
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-stone-700">Gruppo</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {groups.map(({ group }) => (
+                  <Chip
+                    key={group.id}
+                    label={group.name}
+                    selected={groupIdToUse === group.id}
+                    onPress={() => setSelectedGroup(group.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : (
+            <Text className="text-base text-stone-600">
+              Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
+            </Text>
+          )}
+
+          <TextField label="Titolo" value={title} onChangeText={setTitle} placeholder="Es. Corsa serale 6 km" />
+
+          <View className="gap-2">
+            <Text className="text-sm font-medium text-stone-700">Giorno</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+              {days.map((day, index) => (
+                <Chip key={day.label} label={day.label} selected={dayIndex === index} onPress={() => setDayIndex(index)} />
+              ))}
+            </ScrollView>
+          </View>
+
+          <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
+          <TextField label="Luogo" value={location} onChangeText={setLocation} placeholder="Es. Darsena, lato Viale Gorizia" />
+
+          {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+          <Button title="Crea evento" icon="calendar" onPress={handleCreate} loading={loading} />
+          <Text className="text-center text-sm text-stone-500">I membri del gruppo riceveranno una notifica.</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}
