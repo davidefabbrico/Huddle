@@ -14,7 +14,7 @@ import { Button } from '../../../../components/Button';
 import { EventCard } from '../../../../components/EventCard';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { InviteButton } from '../../../../components/InviteButton';
-import { GroupIcon } from '../../../../components/GroupIcon';
+import { GroupIcon, groupIconOf } from '../../../../components/GroupIcon';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
 import { colors } from '../../../../components/theme';
@@ -90,10 +90,10 @@ export default function GroupDetailScreen() {
 
   return (
     <Screen>
-      <Header title={group.name} subtitle={`${members.length} membri`} />
+      <Header title={group.name} subtitle={members.length === 1 ? '1 membro' : `${members.length} membri`} />
       <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-5">
         <View className="items-center gap-2">
-          <GroupIcon name={group.name} size={72} />
+          <GroupIcon {...groupIconOf(group)} size={88} />
           <Text className="text-center text-2xl font-bold text-ink">{group.name}</Text>
           {group.location ? (
             <View className="flex-row items-center gap-1">

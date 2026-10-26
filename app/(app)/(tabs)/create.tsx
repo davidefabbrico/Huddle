@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, type Href } from 'expo-router';
-import { GroupIcon } from '../../../components/GroupIcon';
+import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
@@ -67,7 +67,7 @@ export default function CreateScreen() {
                       <Pressable
                         className={`flex-row items-center gap-3 p-4 active:bg-stone-100 ${index > 0 ? 'border-t border-stone-100' : ''}`}
                       >
-                        <GroupIcon name={group.name} size={40} />
+                        <GroupIcon {...groupIconOf(group)} size={40} />
                         <Text numberOfLines={1} className="flex-1 font-semibold text-ink">
                           {group.name}
                         </Text>

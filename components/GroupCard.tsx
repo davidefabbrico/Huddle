@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import type { GroupSummary } from '../lib/types';
 import { Badge } from './Badge';
-import { GroupIcon } from './GroupIcon';
+import { GroupIcon, groupIconOf } from './GroupIcon';
 import { colors } from './theme';
 
 export function GroupCard({ group }: { group: GroupSummary }) {
@@ -15,7 +15,7 @@ export function GroupCard({ group }: { group: GroupSummary }) {
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
       <Pressable className="rounded-3xl border border-stone-200 bg-white p-4 active:bg-stone-100">
         <View className="flex-row gap-3">
-          <GroupIcon name={group.name} />
+          <GroupIcon {...groupIconOf(group)} />
           <View className="flex-1">
             <Text className="text-base font-semibold text-ink">{group.name}</Text>
             {group.location ? (
@@ -34,7 +34,7 @@ export function GroupCard({ group }: { group: GroupSummary }) {
         ) : null}
 
         <View className="mt-3 flex-row flex-wrap items-center gap-2">
-          <Badge label={`${group.member_count} membri`} icon="people" />
+          <Badge label={group.member_count === 1 ? '1 membro' : `${group.member_count} membri`} icon="people" />
           {group.relocated_count > 0 ? (
             <Badge label={`${group.relocated_count} da poco in città`} tone="sky" icon="airplane" />
           ) : null}

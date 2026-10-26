@@ -13,6 +13,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
   La sessione resta attiva anche chiudendo e riaprendo l'app.
 - **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
+- **Icona del gruppo**: un'emoji su un riquadro colorato, scelta da una lista fissa (78 emoji in 8 categorie,
+  8 colori: [lib/groupIcons.ts](lib/groupIcons.ts)); finché nessuno la sceglie, viene suggerita dal nome.
 - **Gruppi**: chiunque crea un gruppo (ne diventa admin) e invita gli amici con un link;
   chi vuole entrare chiede, l'admin accetta. Campanella **Attività** per le notifiche.
 - **Eventi**: qualunque membro organizza un evento; tutti rispondono **"Ci sono" / "Non ci sono"**
@@ -77,6 +79,15 @@ supabase/schema.sql          schema completo: tabelle, trigger, Row Level Securi
 1. Crea un progetto su [supabase.com](https://supabase.com) (regione consigliata: Europa, es. Frankfurt).
 2. **SQL Editor** → incolla tutto [supabase/schema.sql](supabase/schema.sql) → **Run**.
 3. **Table Editor**: ogni tabella deve risultare con **RLS enabled** (lo schema la attiva già).
+
+### Aggiornamenti del database
+
+Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, in ordine, gli script nuovi di
+[supabase/migrations/](supabase/migrations/) (SQL Editor → incolla → Run). Si possono rieseguire senza danni.
+
+| Script | Cosa aggiunge |
+|---|---|
+| `20261027_group_icons.sql` | icona (emoji) e colore dei gruppi |
 
 ### 2. Login ed email
 

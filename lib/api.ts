@@ -73,7 +73,7 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 
 // ---- Row mappers ----
 
-const EVENT_SELECT = '*, groups(name)';
+const EVENT_SELECT = '*, groups(name, icon, color)';
 const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
 
 function toEvent(row: Row): EventWithGroup {
@@ -89,6 +89,8 @@ function toEvent(row: Row): EventWithGroup {
     poster_url: row.poster_url,
     poster_mime: row.poster_mime,
     group_name: row.groups?.name ?? '',
+    group_icon: row.groups?.icon ?? null,
+    group_color: row.groups?.color ?? null,
   };
 }
 
@@ -257,6 +259,8 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         description: input.description.trim(),
         location: input.location.trim(),
         type: input.type,
+        icon: input.icon ?? null,
+        color: input.color ?? null,
         admin_id: userId,
       })
       .select()

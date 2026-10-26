@@ -126,7 +126,7 @@ export default function EventScreen() {
           ) : null}
           <Link href={{ pathname: '/group/[id]', params: { id: event.group_id } }} asChild>
             <Pressable className="mt-1 flex-row items-center gap-3 rounded-2xl bg-stone-50 p-3 active:bg-stone-100">
-              <GroupIcon name={event.group_name} size={36} />
+              <GroupIcon name={event.group_name} icon={event.group_icon} color={event.group_color} size={36} />
               <Text className="flex-1 font-semibold text-ink">{event.group_name}</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Pressable>

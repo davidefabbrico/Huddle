@@ -34,6 +34,8 @@ export default function EditGroupScreen() {
             description: group.description,
             location: group.location,
             type: group.type,
+            icon: group.icon,
+            color: group.color,
             chat_url: data.data.links.chat_url,
             parking_code: data.data.links.parking_code,
           }}

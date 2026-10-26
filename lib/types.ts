@@ -41,6 +41,9 @@ export interface Group {
   admin_id: string;
   location: string;
   type: GroupType;
+  // Group "photo": emoji + tile color from lib/groupIcons.ts (null = suggested from the name)
+  icon: string | null;
+  color: string | null;
 }
 
 export interface GroupMember {
@@ -145,6 +148,8 @@ export interface MemberWithProfile extends User {
 
 export interface EventWithGroup extends Event {
   group_name: string;
+  group_icon: string | null;
+  group_color: string | null;
 }
 
 export interface AttendeeWithProfile extends User {
@@ -228,6 +233,8 @@ export interface NewGroupInput {
   description: string;
   location: string;
   type: GroupType;
+  icon?: string | null;
+  color?: string | null;
   chat_url?: string | null;
   parking_code?: string | null;
 }

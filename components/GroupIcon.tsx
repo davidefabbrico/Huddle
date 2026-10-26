@@ -1,27 +1,31 @@
-// Colored icon tile for a group. Picked from the group name for now;
-// replace with a real category or cover image once groups have one.
+// Group "photo": the group's emoji on its colored tile (rounded like an app icon).
+// Without a chosen icon, a suggestion from the group's name (lib/groupIcons.ts).
 
-import type { ComponentProps } from 'react';
-import { View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from './theme';
+import { Text, View } from 'react-native';
+import { GROUP_COLORS, groupLook } from '../lib/groupIcons';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
+interface Props {
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  size?: number;
+}
 
-const keywordIcons: [RegExp, IconName][] = [
-  [/run|corsa/i, 'walk'],
-  [/board|gioc|game/i, 'dice'],
-  [/padel|tennis/i, 'tennisball'],
-  [/aperitivo|drink/i, 'wine'],
-  [/hik|trek|montagna/i, 'trail-sign'],
-  [/book|libr/i, 'book'],
-];
+// <GroupIcon {...groupIconOf(group)} size={40} />
+export function groupIconOf(group: { name: string; icon?: string | null; color?: string | null }) {
+  return { name: group.name, icon: group.icon, color: group.color };
+}
 
-export function GroupIcon({ name, size = 48 }: { name: string; size?: number }) {
-  const icon = keywordIcons.find(([pattern]) => pattern.test(name))?.[1] ?? 'people';
+export function GroupIcon({ name, icon, color, size = 48 }: Props) {
+  const look = groupLook({ name, icon, color });
   return (
-    <View className="items-center justify-center rounded-2xl bg-brand-100" style={{ width: size, height: size }}>
-      <Ionicons name={icon} size={size * 0.5} color={colors.brandDark} />
+    <View
+      className={`items-center justify-center ${GROUP_COLORS[look.color].tile}`}
+      style={{ width: size, height: size, borderRadius: size * 0.28 }}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Text style={{ fontSize: size * 0.54, lineHeight: size * 0.7 }}>{look.icon}</Text>
     </View>
   );
 }

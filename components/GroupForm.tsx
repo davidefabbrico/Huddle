@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
+import { groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
 import type { NewGroupInput } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { GroupIconPicker } from './GroupIconPicker';
 import { TextField } from './TextField';
 
 interface Props {
@@ -28,6 +30,12 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   const [error, setError] = useState<string>();
   const set = (changes: Partial<NewGroupInput>) => setValues((v) => ({ ...v, ...changes }));
 
+  // Icon: the chosen one, or (until someone picks) the suggestion that follows the name as you type
+  const [look, setLook] = useState<{ icon: string; color: GroupColor } | null>(
+    isGroupIcon(initial.icon) && isGroupColor(initial.color) ? { icon: initial.icon, color: initial.color } : null,
+  );
+  const shownLook = look ?? (initial.icon || initial.color ? groupLook(initial) : suggestGroupIcon(values.name));
+
   const chatUrl = values.chat_url ?? '';
   const parkingCode = values.parking_code ?? '';
   const linkError = validateChatLink(chatUrl);
@@ -40,6 +48,8 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
     try {
       await onSubmit({
         ...values,
+        icon: shownLook.icon,
+        color: shownLook.color,
         chat_url: chatUrl.trim() || null,
         parking_code: parkingCode.trim() ? normalizeParkingCode(parkingCode) : null,
       });
@@ -52,6 +62,7 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   return (
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
+        <GroupIconPicker name={values.name} icon={shownLook.icon} color={shownLook.color} onChange={setLook} />
         <TextField label="Nome del gruppo" value={values.name} onChangeText={(name) => set({ name })} placeholder="Es. Calcetto del lunedì" />
         <TextField
           label="Descrizione"

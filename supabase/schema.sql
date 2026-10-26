@@ -41,6 +41,17 @@ create table public.groups (
   admin_id     uuid not null references public.users (id) on delete cascade,
   location     text not null default '',
   type         public.group_type not null default 'open_to_new',
+  -- Group "photo": an emoji on a colored tile, only from the lists in lib/groupIcons.ts (keep in sync)
+  icon         text check (icon is null or icon = any (array[
+      '⚽', '🏀', '🏐', '🎾', '🏓', '🏸', '⛳', '🥊', '⛷️', '🏂', '🚴', '🏃',
+      '🧗', '🏊', '🧘', '🏋️', '🛹', '🛶', '⛰️', '🥾', '🏕️', '🌊', '🌿', '🌻',
+      '🐶', '🐱', '🎣', '🚲', '📚', '✍️', '🎭', '🎨', '🎬', '📷', '🏛️', '🗣️',
+      '🧠', '🌍', '🎧', '🎸', '🎹', '🎤', '🥁', '🎷', '🎻', '🎶', '💻', '📱',
+      '🤖', '🎮', '🎲', '♟️', '🧩', '🚀', '🍕', '🍝', '🍣', '🍔', '☕', '🍷',
+      '🍻', '🥂', '🍰', '🍳', '✈️', '🚗', '🚆', '🏖️', '🗺️', '🏙️', '👥', '💬',
+      '❤️', '🎉', '⭐', '🌈', '🔥', '🍀'
+  ])),
+  color        text check (color is null or color in ('orange', 'rose', 'violet', 'sky', 'teal', 'green', 'amber', 'slate')),
   created_at   timestamptz not null default now()
 );
 

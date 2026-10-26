@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
-import { GroupIcon } from '../../../components/GroupIcon';
+import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
@@ -57,7 +57,7 @@ function ChatRow({ chat, myId, first }: { chat: ChatPreview; myId: string; first
   return (
     <Link href={{ pathname: '/group/[id]/chat', params: { id: chat.group.id } }} asChild>
       <Pressable className={`flex-row items-center gap-3 p-4 active:bg-stone-100 ${first ? '' : 'border-t border-stone-100'}`}>
-        <GroupIcon name={chat.group.name} size={52} />
+        <GroupIcon {...groupIconOf(chat.group)} size={52} />
         <View className="flex-1 gap-0.5">
           <View className="flex-row items-center gap-2">
             <Text numberOfLines={1} className="flex-shrink text-base font-semibold text-ink">

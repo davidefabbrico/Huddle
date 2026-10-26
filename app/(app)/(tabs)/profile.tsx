@@ -7,7 +7,7 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
-import { GroupIcon } from '../../../components/GroupIcon';
+import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
@@ -198,7 +198,7 @@ function RankCard({ membership }: { membership: Membership }) {
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
       <Pressable className="gap-3 rounded-3xl border border-stone-200 bg-white p-4 active:bg-stone-100">
         <View className="flex-row items-center gap-3">
-          <GroupIcon name={group.name} size={40} />
+          <GroupIcon {...groupIconOf(group)} size={40} />
           <View className="flex-1">
             <Text numberOfLines={1} className="font-semibold text-ink">
               {group.name}
