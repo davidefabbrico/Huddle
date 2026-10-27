@@ -3,6 +3,7 @@
 // Members and guests see the button to the external chat (WhatsApp, Telegram…) if the admin set one,
 // and the group's points leaderboard. Members can organize events and invite friends.
 // The admin also sees "Gestisci il gruppo": edit and pending requests.
+// On a computer: the group, its actions and events on the left; leaderboard and members on the right.
 
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
@@ -11,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
+import { Columns } from '../../../../components/Columns';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { EventCard } from '../../../../components/EventCard';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
@@ -90,110 +92,119 @@ export default function GroupDetailScreen() {
   const isMember = access === 'member';
 
   return (
-    <Screen>
+    <Screen width="wide">
       <Header title={group.name} subtitle={members.length === 1 ? '1 membro' : `${members.length} membri`} />
-      <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-5">
-        <View className="items-center gap-2">
-          <GroupIcon {...groupIconOf(group)} size={88} />
-          <Text className="text-center text-2xl font-bold text-ink">{group.name}</Text>
-          {group.location ? (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="location-outline" size={14} color={colors.muted} />
-              <Text className="text-stone-500">{group.location}</Text>
-            </View>
-          ) : null}
-          <View className="flex-row flex-wrap justify-center gap-2">
-            {group.type === 'open_to_new' ? (
-              <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" centered />
-            ) : (
-              <Badge label="Al completo" icon="lock-closed" centered />
-            )}
-            {group.visibility === 'private' ? <Badge label="Gruppo privato" icon="lock-closed" tone="brand" centered /> : null}
-          </View>
-        </View>
-
-        {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
-
-        <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
-
-        {links.chat_url && hasChatAccess(access) ? <ExternalChatButton url={links.chat_url} /> : null}
-        {links.parking_code && hasChatAccess(access) ? <ParkingGroupButton code={links.parking_code} /> : null}
-
-        {isMember ? (
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <Button
-                title="Organizza"
-                icon="calendar"
-                variant="secondary"
-                onPress={() => router.push({ pathname: '/create-event', params: { groupId: group.id } })}
-              />
-            </View>
-            <View className="flex-1">
-              <InviteButton group={group} />
-            </View>
-          </View>
-        ) : null}
-
-        {group.admin_id === user.id ? <AdminSection group={group} onChanged={details.reload} /> : null}
-
-        <View className="gap-3">
-          <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
-          {events.length === 0 ? (
-            <Text className="text-stone-500">
-              Nessun evento in programma.{isMember ? ' Organizzane uno: i membri riceveranno una notifica.' : ''}
-            </Text>
-          ) : (
-            events.map((event) => <EventCard key={event.id} event={event} answer={answers[event.id]} />)
-          )}
-        </View>
-
-        {leaderboard.length > 0 ? <Leaderboard entries={leaderboard} myId={user.id} /> : null}
-
-        <View className="gap-3">
-          <Text className="text-lg font-semibold text-ink">Membri ({members.length})</Text>
-          <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
-            {members.map((member, index) => (
-              <View
-                key={member.id}
-                className={`flex-row gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}
-              >
-                <Avatar {...avatarOf(member)} />
-                <View className="flex-1 gap-1">
-                  <View className="flex-row flex-wrap items-center gap-2">
-                    <Text className="font-semibold text-ink">
-                      {member.full_name}
-                      {member.id === user.id ? ' (tu)' : ''}
-                    </Text>
-                    {member.member_role === 'admin' ? <Badge label="Admin" tone="brand" icon="star" /> : null}
-                    {member.is_relocated ? <RelocatedBadge /> : null}
+      <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-5 wide:px-8 wide:pt-8">
+        <Columns
+          main={
+            <>
+              <View className="items-center gap-2">
+                <GroupIcon {...groupIconOf(group)} size={88} />
+                <Text className="text-center text-2xl font-bold text-ink">{group.name}</Text>
+                {group.location ? (
+                  <View className="flex-row items-center gap-1">
+                    <Ionicons name="location-outline" size={14} color={colors.muted} />
+                    <Text className="text-stone-500">{group.location}</Text>
                   </View>
-                  <Text numberOfLines={2} className="text-sm text-stone-500">
-                    {member.bio}
-                  </Text>
+                ) : null}
+                <View className="flex-row flex-wrap justify-center gap-2">
+                  {group.type === 'open_to_new' ? (
+                    <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" centered />
+                  ) : (
+                    <Badge label="Al completo" icon="lock-closed" centered />
+                  )}
+                  {group.visibility === 'private' ? <Badge label="Gruppo privato" icon="lock-closed" tone="brand" centered /> : null}
                 </View>
               </View>
-            ))}
-          </View>
-        </View>
 
-        {isMember && group.admin_id !== user.id ? (
-          <ConfirmButton
-            title="Esci dal gruppo"
-            confirmTitle="Sì, esci"
-            icon="exit-outline"
-            warning={
-              group.visibility === 'private'
-                ? 'Non vedrai più il gruppo, i suoi eventi e la chat. Per rientrare servirà un nuovo invito.'
-                : 'Non vedrai più la chat e gli eventi dei membri. Potrai chiedere di rientrare.'
-            }
-            onConfirm={async () => {
-              await api.leaveGroup(user.id, group.id);
-              useJoinStore.getState().reset();
-              router.replace('/');
-            }}
-          />
-        ) : null}
+              {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
+
+              <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
+
+              {links.chat_url && hasChatAccess(access) ? <ExternalChatButton url={links.chat_url} /> : null}
+              {links.parking_code && hasChatAccess(access) ? <ParkingGroupButton code={links.parking_code} /> : null}
+
+              {isMember ? (
+                <View className="flex-row gap-2">
+                  <View className="flex-1">
+                    <Button
+                      title="Organizza"
+                      icon="calendar"
+                      variant="secondary"
+                      onPress={() => router.push({ pathname: '/create-event', params: { groupId: group.id } })}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <InviteButton group={group} />
+                  </View>
+                </View>
+              ) : null}
+
+              {group.admin_id === user.id ? <AdminSection group={group} onChanged={details.reload} /> : null}
+
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
+                {events.length === 0 ? (
+                  <Text className="text-stone-500">
+                    Nessun evento in programma.{isMember ? ' Organizzane uno: i membri riceveranno una notifica.' : ''}
+                  </Text>
+                ) : (
+                  events.map((event) => <EventCard key={event.id} event={event} answer={answers[event.id]} />)
+                )}
+              </View>
+            </>
+          }
+          side={
+            <>
+              {leaderboard.length > 0 ? <Leaderboard entries={leaderboard} myId={user.id} /> : null}
+
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">Membri ({members.length})</Text>
+                <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+                  {members.map((member, index) => (
+                    <View
+                      key={member.id}
+                      className={`flex-row gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}
+                    >
+                      <Avatar {...avatarOf(member)} />
+                      <View className="flex-1 gap-1">
+                        <View className="flex-row flex-wrap items-center gap-2">
+                          <Text className="font-semibold text-ink">
+                            {member.full_name}
+                            {member.id === user.id ? ' (tu)' : ''}
+                          </Text>
+                          {member.member_role === 'admin' ? <Badge label="Admin" tone="brand" icon="star" /> : null}
+                          {member.is_relocated ? <RelocatedBadge /> : null}
+                        </View>
+                        <Text numberOfLines={2} className="text-sm text-stone-500">
+                          {member.bio}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {isMember && group.admin_id !== user.id ? (
+                <ConfirmButton
+                  title="Esci dal gruppo"
+                  confirmTitle="Sì, esci"
+                  icon="exit-outline"
+                  warning={
+                    group.visibility === 'private'
+                      ? 'Non vedrai più il gruppo, i suoi eventi e la chat. Per rientrare servirà un nuovo invito.'
+                      : 'Non vedrai più la chat e gli eventi dei membri. Potrai chiedere di rientrare.'
+                  }
+                  onConfirm={async () => {
+                    await api.leaveGroup(user.id, group.id);
+                    useJoinStore.getState().reset();
+                    router.replace('/');
+                  }}
+                />
+              ) : null}
+            </>
+          }
+        />
       </ScrollView>
     </Screen>
   );

@@ -8,6 +8,8 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      // `wide:` = computer layout (side menu, more columns). Keep in sync with WIDE_MIN_WIDTH in hooks/useLayout.ts
+      screens: { wide: '900px' },
       // Huddle brand palette (warm, welcoming)
       colors: {
         brand: {

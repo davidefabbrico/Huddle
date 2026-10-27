@@ -28,8 +28,8 @@ export default function CreateScreen() {
   const pendingTotal = groups.reduce((sum, g) => sum + g.pending_requests, 0);
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4">
+    <Screen width="page">
+      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4 wide:pt-8">
         <View className="gap-1">
           <Text className="text-3xl font-bold text-ink">Crea</Text>
           <Text className="text-base text-stone-600">

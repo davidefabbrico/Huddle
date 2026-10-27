@@ -45,7 +45,7 @@ export default function ActivityScreen() {
   }, [notifications.data, user.id]);
 
   return (
-    <Screen>
+    <Screen width="page">
       <Header title="Attività" />
       {!notifications.data ? (
         <ActivityIndicator color={colors.brand} className="mt-10" />

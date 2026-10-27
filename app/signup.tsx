@@ -10,7 +10,7 @@ import { passwordError } from '../components/NewPasswordForm';
 import { PasswordField } from '../components/PasswordField';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
-import { Screen } from '../components/Screen';
+import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
 import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
@@ -73,7 +73,7 @@ export default function SignupScreen() {
 
   if (checkEmail) {
     return (
-      <Screen>
+      <AuthScreen>
         <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10">
           <View className="items-center gap-3 rounded-3xl bg-white p-6">
             <Ionicons name="mail-unread-outline" size={44} color={colors.brand} />
@@ -101,12 +101,12 @@ export default function SignupScreen() {
             Vai all’accesso
           </Link>
         </ScrollView>
-      </Screen>
+      </AuthScreen>
     );
   }
 
   return (
-    <Screen>
+    <AuthScreen>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-7 px-6 py-8" keyboardShouldPersistTaps="handled">
           <View>
@@ -219,6 +219,6 @@ export default function SignupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </AuthScreen>
   );
 }

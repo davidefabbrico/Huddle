@@ -13,6 +13,9 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
   La sessione resta attiva anche chiudendo e riaprendo l'app.
 - **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
+- **Versione computer**: dal browser di un computer (finestra larga almeno 900px) la barra diventa un menu laterale
+  fisso, gruppi ed eventi si dispongono a griglia, gruppo/evento/profilo su due colonne, login con pannello di presentazione.
+  Sotto i 900px (telefono) resta il layout a una colonna. Soglia in [hooks/useLayout.ts](hooks/useLayout.ts).
 - **Icona del gruppo**: un'emoji su un riquadro colorato, scelta da una lista fissa (78 emoji in 8 categorie,
   8 colori: [lib/groupIcons.ts](lib/groupIcons.ts)); finché nessuno la sceglie, viene suggerita dal nome.
 - **Gruppi**: chiunque crea un gruppo (ne diventa admin) e invita gli amici con un link;

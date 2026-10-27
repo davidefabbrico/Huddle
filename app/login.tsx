@@ -5,7 +5,7 @@ import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'r
 import { Link } from 'expo-router';
 import { Button } from '../components/Button';
 import { PasswordField } from '../components/PasswordField';
-import { Screen } from '../components/Screen';
+import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
@@ -45,10 +45,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen>
+    <AuthScreen>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="flex-grow justify-center gap-8 px-6 py-10" keyboardShouldPersistTaps="handled">
-          <View className="items-center">
+          {/* On a computer the brand panel of AuthScreen already shows logo and name */}
+          <View className="items-center wide:hidden">
             <Image source={require('../assets/icon.png')} style={{ width: 84, height: 84, borderRadius: 22 }} accessibilityIgnoresInvertColors />
             <Text className="mt-4 text-4xl font-bold text-ink">Huddle</Text>
             <Text className="mt-2 max-w-xs text-center text-base text-stone-600">
@@ -98,6 +99,6 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </AuthScreen>
   );
 }

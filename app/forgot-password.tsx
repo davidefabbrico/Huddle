@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
-import { Screen } from '../components/Screen';
+import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
 import { colors } from '../components/theme';
 import * as api from '../lib/api';
@@ -31,7 +31,7 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <Screen>
+    <AuthScreen>
       <Header title="Password dimenticata" />
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-5 px-6 py-8" keyboardShouldPersistTaps="handled">
@@ -66,6 +66,6 @@ export default function ForgotPasswordScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </AuthScreen>
   );
 }

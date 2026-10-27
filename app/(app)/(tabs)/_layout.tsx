@@ -1,5 +1,6 @@
 // Bottom tab bar, Instagram style: icons only (labels kept for screen readers), filled when active.
 // Gruppi · Eventi · ➕ Crea · Chat · Profilo (your avatar). Notifications live behind the bell on Gruppi.
+// On wide screens the bar is hidden: the side menu (components/SideNav.tsx) takes its place.
 
 import type { ComponentProps } from 'react';
 import { View } from 'react-native';
@@ -10,6 +11,7 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { barWithSafeArea } from '../../../components/safeArea';
 import { colors } from '../../../components/theme';
 import { useAuth } from '../../../hooks/useAuth';
+import { useIsWide } from '../../../hooks/useLayout';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -29,6 +31,7 @@ function tabIcon(outline: IconName, filled: IconName) {
 export default function TabsLayout() {
   const user = useAuth((state) => state.user);
   const insets = useSafeAreaInsets();
+  const wide = useIsWide();
 
   return (
     <Tabs
@@ -36,6 +39,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
+          display: wide ? 'none' : 'flex',
           backgroundColor: colors.white,
           borderTopColor: '#E7E5E4',
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)

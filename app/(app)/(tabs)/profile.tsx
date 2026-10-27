@@ -1,4 +1,5 @@
-// Profilo tab: who you are, points, achievements, your rank in each group, the rank ladder and your account
+// Profilo tab: who you are, points, achievements, your rank in each group, the rank ladder and your account.
+// Two columns on a computer.
 
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +8,7 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
+import { Columns } from '../../../components/Columns';
 import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
@@ -31,131 +33,140 @@ export default function ProfileScreen() {
   const bestRank = rankFor(Math.max(0, ...list.map((m) => m.attended_events)));
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-4">
-        {/* Identity */}
-        <View className="items-center gap-2">
-          <Avatar {...avatarOf(user)} size={88} />
-          <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
-          <View className="flex-row flex-wrap justify-center gap-2">
-            {user.is_relocated ? <RelocatedBadge /> : null}
-            <Badge label={roleLabels[user.role]} tone="brand" icon={user.role === 'group' ? 'people' : 'person'} />
-          </View>
-          {user.is_relocated && user.relocated_at ? (
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="calendar-outline" size={14} color={colors.muted} />
-              <Text className="text-sm text-stone-500">{arrivalLabel(user.relocated_at)}</Text>
-            </View>
-          ) : null}
-          {user.bio ? <Text className="text-center text-base leading-6 text-stone-600">{user.bio}</Text> : null}
-          <Button title="Modifica profilo" icon="create-outline" variant="secondary" size="sm" onPress={() => router.push('/edit-profile')} />
-        </View>
-
-        {/* Stats */}
-        <View className="flex-row gap-3">
-          <Stat value={String(stats.data?.points ?? '–')} label="Punti" highlight />
-          <Stat value={String(stats.data?.attended ?? '–')} label="Eventi frequentati" />
-          <Stat value={String(stats.data?.thanks_received ?? '–')} label="Grazie ricevuti 🙏" />
-        </View>
-        {list.length ? (
-          <Text className="-mt-3 text-center text-sm text-stone-500">
-            Grado più alto: {bestRank.emoji} {bestRank.name}
-          </Text>
-        ) : null}
-
-        {/* How points work */}
-        <View className="gap-2 rounded-3xl bg-white p-4">
-          <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
-          {pointsRules.map((rule) => (
-            <View key={rule.label} className="flex-row items-center gap-3">
-              <Text className="text-lg">{rule.emoji}</Text>
-              <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
-              <Text className="font-bold text-brand-600">+{rule.points}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* What you're looking for */}
-        <View className="gap-3 rounded-3xl bg-white p-4">
-          <Text className="text-sm font-semibold text-stone-500">COSA CERCO</Text>
-          <View className="flex-row">
-            <Chip label={intentLabels[user.intent]} selected />
-          </View>
-          {user.interests.length > 0 ? (
+    <Screen width="wide">
+      <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
+        <Columns
+          main={
             <>
-              <Text className="mt-1 text-sm font-semibold text-stone-500">INTERESSI</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {user.interests.map((interest) => (
-                  <Chip key={interest} label={interest} />
+              {/* Identity */}
+              <View className="items-center gap-2">
+                <Avatar {...avatarOf(user)} size={88} />
+                <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
+                <View className="flex-row flex-wrap justify-center gap-2">
+                  {user.is_relocated ? <RelocatedBadge /> : null}
+                  <Badge label={roleLabels[user.role]} tone="brand" icon={user.role === 'group' ? 'people' : 'person'} />
+                </View>
+                {user.is_relocated && user.relocated_at ? (
+                  <View className="flex-row items-center gap-1">
+                    <Ionicons name="calendar-outline" size={14} color={colors.muted} />
+                    <Text className="text-sm text-stone-500">{arrivalLabel(user.relocated_at)}</Text>
+                  </View>
+                ) : null}
+                {user.bio ? <Text className="text-center text-base leading-6 text-stone-600">{user.bio}</Text> : null}
+                <Button title="Modifica profilo" icon="create-outline" variant="secondary" size="sm" onPress={() => router.push('/edit-profile')} />
+              </View>
+
+              {/* Stats */}
+              <View className="flex-row gap-3">
+                <Stat value={String(stats.data?.points ?? '–')} label="Punti" highlight />
+                <Stat value={String(stats.data?.attended ?? '–')} label="Eventi frequentati" />
+                <Stat value={String(stats.data?.thanks_received ?? '–')} label="Grazie ricevuti 🙏" />
+              </View>
+              {list.length ? (
+                <Text className="-mt-3 text-center text-sm text-stone-500">
+                  Grado più alto: {bestRank.emoji} {bestRank.name}
+                </Text>
+              ) : null}
+
+              {/* How points work */}
+              <View className="gap-2 rounded-3xl bg-white p-4">
+                <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
+                {pointsRules.map((rule) => (
+                  <View key={rule.label} className="flex-row items-center gap-3">
+                    <Text className="text-lg">{rule.emoji}</Text>
+                    <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
+                    <Text className="font-bold text-brand-600">+{rule.points}</Text>
+                  </View>
                 ))}
               </View>
-            </>
-          ) : null}
-        </View>
 
-        {/* Achievements */}
-        {stats.data ? (
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">
-              Traguardi ({unlockedCount}/{achievements.length})
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {achievements.map((achievement) => (
-                <AchievementTile key={achievement.id} achievement={achievement} />
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {/* Rank in each group */}
-        <View className="gap-3">
-          <Text className="text-lg font-semibold text-ink">Il tuo grado nei gruppi</Text>
-          {!stats.data && stats.loading ? (
-            <ActivityIndicator color={colors.brand} />
-          ) : list.length === 0 ? (
-            <View className="items-center gap-3 rounded-3xl border border-dashed border-stone-300 p-6">
-              <Text className="text-center text-stone-500">
-                Entra in un gruppo e partecipa agli eventi per salire di grado: da Volto nuovo a Leggenda vivente.
-              </Text>
-              <Button title="Trova un gruppo" icon="people" variant="secondary" onPress={() => router.navigate('/')} />
-            </View>
-          ) : (
-            list.map((membership) => <RankCard key={membership.group.id} membership={membership} />)
-          )}
-        </View>
-
-        {/* The ladder */}
-        <View className="gap-3">
-          <Text className="text-lg font-semibold text-ink">La scala dei gradi</Text>
-          <Text className="text-sm text-stone-500">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
-          <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
-            {RANKS.map((rank, index) => {
-              const reached = list.length > 0 && bestRank.level >= rank.level;
-              return (
-                <View key={rank.level} className={`flex-row items-center gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
-                  <Text className={`text-2xl ${reached ? '' : 'opacity-40'}`}>{rank.emoji}</Text>
-                  <View className="flex-1">
-                    <Text className={`font-semibold ${reached ? 'text-ink' : 'text-stone-400'}`}>
-                      {rank.level}. {rank.name}
-                    </Text>
-                    <Text className="text-sm text-stone-500">{rank.description}</Text>
-                  </View>
-                  <Text className="text-xs text-stone-400">
-                    {rank.minEvents === 0 ? 'all’ingresso' : `${rank.minEvents}+ eventi`}
-                  </Text>
+              {/* What you're looking for */}
+              <View className="gap-3 rounded-3xl bg-white p-4">
+                <Text className="text-sm font-semibold text-stone-500">COSA CERCO</Text>
+                <View className="flex-row">
+                  <Chip label={intentLabels[user.intent]} selected />
                 </View>
-              );
-            })}
-          </View>
-        </View>
+                {user.interests.length > 0 ? (
+                  <>
+                    <Text className="mt-1 text-sm font-semibold text-stone-500">INTERESSI</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {user.interests.map((interest) => (
+                        <Chip key={interest} label={interest} />
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+              </View>
+            </>
+          }
+          side={
+            <>
+              {/* Achievements */}
+              {stats.data ? (
+                <View className="gap-3">
+                  <Text className="text-lg font-semibold text-ink">
+                    Traguardi ({unlockedCount}/{achievements.length})
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {achievements.map((achievement) => (
+                      <AchievementTile key={achievement.id} achievement={achievement} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
-        {/* Account */}
-        <View className="gap-3 rounded-3xl bg-white p-4">
-          <Text className="text-sm font-semibold text-stone-500">ACCOUNT</Text>
-          {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
-          <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
-          <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
-        </View>
+              {/* Rank in each group */}
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">Il tuo grado nei gruppi</Text>
+                {!stats.data && stats.loading ? (
+                  <ActivityIndicator color={colors.brand} />
+                ) : list.length === 0 ? (
+                  <View className="items-center gap-3 rounded-3xl border border-dashed border-stone-300 p-6">
+                    <Text className="text-center text-stone-500">
+                      Entra in un gruppo e partecipa agli eventi per salire di grado: da Volto nuovo a Leggenda vivente.
+                    </Text>
+                    <Button title="Trova un gruppo" icon="people" variant="secondary" onPress={() => router.navigate('/')} />
+                  </View>
+                ) : (
+                  list.map((membership) => <RankCard key={membership.group.id} membership={membership} />)
+                )}
+              </View>
+
+              {/* The ladder */}
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">La scala dei gradi</Text>
+                <Text className="text-sm text-stone-500">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
+                <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+                  {RANKS.map((rank, index) => {
+                    const reached = list.length > 0 && bestRank.level >= rank.level;
+                    return (
+                      <View key={rank.level} className={`flex-row items-center gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
+                        <Text className={`text-2xl ${reached ? '' : 'opacity-40'}`}>{rank.emoji}</Text>
+                        <View className="flex-1">
+                          <Text className={`font-semibold ${reached ? 'text-ink' : 'text-stone-400'}`}>
+                            {rank.level}. {rank.name}
+                          </Text>
+                          <Text className="text-sm text-stone-500">{rank.description}</Text>
+                        </View>
+                        <Text className="text-xs text-stone-400">
+                          {rank.minEvents === 0 ? 'all’ingresso' : `${rank.minEvents}+ eventi`}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Account */}
+              <View className="gap-3 rounded-3xl bg-white p-4">
+                <Text className="text-sm font-semibold text-stone-500">ACCOUNT</Text>
+                {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
+                <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
+                <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
+              </View>
+            </>
+          }
+        />
       </ScrollView>
     </Screen>
   );

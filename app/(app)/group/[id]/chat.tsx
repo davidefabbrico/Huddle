@@ -56,7 +56,7 @@ export default function GroupChatScreen() {
 
   if (!info.data) {
     return (
-      <Screen>
+      <Screen width="page">
         <Header title={title} />
         <ActivityIndicator color={colors.brand} className="mt-10" />
       </Screen>
@@ -65,7 +65,7 @@ export default function GroupChatScreen() {
 
   if (!allowed) {
     return (
-      <Screen>
+      <Screen width="page">
         <Header title={title} />
         <View className="flex-1 items-center justify-center gap-4 px-8">
           <View className="h-16 w-16 items-center justify-center rounded-full bg-stone-200">
@@ -84,7 +84,7 @@ export default function GroupChatScreen() {
   }
 
   return (
-    <Screen>
+    <Screen width="page">
       <Header
         title={title}
         subtitle={info.data.isGuest ? 'Sei ospite nella lobby' : 'Chat del gruppo'}

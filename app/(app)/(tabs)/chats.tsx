@@ -19,8 +19,8 @@ export default function ChatsScreen() {
   const chats = useAsync(() => api.getMyChats(user.id), [user.id], { refetchOnFocus: true });
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="flex-grow gap-5 px-4 pb-10 pt-4">
+    <Screen width="page">
+      <ScrollView contentContainerClassName="flex-grow gap-5 px-4 pb-10 pt-4 wide:pt-8">
         <Text className="text-3xl font-bold text-ink">Chat</Text>
 
         {!chats.data && chats.loading ? (

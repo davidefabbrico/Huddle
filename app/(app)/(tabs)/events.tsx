@@ -1,9 +1,10 @@
 // Eventi tab: "Per te" (suggestions with the reason, lib/recommendations.ts), or upcoming events
-// grouped by day, all or only from your groups
+// grouped by day, all or only from your groups. Cards in a grid on wide screens.
 
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Chip } from '../../../components/Chip';
+import { Grid } from '../../../components/Columns';
 import { EventCard } from '../../../components/EventCard';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
@@ -47,8 +48,8 @@ export default function EventsScreen() {
   }
 
   return (
-    <Screen>
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4">
+    <Screen width="wide">
+      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
         <View className="gap-1">
           <Text className="text-3xl font-bold text-ink">Eventi</Text>
           <Text className="text-base text-stone-600">Rispondi “Ci sono” o “Non ci sono”: così chi organizza sa su chi contare.</Text>
@@ -74,9 +75,11 @@ export default function EventsScreen() {
               <Text className="text-sm text-stone-500">
                 In base ai tuoi interessi e a cosa piace a chi è nei tuoi gruppi. Ci sono solo eventi a cui non hai ancora risposto.
               </Text>
-              {suggestions.map((s) => (
-                <EventCard key={s.event.id} event={s.event} showGroup reason={s.reason} outside={s.outside} />
-              ))}
+              <Grid>
+                {suggestions.map((s) => (
+                  <EventCard key={s.event.id} event={s.event} showGroup reason={s.reason} outside={s.outside} />
+                ))}
+              </Grid>
             </View>
           )
         ) : days.length === 0 ? (
@@ -87,9 +90,11 @@ export default function EventsScreen() {
           days.map((day) => (
             <View key={day.label} className="gap-3">
               <Text className="text-sm font-semibold uppercase tracking-wide text-stone-500">{day.label}</Text>
-              {day.events.map((event) => (
-                <EventCard key={event.id} event={event} showGroup answer={data.data?.answers[event.id]} />
-              ))}
+              <Grid>
+                {day.events.map((event) => (
+                  <EventCard key={event.id} event={event} showGroup answer={data.data?.answers[event.id]} />
+                ))}
+              </Grid>
             </View>
           ))
         )}

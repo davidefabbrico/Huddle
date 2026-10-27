@@ -5,7 +5,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '../components/Button';
 import { NewPasswordForm } from '../components/NewPasswordForm';
-import { Screen } from '../components/Screen';
+import { AuthScreen } from '../components/AuthScreen';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 
@@ -15,7 +15,7 @@ export default function ResetPasswordScreen() {
   const signOut = useAuth((state) => state.signOut);
 
   return (
-    <Screen>
+    <AuthScreen>
       <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10" keyboardShouldPersistTaps="handled">
         <View className="gap-1">
           <Text className="text-3xl font-bold text-ink">Nuova password</Text>
@@ -48,6 +48,6 @@ export default function ResetPasswordScreen() {
           </View>
         )}
       </ScrollView>
-    </Screen>
+    </AuthScreen>
   );
 }
