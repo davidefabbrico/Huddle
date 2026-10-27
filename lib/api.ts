@@ -18,9 +18,12 @@ import type {
   ChatPreview,
   Event,
   EventAttendee,
+  EventPhoto,
   EventWithGroup,
+  Expense,
   ForYouSignals,
   Group,
+  GroupHistory,
   GroupLinks,
   GroupSummary,
   InvitePreview,
@@ -41,6 +44,7 @@ import type {
   SignUpResult,
   Thanks,
   Transport,
+  TripItem,
   User,
 } from './types';
 
@@ -94,6 +98,8 @@ function toEvent(row: Row): EventWithGroup {
     poster_mime: row.poster_mime,
     tags: row.tags ?? [],
     series_id: row.series_id ?? null,
+    kind: row.kind ?? 'event',
+    ends_at: row.ends_at ?? null,
     group_name: row.groups?.name ?? '',
     group_icon: row.groups?.icon ?? null,
     group_color: row.groups?.color ?? null,
@@ -117,7 +123,7 @@ function toMessage(row: Row): ChatMessageWithAuthor {
 
 // Uploads a picked file (blob: URL on web, file:// on the phone) and returns its public URL.
 // "?v=" makes browsers show the new file when it replaces an old one at the same path.
-async function uploadFile(bucket: 'avatars' | 'event-posters', path: string, file: PickedFile): Promise<string> {
+async function uploadFile(bucket: 'avatars' | 'event-posters' | 'event-photos', path: string, file: PickedFile): Promise<string> {
   const body = await (await fetch(file.uri)).arrayBuffer();
   const { error } = await supabase.storage.from(bucket).upload(path, body, { contentType: file.mimeType, upsert: true });
   if (error) throw toError(error);
@@ -268,6 +274,7 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         location: input.location.trim(),
         type: input.type,
         visibility: input.visibility ?? 'public',
+        expenses_enabled: input.expenses_enabled ?? false,
         icon: input.icon ?? null,
         color: input.color ?? null,
         admin_id: userId,
@@ -305,6 +312,8 @@ export async function deleteGroup(groupId: string): Promise<void> {
   // Posters are files in Storage, not rows: remove them first (best effort)
   const posters: Row[] = check(await supabase.from('events').select('id').eq('group_id', groupId).not('poster_url', 'is', null));
   if (posters.length) await supabase.storage.from('event-posters').remove(posters.map((e) => `${groupId}/${e.id}`));
+  const photos: Row[] = check(await supabase.from('event_photos').select('event_id, user_id, events!inner(group_id)').eq('events.group_id', groupId));
+  if (photos.length) await supabase.storage.from('event-photos').remove(photos.map((p) => `${p.event_id}/${p.user_id}`));
   const { error, count } = await supabase.from('groups').delete({ count: 'exact' }).eq('id', groupId);
   if (error) throw toError(error);
   if (!count) throw new Error('Solo l’admin può eliminare il gruppo');
@@ -443,7 +452,8 @@ export async function getUpcomingEvents(limit = 50): Promise<EventWithGroup[]> {
   await extendSeries();
   const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
   const rows: Row[] = check(
-    await supabase.from('events').select(EVENT_SELECT).gte('date_time', since).order('date_time').limit(limit),
+    // holidays stay listed until their last day
+    await supabase.from('events').select(EVENT_SELECT).or(`date_time.gte.${since},ends_at.gte.${since}`).order('date_time').limit(limit),
   );
   return rows.map(toEvent);
 }
@@ -452,7 +462,12 @@ export async function getGroupEvents(groupId: string): Promise<EventWithGroup[]>
   await extendSeries();
   const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
   const rows: Row[] = check(
-    await supabase.from('events').select(EVENT_SELECT).eq('group_id', groupId).gte('date_time', since).order('date_time'),
+    await supabase
+      .from('events')
+      .select(EVENT_SELECT)
+      .eq('group_id', groupId)
+      .or(`date_time.gte.${since},ends_at.gte.${since}`)
+      .order('date_time'),
   );
   return rows.map(toEvent);
 }
@@ -467,7 +482,7 @@ export async function getEventById(eventId: string): Promise<EventWithGroup | nu
 export async function createEvent(userId: string, input: NewEventInput): Promise<EventWithGroup> {
   if (!input.title.trim()) throw new Error('Dai un titolo all’evento');
   const tags = input.tags?.length ? input.tags : eventTopics({ title: input.title, tags: [] }).slice(0, 5);
-  if (input.repeat_weekdays?.length) return createSeries(userId, { ...input, tags }, input.repeat_weekdays);
+  if (input.repeat_weekdays?.length && input.kind !== 'trip') return createSeries(userId, { ...input, tags }, input.repeat_weekdays);
   const row: Row = check(
     await supabase
       .from('events')
@@ -480,6 +495,8 @@ export async function createEvent(userId: string, input: NewEventInput): Promise
         lat: input.lat ?? null,
         lon: input.lon ?? null,
         tags,
+        kind: input.kind ?? 'event',
+        ends_at: input.kind === 'trip' ? (input.ends_at ?? null) : null,
       })
       .select(EVENT_SELECT)
       .single(),
@@ -560,9 +577,101 @@ export async function setEventPoster(event: Pick<Event, 'id' | 'group_id'>, file
   return toEvent(row);
 }
 
-// Organizer or admin
+// Organizer or admin. Its photos are files in Storage: removed first (best effort).
 export async function deleteEvent(eventId: string): Promise<void> {
+  const photos = await getEventPhotos(eventId);
+  if (photos.length) await supabase.storage.from('event-photos').remove(photos.map((p) => `${eventId}/${p.user_id}`));
   check(await supabase.from('events').delete().eq('id', eventId));
+}
+
+// Events (and holidays) you said "Ci sono" to, past and future: for your agenda and calendar
+export async function getMyAgenda(userId: string): Promise<EventWithGroup[]> {
+  await extendSeries();
+  const rows: Row[] = check(
+    await supabase.from('event_attendees').select(`events!inner(${EVENT_SELECT})`).eq('user_id', userId).eq('status', 'going'),
+  );
+  return rows.map((r) => toEvent(r.events)).sort((a, b) => a.date_time.localeCompare(b.date_time));
+}
+
+// ---- Holiday plan ("Cosa fare / cosa vedere"): every member and guest can edit it ----
+
+export async function getTripItems(eventId: string): Promise<TripItem[]> {
+  return check(
+    await supabase.from('trip_items').select('*').eq('event_id', eventId).order('day', { nullsFirst: true }).order('created_at'),
+  ) as TripItem[];
+}
+
+export async function addTripItem(userId: string, eventId: string, item: Pick<TripItem, 'title' | 'kind' | 'day'>): Promise<void> {
+  if (!item.title.trim()) throw new Error('Scrivi cosa fare o cosa vedere');
+  check(await supabase.from('trip_items').insert({ ...item, title: item.title.trim(), event_id: eventId, created_by: userId }));
+}
+
+export async function updateTripItem(itemId: string, changes: Partial<Pick<TripItem, 'title' | 'kind' | 'day' | 'done'>>): Promise<void> {
+  if (changes.title !== undefined && !changes.title.trim()) throw new Error('Il testo non può essere vuoto');
+  check(await supabase.from('trip_items').update(changes).eq('id', itemId));
+}
+
+export async function deleteTripItem(itemId: string): Promise<void> {
+  check(await supabase.from('trip_items').delete().eq('id', itemId));
+}
+
+// ---- Event photos: one per person, seen by whoever sees the group ----
+
+export async function getEventPhotos(eventId: string): Promise<EventPhoto[]> {
+  return check(await supabase.from('event_photos').select('*').eq('event_id', eventId).order('created_at')) as EventPhoto[];
+}
+
+// Add or replace your photo (file = null removes it)
+export async function setMyEventPhoto(userId: string, eventId: string, file: PickedFile | null): Promise<void> {
+  if (!file) return removeEventPhoto(eventId, userId);
+  const url = await uploadFile('event-photos', `${eventId}/${userId}`, file);
+  check(await supabase.from('event_photos').upsert({ event_id: eventId, user_id: userId, url, created_at: new Date().toISOString() }));
+}
+
+// Yours, or anyone's if you're the group admin
+export async function removeEventPhoto(eventId: string, userId: string): Promise<void> {
+  check(await supabase.from('event_photos').delete().eq('event_id', eventId).eq('user_id', userId));
+  await supabase.storage.from('event-photos').remove([`${eventId}/${userId}`]);
+}
+
+// ---- Shared expenses ("Spese", like Splitwise): see lib/expenses.ts for balances ----
+
+export async function getExpenses(eventId: string): Promise<Expense[]> {
+  const rows: Row[] = check(
+    await supabase.from('expenses').select('*, expense_shares(user_id, amount_cents)').eq('event_id', eventId).order('created_at'),
+  );
+  return rows.map(({ expense_shares, ...expense }) => ({ ...expense, shares: expense_shares }));
+}
+
+// The database checks that the shares add up and that everyone is in the group, and notifies them
+export async function addExpense(
+  eventId: string,
+  expense: { description: string; amount_cents: number; paid_by: string; shares: Expense['shares']; settlement?: boolean },
+): Promise<void> {
+  if (!expense.description.trim()) throw new Error('Scrivi per cosa è la spesa');
+  check(
+    await supabase.rpc('add_expense', {
+      p_event: eventId,
+      p_description: expense.description.trim(),
+      p_amount_cents: expense.amount_cents,
+      p_paid_by: expense.paid_by,
+      p_shares: expense.shares,
+      p_settlement: expense.settlement ?? false,
+    }),
+  );
+}
+
+// Whoever added or paid it, or the group admin
+export async function deleteExpense(expenseId: string): Promise<void> {
+  const { error, count } = await supabase.from('expenses').delete({ count: 'exact' }).eq('id', expenseId);
+  if (error) throw toError(error);
+  if (!count) throw new Error('Può toglierla solo chi l’ha aggiunta o pagata, o l’admin');
+}
+
+// ---- The group's history ----
+
+export async function getGroupHistory(groupId: string): Promise<GroupHistory | null> {
+  return check(await supabase.rpc('group_history', { gid: groupId })) as GroupHistory | null;
 }
 
 // Everyone who answered, "Ci sono" first (people on site first), then "Non ci sono"

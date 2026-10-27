@@ -9,9 +9,11 @@ export type EventPhase = 'upcoming' | 'live' | 'ended';
 
 export const isInPast = (date: Date) => date.getTime() < Date.now();
 
-export function eventPhase(dateTime: string, now = Date.now()): EventPhase {
+// endsAt: holidays, the last day (live for the whole holiday)
+export function eventPhase(dateTime: string, endsAt?: string | null, now = Date.now()): EventPhase {
   const start = new Date(dateTime).getTime();
+  const end = endsAt ? new Date(endsAt).getTime() : start;
   if (now < start - CHECKIN_OPENS_BEFORE_MS) return 'upcoming';
-  if (now <= start + CHECKIN_CLOSES_AFTER_MS) return 'live';
+  if (now <= end + CHECKIN_CLOSES_AFTER_MS) return 'live';
   return 'ended';
 }

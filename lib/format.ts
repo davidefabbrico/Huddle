@@ -82,6 +82,73 @@ export const interestOptions = [
   'lingue',
 ];
 
+// ---- Calendar days and holidays ----
+
+// Local day as "YYYY-MM-DD" (calendar keys, holiday plan days)
+export function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// "YYYY-MM-DD" -> local midnight
+export function fromDayKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Every day from start to end (holidays span several days in the calendar)
+export function dayKeysBetween(startIso: string, endIso?: string | null): string[] {
+  const day = new Date(startIso);
+  day.setHours(0, 0, 0, 0);
+  const last = endIso ? new Date(endIso) : new Date(day); // a copy: `day` moves forward
+  const keys: string[] = [];
+  while (day <= last && keys.length < 62) {
+    keys.push(dayKey(day));
+    day.setDate(day.getDate() + 1);
+  }
+  return keys;
+}
+
+// "12 ott 2026"
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// "ottobre 2026"
+export function monthLabel(date: Date): string {
+  return date.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
+}
+
+// "gio 12 ago" for a "YYYY-MM-DD" key
+export function shortDayLabel(key: string): string {
+  return fromDayKey(key).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// Holiday dates: "12 – 16 ago" / "30 ott – 2 nov"
+export function tripDatesLabel(startIso: string, endIso: string | null): string {
+  const start = new Date(startIso);
+  const end = endIso ? new Date(endIso) : start;
+  const month = (d: Date) => d.toLocaleDateString(LOCALE, { month: 'short' }).replace('.', '');
+  if (dayKey(start) === dayKey(end)) return `${start.getDate()} ${month(start)}`;
+  return start.getMonth() === end.getMonth()
+    ? `${start.getDate()} – ${end.getDate()} ${month(end)}`
+    : `${start.getDate()} ${month(start)} – ${end.getDate()} ${month(end)}`;
+}
+
+// ---- Money (shared expenses, euro cents) ----
+
+// 1250 -> "12,50 €"
+export function formatEuro(cents: number): string {
+  return `${(cents / 100).toFixed(2).replace('.', ',')} €`;
+}
+
+// "12,50" / "12.5" / "12" -> 1250, or null if it isn't an amount
+export function parseEuro(text: string): number | null {
+  const match = text.trim().replace('€', '').trim().match(/^(\d{1,6})(?:[.,](\d{1,2}))?$/);
+  if (!match) return null;
+  const cents = Number(match[1]) * 100 + Number((match[2] ?? '0').padEnd(2, '0'));
+  return cents > 0 ? cents : null;
+}
+
 // ---- Recurring events and rides ----
 
 // Short weekday names, 1 = Monday (ISO, like event_series.weekdays)

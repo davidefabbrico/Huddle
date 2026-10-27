@@ -15,8 +15,9 @@ create type public.join_status as enum ('pending', 'guest', 'accepted', 'rejecte
 create type public.rsvp_status as enum ('going', 'not_going'); -- "Ci sono" / "Non ci sono"
 create type public.transport as enum ('car', 'need_ride', 'own');  -- "In auto" / "Mi serve un passaggio" / "Per conto mio"
 create type public.ride_status as enum ('requested', 'accepted'); -- the driver accepts a ride request
+create type public.event_kind  as enum ('event', 'trip');        -- "Evento" / "Vacanza" (several days, with a plan)
 create type public.notification_type as enum
-  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride');
+  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride', 'expense');
 
 -- ---------- Tables ----------
 
@@ -60,6 +61,8 @@ create table public.groups (
       '❤️', '🎉', '⭐', '🌈', '🔥', '🍀'
   ])),
   color        text check (color is null or color in ('orange', 'rose', 'violet', 'sky', 'teal', 'green', 'amber', 'slate')),
+  -- Shared expenses ("Spese", like Splitwise) on the group's events (holidays always have them)
+  expenses_enabled boolean not null default false,
   created_at   timestamptz not null default now()
 );
 
@@ -109,6 +112,9 @@ create table public.events (
   tags        text[] not null default '{}' check (cardinality(tags) <= 5),
   -- Occurrence of a recurring event (created by extend_series)
   series_id   uuid references public.event_series (id) on delete set null,
+  -- Holiday ("Vacanza"): lasts until ends_at (the last day), with a plan (trip_items)
+  kind        public.event_kind not null default 'event',
+  ends_at     timestamptz check (ends_at is null or ends_at >= date_time),
   created_at  timestamptz not null default now(),
   unique (series_id, date_time)
 );
@@ -171,6 +177,53 @@ create table public.series_regulars (
   ride_with    uuid references public.users (id) on delete set null,
   primary key (series_id, user_id),
   check (ride_with is distinct from user_id)
+);
+
+-- Holiday plan: things to do / to see, optionally on a day. Every member and guest can edit it.
+create table public.trip_items (
+  id          uuid primary key default gen_random_uuid(),
+  event_id    uuid not null references public.events (id) on delete cascade,
+  kind        text not null default 'todo' check (kind in ('todo', 'see')),  -- "Da fare" / "Da vedere"
+  title       text not null check (char_length(title) between 1 and 200),
+  day         date,
+  done        boolean not null default false,
+  created_by  uuid references public.users (id) on delete set null,
+  updated_by  uuid references public.users (id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index trip_items_event_idx on public.trip_items (event_id, day);
+
+-- Event photos: at most one per person per event (Storage bucket "event-photos", <event_id>/<user_id>).
+-- Seen by whoever sees the group: for a public group, everyone, also from other groups.
+create table public.event_photos (
+  event_id    uuid not null references public.events (id) on delete cascade,
+  user_id     uuid not null references public.users (id) on delete cascade,
+  url         text not null,
+  created_at  timestamptz not null default now(),
+  primary key (event_id, user_id)
+);
+
+-- Shared expenses of an event or holiday: who paid, and each person's share (in cents, euro).
+-- A settlement ("Ho saldato") is an expense paid by the debtor with one share: the creditor.
+-- Written only by add_expense, which checks the amounts.
+create table public.expenses (
+  id             uuid primary key default gen_random_uuid(),
+  event_id       uuid not null references public.events (id) on delete cascade,
+  paid_by        uuid not null references public.users (id) on delete cascade,
+  amount_cents   integer not null check (amount_cents between 1 and 10000000),
+  description    text not null check (char_length(description) between 1 and 100),
+  is_settlement  boolean not null default false,
+  created_by     uuid references public.users (id) on delete set null,
+  created_at     timestamptz not null default now()
+);
+create index expenses_event_idx on public.expenses (event_id);
+
+create table public.expense_shares (
+  expense_id    uuid not null references public.expenses (id) on delete cascade,
+  user_id       uuid not null references public.users (id) on delete cascade,
+  amount_cents  integer not null check (amount_cents >= 0),
+  primary key (expense_id, user_id)
 );
 
 -- "Grazie" to the organizer or to someone who came to an event (+ points for them)
@@ -299,12 +352,13 @@ returns text language sql immutable set search_path = '' as $$
   end;
 $$;
 
--- Check-in window: from 1 hour before the start to 6 hours after. Keep in sync with lib/eventTiming.ts.
+-- Check-in window: from 1 hour before the start to 6 hours after the end (holidays: the last day).
+-- Keep in sync with lib/eventTiming.ts.
 create or replace function public.is_checkin_open(eid uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select exists (
     select 1 from public.events
-    where id = eid and now() between date_time - interval '1 hour' and date_time + interval '6 hours'
+    where id = eid and now() between date_time - interval '1 hour' and coalesce(ends_at, date_time) + interval '6 hours'
   );
 $$;
 
@@ -427,7 +481,8 @@ begin
   end if;
 
   insert into public.notifications (user_id, type, title, body, group_id, event_id)
-  select m.user_id, 'new_event', 'Nuovo evento', g.name || ': ' || new.title, g.id, new.id
+  select m.user_id, 'new_event', case when new.kind = 'trip' then 'Nuova vacanza 🏖️' else 'Nuovo evento' end,
+    g.name || ': ' || new.title, g.id, new.id
   from public.group_members m
   join public.groups g on g.id = m.group_id
   where m.group_id = new.group_id and m.user_id is distinct from new.created_by;
@@ -889,6 +944,123 @@ grant execute on function
   public.remove_regular(uuid), public.for_you_signals()
   to authenticated;
 
+-- ---------- Holidays, photos, shared expenses, history ----------
+
+-- Plan items: who changed them last, and when
+create or replace function public.touch_trip_item()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  new.title := trim(new.title);
+  new.updated_at := now();
+  new.updated_by := (select auth.uid());
+  return new;
+end;
+$$;
+
+-- "12,50 €"
+create or replace function public.format_euro(cents integer)
+returns text language sql immutable set search_path = '' as $$
+  select replace(to_char(cents / 100.0, 'FM9999990.00'), '.', ',') || ' €';
+$$;
+
+-- Adds an expense (or a settlement) to an event. p_shares: [{"user_id": "…", "amount_cents": 250}, …],
+-- summing up to the amount. Everyone involved must be a member or guest of the group. The people
+-- with a share (except you) get a notification.
+create or replace function public.add_expense(
+  p_event uuid, p_description text, p_amount_cents integer, p_paid_by uuid, p_shares jsonb, p_settlement boolean default false
+)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := (select auth.uid());
+  ev public.events;
+  g public.groups;
+  new_id uuid;
+  total integer;
+  outsiders integer;
+  my_name text;
+begin
+  select * into ev from public.events where id = p_event;
+  select * into g from public.groups where id = ev.group_id;
+  if ev.id is null or not public.can_access_chat(ev.group_id) then
+    raise exception 'Evento non trovato';
+  end if;
+  if ev.kind <> 'trip' and not g.expenses_enabled then
+    raise exception 'Le spese condivise non sono attive in questo gruppo';
+  end if;
+  if jsonb_typeof(p_shares) <> 'array' or jsonb_array_length(p_shares) = 0 then
+    raise exception 'Scegli tra chi dividere la spesa';
+  end if;
+  select coalesce(sum((s ->> 'amount_cents')::integer), 0) into total from jsonb_array_elements(p_shares) s;
+  if total <> p_amount_cents then
+    raise exception 'Le quote non tornano con il totale';
+  end if;
+  if p_settlement and (jsonb_array_length(p_shares) <> 1 or (p_paid_by <> me and (p_shares -> 0 ->> 'user_id')::uuid <> me)) then
+    raise exception 'Un saldo è tra te e un’altra persona';
+  end if;
+  -- payer and shares: members, guests or accepted requesters of the group
+  select count(*) into outsiders
+  from (select p_paid_by as uid union select (s ->> 'user_id')::uuid from jsonb_array_elements(p_shares) s) people
+  where not exists (select 1 from public.group_members m where m.group_id = ev.group_id and m.user_id = people.uid)
+    and not exists (
+      select 1 from public.join_requests r
+      where r.group_id = ev.group_id and r.user_id = people.uid and r.status in ('guest', 'accepted')
+    );
+  if outsiders > 0 then
+    raise exception 'Si possono dividere le spese solo con chi fa parte del gruppo';
+  end if;
+
+  insert into public.expenses (event_id, paid_by, amount_cents, description, is_settlement, created_by)
+  values (p_event, p_paid_by, p_amount_cents, trim(p_description), p_settlement, me)
+  returning id into new_id;
+  insert into public.expense_shares (expense_id, user_id, amount_cents)
+  select new_id, (s ->> 'user_id')::uuid, (s ->> 'amount_cents')::integer from jsonb_array_elements(p_shares) s;
+
+  select full_name into my_name from public.users where id = me;
+  insert into public.notifications (user_id, type, title, body, group_id, event_id)
+  select (s ->> 'user_id')::uuid, 'expense',
+    case when p_settlement then my_name || ' ha registrato un saldo 💸' else my_name || ' ha aggiunto una spesa' end,
+    case when p_settlement then public.format_euro(p_amount_cents) || ' per «' || ev.title || '»'
+      else '«' || trim(p_description) || '» ' || public.format_euro(p_amount_cents) || ' · la tua parte '
+        || public.format_euro((s ->> 'amount_cents')::integer) || ' (' || ev.title || ')' end,
+    ev.group_id, ev.id
+  from jsonb_array_elements(p_shares) s
+  where (s ->> 'user_id')::uuid <> me and (s ->> 'amount_cents')::integer > 0;
+  return new_id;
+end;
+$$;
+
+-- The group's history, from its creation to today: past events and holidays (with how many came
+-- and their photos) and who joined. For whoever sees the group: counts only, no attendee names.
+create or replace function public.group_history(gid uuid)
+returns json language sql stable security definer set search_path = '' as $$
+  select json_build_object(
+    'created_at', g.created_at,
+    'events', coalesce((
+      select json_agg(x order by x.date_time) from (
+        select e.id, e.title, e.kind, e.date_time, e.ends_at, e.location, e.series_id,
+          (select count(*) from public.event_attendees a where a.event_id = e.id and (a.status = 'going' or a.checked_in))::int as going,
+          coalesce((select json_agg(p.url order by p.created_at) from public.event_photos p where p.event_id = e.id), '[]'::json) as photos
+        from public.events e
+        where e.group_id = g.id and e.date_time <= now()
+      ) x
+    ), '[]'::json),
+    'members', coalesce((
+      select json_agg(json_build_object('user_id', m.user_id, 'full_name', u.full_name, 'joined_at', m.joined_at) order by m.joined_at)
+      from public.group_members m join public.users u on u.id = m.user_id
+      where m.group_id = g.id and m.user_id <> g.admin_id
+    ), '[]'::json)
+  )
+  from public.groups g
+  where g.id = gid and public.can_see_group(gid);
+$$;
+
+create trigger before_trip_item_change
+  before insert or update on public.trip_items
+  for each row execute function public.touch_trip_item();
+
+revoke execute on function public.add_expense(uuid, text, integer, uuid, jsonb, boolean), public.group_history(uuid) from public, anon;
+grant execute on function public.add_expense(uuid, text, integer, uuid, jsonb, boolean), public.group_history(uuid) to authenticated;
+
 -- ---------- Invite links (/invite/<code>) ----------
 -- Private groups are invisible to non-members, so the invite link goes through these functions.
 
@@ -949,6 +1121,10 @@ alter table public.group_links     enable row level security;
 alter table public.car_spots       enable row level security;
 alter table public.event_series    enable row level security;
 alter table public.series_regulars enable row level security;
+alter table public.trip_items      enable row level security;
+alter table public.event_photos    enable row level security;
+alter table public.expenses        enable row level security;
+alter table public.expense_shares  enable row level security;
 
 -- users: any signed-in user can read profiles; you can only create/edit your own
 create policy "users: read" on public.users
@@ -1064,6 +1240,65 @@ create policy "series_regulars: read" on public.series_regulars
     exists (select 1 from public.event_series s where s.id = series_id and public.can_access_chat(s.group_id))
   );
 
+-- trip_items: members and guests read and edit the plan together
+create policy "trip_items: read with access" on public.trip_items
+  for select to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
+  );
+create policy "trip_items: add with access" on public.trip_items
+  for insert to authenticated with check (
+    created_by = (select auth.uid())
+    and exists (select 1 from public.events e where e.id = event_id and e.kind = 'trip' and public.can_access_chat(e.group_id))
+  );
+create policy "trip_items: edit with access" on public.trip_items
+  for update to authenticated
+  using (exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id)))
+  with check (exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id)));
+create policy "trip_items: delete with access" on public.trip_items
+  for delete to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
+  );
+
+-- event_photos: seen like the group; your own photo once the event has started (1 hour before);
+-- you or the group admin can remove it
+create policy "event_photos: read" on public.event_photos
+  for select to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and public.can_see_group(e.group_id))
+  );
+create policy "event_photos: add own" on public.event_photos
+  for insert to authenticated with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.events e
+      where e.id = event_id and public.can_access_chat(e.group_id) and e.date_time - interval '1 hour' <= now()
+    )
+  );
+create policy "event_photos: replace own" on public.event_photos
+  for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "event_photos: remove own or admin" on public.event_photos
+  for delete to authenticated using (
+    user_id = (select auth.uid())
+    or exists (select 1 from public.events e where e.id = event_id and public.is_group_admin(e.group_id))
+  );
+
+-- expenses: members and guests see them; whoever added or paid an expense (or the admin) removes it
+create policy "expenses: read with access" on public.expenses
+  for select to authenticated using (
+    exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
+  );
+create policy "expenses: remove own or admin" on public.expenses
+  for delete to authenticated using (
+    created_by = (select auth.uid()) or paid_by = (select auth.uid())
+    or exists (select 1 from public.events e where e.id = event_id and public.is_group_admin(e.group_id))
+  );
+create policy "expense_shares: read with access" on public.expense_shares
+  for select to authenticated using (
+    exists (
+      select 1 from public.expenses x join public.events e on e.id = x.event_id
+      where x.id = expense_id and public.can_access_chat(e.group_id)
+    )
+  );
+
 -- thanks: visible to the group; you thank as yourself, only the organizer or someone who said "Ci sono"
 create policy "thanks: read" on public.thanks
   for select to authenticated using (
@@ -1141,13 +1376,15 @@ alter publication supabase_realtime add table public.notifications;
 -- ---------- Storage (Supabase Storage buckets for uploaded files) ----------
 -- avatars:       avatars/<user_id>/avatar               (images, max 2 MB) — you write only your own folder
 -- event-posters: event-posters/<group_id>/<event_id>    (PDF or images, max 10 MB) — organizer or admin
+-- event-photos:  event-photos/<event_id>/<user_id>      (images, max 5 MB) — your own photo, the admin removes
 -- Both buckets are public for reading, so the app shows the files with a plain URL.
 -- The select policies are needed by the Storage API to overwrite (upsert) a file.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   ('avatars', 'avatars', true, 2097152, array['image/*']),
-  ('event-posters', 'event-posters', true, 10485760, array['application/pdf', 'image/*'])
+  ('event-posters', 'event-posters', true, 10485760, array['application/pdf', 'image/*']),
+  ('event-photos', 'event-photos', true, 5242880, array['image/*'])
 on conflict (id) do nothing;
 
 create policy "avatars: see own" on storage.objects
@@ -1180,3 +1417,20 @@ create policy "event-posters: delete managed" on storage.objects
   for delete to authenticated
   using (bucket_id = 'event-posters' and exists (
     select 1 from public.events e where e.id::text = split_part(name, '/', 2) and public.can_manage_event(e.id)));
+
+create policy "event-photos: see own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'event-photos' and split_part(name, '/', 2) = (select auth.uid())::text);
+create policy "event-photos: upload own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'event-photos' and split_part(name, '/', 2) = (select auth.uid())::text and exists (
+    select 1 from public.events e where e.id::text = split_part(name, '/', 1) and public.can_access_chat(e.group_id)));
+create policy "event-photos: replace own" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'event-photos' and split_part(name, '/', 2) = (select auth.uid())::text);
+create policy "event-photos: delete own or admin" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'event-photos' and (
+    split_part(name, '/', 2) = (select auth.uid())::text
+    or exists (select 1 from public.events e where e.id::text = split_part(name, '/', 1) and public.is_group_admin(e.group_id))
+  ));

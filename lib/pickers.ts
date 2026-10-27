@@ -1,4 +1,4 @@
-// File pickers for profile photos and event posters. They return a PickedFile, or null if canceled.
+// File pickers for profile photos, event photos and event posters. They return a PickedFile, or null if canceled.
 // Must be called from a button press (browsers only open file dialogs on user action).
 
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,6 +15,14 @@ export async function pickProfilePhoto(): Promise<PickedFile | null> {
   if (result.canceled || !result.assets?.length) return null;
   const asset = result.assets[0];
   return { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg', name: asset.fileName ?? 'avatar.jpg' };
+}
+
+// A photo of an event (no crop: it's shown whole)
+export async function pickEventPhoto(): Promise<PickedFile | null> {
+  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+  if (result.canceled || !result.assets?.length) return null;
+  const asset = result.assets[0];
+  return { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg', name: asset.fileName ?? 'foto.jpg' };
 }
 
 // Poster: a PDF or an image

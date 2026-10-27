@@ -49,6 +49,14 @@ export default function CreateScreen() {
                 text="Un’uscita, una partita, un aperitivo: i membri riceveranno una notifica."
               />
             ) : null}
+            {isMember ? (
+              <ActionCard
+                href={{ pathname: '/create-event', params: { kind: 'trip' } }}
+                icon="airplane"
+                title="Nuova vacanza"
+                text="Più giorni insieme: una scaletta di cose da fare e da vedere che tutti possono modificare, e le spese divise."
+              />
+            ) : null}
             <ActionCard
               href="/create-group"
               icon="people"

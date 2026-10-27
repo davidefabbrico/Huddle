@@ -1,8 +1,10 @@
-// Eventi tab: "Per te" (suggestions with the reason, lib/recommendations.ts), or upcoming events
-// grouped by day, all or only from your groups. Cards in a grid on wide screens.
+// Eventi tab: "Per te" (suggestions with the reason, lib/recommendations.ts), upcoming events
+// grouped by day (all or only from your groups), and "Ci vado": your agenda with a month calendar.
+// Cards in a grid on wide screens.
 
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { AgendaView } from '../../../components/AgendaView';
 import { Chip } from '../../../components/Chip';
 import { Grid } from '../../../components/Columns';
 import { EventCard } from '../../../components/EventCard';
@@ -15,7 +17,7 @@ import { dayLabel } from '../../../lib/format';
 import { recommendEvents } from '../../../lib/recommendations';
 import type { EventWithGroup } from '../../../lib/types';
 
-type Filter = 'forYou' | 'all' | 'mine';
+type Filter = 'forYou' | 'going' | 'all' | 'mine';
 
 export default function EventsScreen() {
   const user = useAuth((state) => state.user)!;
@@ -23,14 +25,15 @@ export default function EventsScreen() {
 
   const data = useAsync(
     async () => {
-      const [events, memberships, answers, signals] = await Promise.all([
+      const [events, memberships, answers, signals, agenda] = await Promise.all([
         api.getUpcomingEvents(100),
         api.getMemberships(user.id),
         api.getMyAnswers(user.id),
         api.getForYouSignals(),
+        api.getMyAgenda(user.id),
       ]);
       const myGroupIds = new Set(memberships.map((m) => m.group.id));
-      return { events, answers, myGroupIds, suggestions: recommendEvents(events, user, answers, myGroupIds, signals) };
+      return { events, answers, myGroupIds, agenda, suggestions: recommendEvents(events, user, answers, myGroupIds, signals) };
     },
     [user.id],
     { refetchOnFocus: true },
@@ -57,6 +60,7 @@ export default function EventsScreen() {
 
         <View className="flex-row flex-wrap gap-2">
           <Chip label="✨ Per te" selected={filter === 'forYou'} onPress={() => setFilter('forYou')} />
+          <Chip label="📅 Ci vado" selected={filter === 'going'} onPress={() => setFilter('going')} />
           <Chip label="Tutti" selected={filter === 'all'} onPress={() => setFilter('all')} />
           <Chip label="Dei miei gruppi" selected={filter === 'mine'} onPress={() => setFilter('mine')} />
         </View>
@@ -65,6 +69,8 @@ export default function EventsScreen() {
           <ActivityIndicator color={colors.brand} className="mt-10" />
         ) : data.error ? (
           <Text className="text-red-600">{data.error}</Text>
+        ) : filter === 'going' ? (
+          <AgendaView events={data.data?.agenda ?? []} />
         ) : filter === 'forYou' ? (
           suggestions.length === 0 ? (
             <Text className="mt-6 text-center text-stone-500">

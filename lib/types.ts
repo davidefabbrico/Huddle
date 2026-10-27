@@ -10,6 +10,7 @@ export type JoinStatus = 'pending' | 'guest' | 'accepted' | 'rejected';
 export type RsvpStatus = 'going' | 'not_going'; // "Ci sono" / "Non ci sono"
 export type Transport = 'car' | 'need_ride' | 'own'; // "In auto" / "Mi serve un passaggio" / "Per conto mio"
 export type RideStatus = 'requested' | 'accepted'; // the passenger asked, the driver accepted
+export type EventKind = 'event' | 'trip'; // "Evento" / "Vacanza" (several days, with a plan)
 export type NotificationType =
   | 'join_request' // to the admin: someone wants to join
   | 'request_accepted'
@@ -18,7 +19,8 @@ export type NotificationType =
   | 'new_event' // to members: a new event in their group
   | 'rank_up' // to you: you reached a new rank in a group
   | 'thanks' // to you: someone thanked you for an event
-  | 'ride'; // rides: someone asks you (driver), or the driver answered you
+  | 'ride' // rides: someone asks you (driver), or the driver answered you
+  | 'expense'; // someone added an expense that includes you, or paid you back
 
 // ---- Tables ----
 
@@ -49,6 +51,7 @@ export interface Group {
   // Group "photo": emoji + tile color from lib/groupIcons.ts (null = suggested from the name)
   icon: string | null;
   color: string | null;
+  expenses_enabled: boolean; // shared expenses ("Spese") on events; holidays always have them
 }
 
 // What an invite link shows before joining (also for private groups)
@@ -84,6 +87,52 @@ export interface Event {
   poster_mime: string | null;
   tags: string[]; // what it's about (from interestOptions): drives "Per te"
   series_id: string | null; // occurrence of a recurring event
+  kind: EventKind;
+  ends_at: string | null; // holidays: the last day (ISO 8601)
+}
+
+// Holiday plan item: something to do or to see, optionally on a day. Every member can edit it.
+export interface TripItem {
+  id: string;
+  event_id: string;
+  kind: 'todo' | 'see';
+  title: string;
+  day: string | null; // YYYY-MM-DD
+  done: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+// One photo per person per event, seen by whoever sees the group
+export interface EventPhoto {
+  event_id: string;
+  user_id: string;
+  url: string;
+  created_at: string;
+}
+
+// Shared expense (like Splitwise): who paid and each person's share, in cents.
+// A settlement is a payment from a debtor to a creditor (one share).
+export interface Expense {
+  id: string;
+  event_id: string;
+  paid_by: string;
+  amount_cents: number;
+  description: string;
+  is_settlement: boolean;
+  created_by: string | null;
+  created_at: string;
+  shares: { user_id: string; amount_cents: number }[];
+}
+
+// The group's history (group_history): past events with how many came and their photos, who joined
+export interface GroupHistory {
+  created_at: string;
+  events: (Pick<Event, 'id' | 'title' | 'kind' | 'date_time' | 'ends_at' | 'location' | 'series_id'> & {
+    going: number;
+    photos: string[];
+  })[];
+  members: { user_id: string; full_name: string; joined_at: string }[];
 }
 
 // Recurring event ("Palestra lun, mer, ven alle 19"): its occurrences are normal events, created two weeks ahead
@@ -292,6 +341,7 @@ export interface NewGroupInput {
   visibility?: GroupVisibility;
   icon?: string | null;
   color?: string | null;
+  expenses_enabled?: boolean;
   chat_url?: string | null;
   parking_code?: string | null;
 }
@@ -307,6 +357,8 @@ export interface NewEventInput {
   poster?: PickedFile | null;
   // Every week on these days (1 = Monday) at the time of date_time: creates a recurring event
   repeat_weekdays?: number[] | null;
+  kind?: EventKind; // 'trip': a holiday from date_time to ends_at
+  ends_at?: string | null;
 }
 
 

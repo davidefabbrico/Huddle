@@ -6,7 +6,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { eventPhase } from '../lib/eventTiming';
-import { dateTile, formatEventDate, weekdaysLabel } from '../lib/format';
+import { dateTile, formatEventDate, tripDatesLabel, weekdaysLabel } from '../lib/format';
 import type { EventAttendee, EventWithGroup } from '../lib/types';
 import { Badge } from './Badge';
 import { colors } from './theme';
@@ -32,7 +32,8 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
         <View className="flex-1 justify-center">
           <View className="flex-row flex-wrap gap-1">
             {outside ? <Badge label="Fuori dal solito" tone="sky" icon="compass" /> : null}
-            {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
+            {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
+            {eventPhase(event.date_time, event.ends_at) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
             {event.series ? <Badge label={weekdaysLabel(event.series.weekdays)} icon="repeat" /> : null}
             {answer?.status === 'going' ? <Badge label="Ci sei" tone="green" icon="checkmark" /> : null}
             {answer?.status === 'not_going' ? <Badge label="Non ci sei" icon="close" /> : null}
@@ -48,7 +49,9 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
           ) : null}
           <View className="mt-0.5 flex-row items-center gap-1">
             <Ionicons name="time-outline" size={13} color={colors.muted} />
-            <Text className="text-sm text-stone-500">{formatEventDate(event.date_time)}</Text>
+            <Text className="text-sm text-stone-500">
+              {event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
+            </Text>
           </View>
           {event.location ? (
             <View className="flex-row items-center gap-1">

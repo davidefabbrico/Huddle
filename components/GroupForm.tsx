@@ -1,7 +1,7 @@
 // Group fields, shared by "Nuovo gruppo" and "Modifica gruppo"
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
 import { groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
@@ -10,6 +10,7 @@ import { Button } from './Button';
 import { Chip } from './Chip';
 import { GroupIconPicker } from './GroupIconPicker';
 import { TextField } from './TextField';
+import { colors } from './theme';
 
 interface Props {
   initial?: NewGroupInput;
@@ -24,6 +25,7 @@ const empty: NewGroupInput = {
   location: '',
   type: 'open_to_new',
   visibility: 'public',
+  expenses_enabled: false,
   chat_url: '',
   parking_code: '',
 };
@@ -32,6 +34,7 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   const [values, setValues] = useState<NewGroupInput>({
     ...initial,
     visibility: initial.visibility ?? 'public',
+    expenses_enabled: initial.expenses_enabled ?? false,
     chat_url: initial.chat_url ?? '',
     parking_code: initial.parking_code ?? '',
   });
@@ -113,6 +116,24 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
             <Chip label="Sì, aperto a nuovi membri" selected={values.type === 'open_to_new'} onPress={() => set({ type: 'open_to_new' })} />
             <Chip label="No, al completo" selected={values.type === 'closed'} onPress={() => set({ type: 'closed' })} />
           </View>
+        </View>
+
+        <View className="flex-row items-center justify-between gap-4 rounded-2xl border-2 border-stone-200 bg-white px-4 py-3">
+          <View className="flex-1">
+            <Text className="font-semibold text-ink">💶 Spese condivise</Text>
+            <Text className="text-sm text-stone-500">
+              Negli eventi si segna chi ha pagato cosa e a fine evento si vede chi deve quanto (come Splitwise). Nelle
+              vacanze ci sono sempre.
+            </Text>
+          </View>
+          <Switch
+            value={values.expenses_enabled ?? false}
+            onValueChange={(expenses_enabled) => set({ expenses_enabled })}
+            trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+            thumbColor={colors.white}
+            // react-native-web only: otherwise the "on" thumb is teal
+            {...({ activeThumbColor: colors.white } as object)}
+          />
         </View>
 
         <View className="gap-1.5">

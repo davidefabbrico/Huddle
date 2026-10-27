@@ -4,6 +4,8 @@
 // Getting there: "Trova parcheggio" with SmartPark, carpool ("Come ci arrivi?"), and the "you parked" card
 // when SmartPark sends you back here (?smartpark=arrivato&auto=lat,lon).
 // Occurrence of a recurring event: when it repeats and "Ci sono ogni volta" (SeriesCard).
+// Holiday ("Vacanza"): the plan of things to do/see (TripPlan). Photos (one per person) and shared
+// expenses ("Spese": always on holidays, on events if the group turned them on).
 // On a computer: the event and your answer on the left, getting there and who's coming on the right.
 
 import { useState, type ReactNode } from 'react';
@@ -14,6 +16,9 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { CarpoolSection } from '../../../components/CarpoolSection';
+import { EventPhotos } from '../../../components/EventPhotos';
+import { ExpensesSection } from '../../../components/ExpensesSection';
+import { TripPlan } from '../../../components/TripPlan';
 import { Columns } from '../../../components/Columns';
 import { GroupIcon } from '../../../components/GroupIcon';
 import { Header } from '../../../components/Header';
@@ -26,7 +31,7 @@ import { useAsync } from '../../../hooks/useAsync';
 import { useAuth } from '../../../hooks/useAuth';
 import * as api from '../../../lib/api';
 import { eventPhase } from '../../../lib/eventTiming';
-import { firstName, formatEventDate } from '../../../lib/format';
+import { dayKeysBetween, firstName, formatEventDate, tripDatesLabel } from '../../../lib/format';
 import { parseLatLon } from '../../../lib/geo';
 import { pickPoster } from '../../../lib/pickers';
 import { POINTS } from '../../../lib/points';
@@ -57,10 +62,14 @@ export default function EventScreen() {
       api.getCarSpots(id),
       event.series_id ? api.getSeriesRegulars(event.series_id) : Promise.resolve([]),
     ]);
-    const organizer = event.created_by
-      ? (members.find((m) => m.id === event.created_by) ?? (await api.getUserById(event.created_by)))
-      : null;
-    return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer };
+    const withExpenses = access && (event.kind === 'trip' || Boolean(group?.expenses_enabled));
+    const [organizer, photos, tripItems, expenses] = await Promise.all([
+      event.created_by ? (members.find((m) => m.id === event.created_by) ?? api.getUserById(event.created_by)) : null,
+      api.getEventPhotos(id),
+      access && event.kind === 'trip' ? api.getTripItems(id) : Promise.resolve([]),
+      withExpenses ? api.getExpenses(id) : Promise.resolve(null),
+    ]);
+    return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses };
   }, [id, version]);
 
   async function run(action: () => Promise<void>) {
@@ -91,8 +100,10 @@ export default function EventScreen() {
     );
   }
 
-  const { event, access, group, members, attendees, thanks, carSpots, regulars, organizer } = data.data;
-  const phase = eventPhase(event.date_time);
+  const { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses } = data.data;
+  const reload = () => setVersion((v) => v + 1);
+  const people = [...members, ...attendees];
+  const phase = eventPhase(event.date_time, event.ends_at);
   const mine = attendees.find((a) => a.id === user.id);
   const going = attendees.filter((a) => a.status === 'going');
   const notGoing = attendees.filter((a) => a.status === 'not_going');
@@ -122,7 +133,11 @@ export default function EventScreen() {
                 {phase === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
                 {phase === 'ended' ? <Badge label="Concluso" icon="checkmark-done" /> : null}
                 <Text className="text-2xl font-bold text-ink">{event.title}</Text>
-                <InfoRow icon="time-outline" text={formatEventDate(event.date_time)} />
+                {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
+                <InfoRow
+                  icon="time-outline"
+                  text={event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
+                />
                 {event.location ? <InfoRow icon="location-outline" text={event.location} /> : null}
                 {organizer ? (
                   <View className="flex-row items-center gap-2">
@@ -215,6 +230,28 @@ export default function EventScreen() {
                   }}
                 />
               ) : null}
+
+              {event.kind === 'trip' && access ? (
+                <TripPlan
+                  eventId={event.id}
+                  myId={user.id}
+                  days={dayKeysBetween(event.date_time, event.ends_at)}
+                  items={tripItems}
+                  canEdit={access}
+                  onChanged={reload}
+                />
+              ) : null}
+
+              <EventPhotos
+                eventId={event.id}
+                myId={user.id}
+                photos={photos}
+                people={people}
+                canAdd={access && phase !== 'upcoming'}
+                isAdmin={group?.admin_id === user.id}
+                isPublic={group?.visibility !== 'private'}
+                onChanged={reload}
+              />
             </>
           }
           side={
@@ -245,6 +282,19 @@ export default function EventScreen() {
                   onRide={(driverId) => run(() => api.rideWith(user.id, event.id, driverId))}
                   onAnswer={(passengerId, accept) => run(() => api.answerRide(event.id, passengerId, accept))}
                   onStopSharing={() => run(() => api.stopSharingCarSpot(user.id, event.id))}
+                />
+              ) : null}
+
+              {expenses ? (
+                <ExpensesSection
+                  eventId={event.id}
+                  myId={user.id}
+                  expenses={expenses}
+                  participants={going.some((a) => a.id === user.id) ? going : [user, ...going]}
+                  people={people}
+                  isAdmin={group?.admin_id === user.id}
+                  ended={phase === 'ended'}
+                  onChanged={reload}
                 />
               ) : null}
 

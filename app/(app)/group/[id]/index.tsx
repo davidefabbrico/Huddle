@@ -3,6 +3,7 @@
 // Members and guests see the button to the external chat (WhatsApp, Telegram…) if the admin set one,
 // and the group's points leaderboard. Members can organize events and invite friends.
 // The admin also sees "Gestisci il gruppo": edit and pending requests.
+// "La nostra storia" opens the group's timeline (group/[id]/history).
 // On a computer: the group, its actions and events on the left; leaderboard and members on the right.
 
 import { useEffect, useRef, useState } from 'react';
@@ -123,6 +124,13 @@ export default function GroupDetailScreen() {
 
               {links.chat_url && hasChatAccess(access) ? <ExternalChatButton url={links.chat_url} /> : null}
               {links.parking_code && hasChatAccess(access) ? <ParkingGroupButton code={links.parking_code} /> : null}
+
+              <Button
+                title="La nostra storia"
+                icon="time-outline"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/group/[id]/history', params: { id: group.id } })}
+              />
 
               {isMember ? (
                 <View className="flex-row gap-2">

@@ -31,6 +31,17 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Eventi ricorrenti** (es. palestra lun, mer, ven alle 19): le date si creano da sole due settimane in anticipo.
   Con **"Ci sono ogni volta"** le tue scelte (auto, posti, partenza, il passaggio accettato) valgono anche per le
   prossime date: le auto si organizzano una volta sola. Chi l'ha creato (o l'admin) può fermare la ricorrenza.
+- **Ci vado** (scheda Eventi): la tua agenda, cioè gli eventi e le vacanze a cui hai detto "Ci sono", con un calendario
+  del mese (un pallino nei giorni impegnati; toccando un giorno vedi cosa c'è) e l'elenco dei prossimi.
+- **Vacanze** (Crea → Nuova vacanza): più giorni insieme, scelti sul calendario. Hanno una **scaletta** di cose da fare
+  e da vedere (anche giorno per giorno) che ogni membro può aggiungere, spuntare, rinominare e togliere.
+- **Foto**: in ogni evento, una foto a testa da quando inizia. Le vede chi vede il gruppo: per un gruppo pubblico
+  anche le persone di altri gruppi. L'admin può rimuoverle.
+- **Spese condivise** (stile Splitwise): l'admin le attiva per gli eventi del gruppo (alla creazione o in Modifica
+  gruppo); nelle vacanze ci sono sempre. Si segna chi ha pagato cosa e tra chi dividerla; l'app calcola chi deve
+  quanto a chi con meno pagamenti possibile ([lib/expenses.ts](lib/expenses.ts)) e si segna "saldato".
+- **La nostra storia** (pagina del gruppo): la linea del tempo dalla nascita del gruppo a oggi, con chi è entrato,
+  eventi e vacanze passati, quante persone c'erano e le loro foto.
 - **Per te** (scheda Eventi): eventi suggeriti con un punteggio trasparente ([lib/recommendations.ts](lib/recommendations.ts))
   che unisce i tuoi interessi e cosa piace a chi è nei tuoi gruppi (filtro collaborativo, per uscire dalla bolla),
   con una riga che spiega il perché e uno spazio "Fuori dal solito". Per chi è nuovo in città pesano di più
@@ -77,6 +88,7 @@ app/                         schermate (Expo Router)
   (app)/(tabs)/              barra in basso: Gruppi · Eventi · Crea · Chat · Profilo
   (app)/group/[id]/index.tsx gruppo: entra, organizza, invita, classifica, gestione admin
   (app)/group/[id]/chat.tsx  chat del gruppo
+  (app)/group/[id]/history.tsx  la storia del gruppo (linea del tempo)
   (app)/invite/[code].tsx    link d'invito (anche per i gruppi privati)
   (app)/event/[id].tsx       evento: Ci sono / Non ci sono, check-in, grazie, locandina
   (app)/activity.tsx         notifiche
@@ -89,6 +101,7 @@ lib/
   types.ts                   tipi = tabelle del database
   points.ts, ranks.ts, achievements.ts   punti, gradi, traguardi
   recommendations.ts         "Per te": punteggio e motivazione dei suggerimenti
+  expenses.ts                spese condivise: saldi e "chi deve a chi"
 supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
 
@@ -110,6 +123,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261027_group_icons.sql` | icona (emoji) e colore dei gruppi |
 | `20261027_private_groups.sql` | gruppi pubblici/privati e link d'invito |
 | `20261028_per_te_passaggi_ricorrenti.sql` | "Per te", passaggi su richiesta, eventi ricorrenti, nuovo nome del primo grado |
+| `20261029_vacanze_foto_spese_storia.sql` | vacanze con scaletta, foto degli eventi, spese condivise, storia del gruppo |
 
 ### 2. Login ed email
 
