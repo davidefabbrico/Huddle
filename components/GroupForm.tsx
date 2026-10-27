@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
+import { interestOptions } from '../lib/format';
 import { groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
 import type { NewGroupInput } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { GroupIconPicker } from './GroupIconPicker';
+import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors } from './theme';
 
@@ -48,12 +50,16 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   );
   const shownLook = look ?? (initial.icon || initial.color ? groupLook(initial) : suggestGroupIcon(values.name));
 
+  const [ageMin, setAgeMin] = useState(initial.age_min != null ? String(initial.age_min) : '');
+  const [ageMax, setAgeMax] = useState(initial.age_max != null ? String(initial.age_max) : '');
+  const tags = values.tags ?? [];
+
   const chatUrl = values.chat_url ?? '';
   const parkingCode = values.parking_code ?? '';
   const linkError = validateChatLink(chatUrl);
 
   async function handleSubmit() {
-    const invalid = linkError ?? validateParkingCode(parkingCode);
+    const invalid = linkError ?? validateParkingCode(parkingCode) ?? ageError(ageMin, ageMax);
     if (invalid) return setError(invalid);
     setError(undefined);
     setLoading(true);
@@ -62,6 +68,8 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
         ...values,
         icon: shownLook.icon,
         color: shownLook.color,
+        age_min: ageMin.trim() ? Number(ageMin) : null,
+        age_max: ageMax.trim() ? Number(ageMax) : null,
         chat_url: chatUrl.trim() || null,
         parking_code: parkingCode.trim() ? normalizeParkingCode(parkingCode) : null,
       });
@@ -84,7 +92,44 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
           multiline
           style={{ height: 110, paddingTop: 12, textAlignVertical: 'top' }}
         />
-        <TextField label="Zona" value={values.location} onChangeText={(location) => set({ location })} placeholder="Es. Isola, Milano" />
+        <PlaceField
+          label="Zona"
+          value={{ text: values.location, lat: values.lat ?? null, lon: values.lon ?? null }}
+          onChange={(place) => set({ location: place.text, lat: place.lat, lon: place.lon })}
+          placeholder="Es. Isola, Milano"
+          hint="Scegli la zona dai suggerimenti: così chi cerca gruppi vicini vi trova."
+          foundHint="Zona trovata: comparite nelle ricerche per distanza."
+        />
+
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-stone-700">Per che età? (facoltativo)</Text>
+          <View className="flex-row items-center gap-3">
+            <View className="flex-1">
+              <TextField label="Da (anni)" value={ageMin} onChangeText={setAgeMin} placeholder="Es. 25" keyboardType="number-pad" maxLength={2} />
+            </View>
+            <View className="flex-1">
+              <TextField label="A (anni)" value={ageMax} onChangeText={setAgeMax} placeholder="Es. 40" keyboardType="number-pad" maxLength={2} />
+            </View>
+          </View>
+          <Text className="text-xs text-stone-500">Chi cerca per età vi trova. Lasciate vuoto se va bene a tutti.</Text>
+        </View>
+
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-stone-700">Di cosa vi occupate? (fino a 5)</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {interestOptions.map((interest) => {
+              const selected = tags.includes(interest);
+              return (
+                <Chip
+                  key={interest}
+                  label={interest}
+                  selected={selected}
+                  onPress={() => set({ tags: selected ? tags.filter((t) => t !== interest) : tags.length < 5 ? [...tags, interest] : tags })}
+                />
+              );
+            })}
+          </View>
+        </View>
 
         <View className="gap-2">
           <Text className="text-sm font-medium text-stone-700">Chi può trovare il gruppo?</Text>
@@ -174,4 +219,12 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
       </ScrollView>
     </KeyboardAvoidingView>
   );
+}
+
+// Ages: whole numbers from 14 to 99, "from" not above "to" (either may be empty)
+function ageError(min: string, max: string): string | null {
+  const values = [min, max].filter((v) => v.trim()).map(Number);
+  if (values.some((v) => !Number.isInteger(v) || v < 14 || v > 99)) return 'L’età va da 14 a 99 anni';
+  if (min.trim() && max.trim() && Number(min) > Number(max)) return 'L’età “da” non può superare quella “a”';
+  return null;
 }

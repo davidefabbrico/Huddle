@@ -31,6 +31,20 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Eventi ricorrenti** (es. palestra lun, mer, ven alle 19): le date si creano da sole due settimane in anticipo.
   Con **"Ci sono ogni volta"** le tue scelte (auto, posti, partenza, il passaggio accettato) valgono anche per le
   prossime date: le auto si organizzano una volta sola. Chi l'ha creato (o l'admin) può fermare la ricorrenza.
+- **Cerca** (lente in Gruppi ed Eventi, "Cerca" nel menu laterale su computer): eventi e gruppi per testo,
+  **distanza** (dalla tua zona impostata nel profilo, o dalla posizione presa una volta sul sito, mai salvata),
+  **età** (la tua o una fascia: confrontata con la fascia d'età del gruppo) e **interessi** ([lib/search.ts](lib/search.ts)).
+- **Fascia d'età dei gruppi**: l'admin indica per che età è il gruppo (es. 25–35, anche solo "da" o "a"), insieme a
+  zona (con coordinate, per le distanze) e argomenti. L'anno di nascita delle persone resta privato (`user_settings`).
+- **Affidabilità**: dai punti nasce un livello (Da conoscere → Affidabile → Molto affidabile → Una garanzia,
+  [lib/reliability.ts](lib/reliability.ts)) visibile sul profilo, accanto ai membri e sui gruppi (media dei membri).
+- **Locali e aziende**: alla registrazione si sceglie "Una persona" o "Un locale o un'azienda". Il locale ha una
+  pagina (un gruppo speciale) dove pubblica i suoi eventi, a cui chiunque può dire "Ci sono" senza entrare nel gruppo.
+  Punti diversi: evento organizzato +5, ogni persona che viene +2, grazie +2. Con **20 punti** può mandare un suo evento
+  ai membri dei gruppi entro 5/10/25 km (una volta per evento; chi non vuole inviti dei locali lo disattiva nel profilo).
+- **Newsletter** "📰 La tua settimana": in cima a "Per te" e una volta a settimana in Attività, gli eventi dei prossimi
+  7 giorni vicini alla tua zona o con i tuoi interessi. Si disattiva nel profilo. (Per riceverla anche via email
+  servirà un servizio di invio, vedi "Login ed email".)
 - **Ci vado** (scheda Eventi): la tua agenda, cioè gli eventi e le vacanze a cui hai detto "Ci sono", con un calendario
   del mese (un pallino nei giorni impegnati; toccando un giorno vedi cosa c'è) e l'elenco dei prossimi.
 - **Vacanze** (Crea → Nuova vacanza): più giorni insieme, scelti sul calendario. Hanno una **scaletta** di cose da fare
@@ -46,7 +60,7 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   che unisce i tuoi interessi e cosa piace a chi è nei tuoi gruppi (filtro collaborativo, per uscire dalla bolla),
   con una riga che spiega il perché e uno spazio "Fuori dal solito". Per chi è nuovo in città pesano di più
   i gruppi che accolgono persone nuove. Si vedono solo numeri, mai nomi; nel profilo si può nascondere la propria attività.
-- **Grazie e punti**: dopo l'evento si ringraziano l'organizzatore e chi c'era.
+- **Grazie e punti** (le regole per i locali sono diverse, vedi sotto): dopo l'evento si ringraziano l'organizzatore e chi c'era.
   Punti: organizzare +10 (non a ogni data di un evento ricorrente), partecipare +5, ricevere un grazie +2.
   Classifica in ogni gruppo.
 - **Gradi** in ogni gruppo: Volto nuovo → Faccia nota → Prezzemolo → Anima della festa →
@@ -92,6 +106,7 @@ app/                         schermate (Expo Router)
   (app)/invite/[code].tsx    link d'invito (anche per i gruppi privati)
   (app)/event/[id].tsx       evento: Ci sono / Non ci sono, check-in, grazie, locandina
   (app)/activity.tsx         notifiche
+  (app)/search.tsx           cerca eventi e gruppi (distanza, età, interessi)
   (app)/create-group.tsx, edit-group.tsx, create-event.tsx, edit-profile.tsx, change-password.tsx
 components/                  componenti UI
 hooks/                       store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
@@ -102,6 +117,7 @@ lib/
   points.ts, ranks.ts, achievements.ts   punti, gradi, traguardi
   recommendations.ts         "Per te": punteggio e motivazione dei suggerimenti
   expenses.ts                spese condivise: saldi e "chi deve a chi"
+  search.ts, reliability.ts  filtri di ricerca; livelli di affidabilità dai punti
 supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
 
@@ -124,6 +140,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261027_private_groups.sql` | gruppi pubblici/privati e link d'invito |
 | `20261028_per_te_passaggi_ricorrenti.sql` | "Per te", passaggi su richiesta, eventi ricorrenti, nuovo nome del primo grado |
 | `20261029_vacanze_foto_spese_storia.sql` | vacanze con scaletta, foto degli eventi, spese condivise, storia del gruppo |
+| `20261030_cerca_eta_affidabilita_locali.sql` | ricerca (zona e fascia d'età dei gruppi), affidabilità, locali/aziende e promozioni, newsletter |
 
 ### 2. Login ed email
 

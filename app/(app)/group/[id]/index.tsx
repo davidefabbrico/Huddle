@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
+import { ReliabilityBadge } from '../../../../components/ReliabilityBadge';
 import { Columns } from '../../../../components/Columns';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { EventCard } from '../../../../components/EventCard';
@@ -26,6 +27,7 @@ import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
 import { hasChatAccess, useJoinStore, type GroupAccess } from '../../../../hooks/useJoinStore';
 import * as api from '../../../../lib/api';
+import { ageRangeLabel } from '../../../../lib/search';
 import { parkingGroupUrl } from '../../../../lib/smartpark';
 import type { Group, JoinStatus, LeaderboardEntry } from '../../../../lib/types';
 
@@ -46,7 +48,8 @@ export default function GroupDetailScreen() {
         api.getMyAnswers(user.id),
         withAccess ? api.getGroupLeaderboard(id) : Promise.resolve([]),
       ]);
-      return { group, members, events, links, answers, leaderboard };
+      const reliability = await api.getReliability(members.map((m) => m.id), [id]);
+      return { group, members, events, links, answers, leaderboard, reliability };
     },
     [id, user.id, access], // refetch after joining so the member list updates
     { refetchOnFocus: true }, // and after editing the group
@@ -89,7 +92,8 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const { members, events, links, answers, leaderboard } = details.data;
+  const { members, events, links, answers, leaderboard, reliability } = details.data;
+  const ages = ageRangeLabel(group.age_min, group.age_max);
   const isMember = access === 'member';
 
   return (
@@ -115,6 +119,9 @@ export default function GroupDetailScreen() {
                     <Badge label="Al completo" icon="lock-closed" centered />
                   )}
                   {group.visibility === 'private' ? <Badge label="Gruppo privato" icon="lock-closed" tone="brand" centered /> : null}
+                {group.is_business ? <Badge label="Pagina del locale" icon="storefront" tone="sky" centered /> : null}
+                {ages ? <Badge label={ages} icon="person" centered /> : null}
+                <ReliabilityBadge points={reliability.groups[group.id]} centered />
                 </View>
               </View>
 
@@ -183,6 +190,7 @@ export default function GroupDetailScreen() {
                           </Text>
                           {member.member_role === 'admin' ? <Badge label="Admin" tone="brand" icon="star" /> : null}
                           {member.is_relocated ? <RelocatedBadge /> : null}
+                          <ReliabilityBadge points={reliability.users[member.id]} />
                         </View>
                         <Text numberOfLines={2} className="text-sm text-stone-500">
                           {member.bio}

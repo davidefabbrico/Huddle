@@ -1,4 +1,5 @@
-// Edit your profile: photo or pixel avatar, name, bio, arrival in the city, what you're looking for, interests
+// Edit your profile: photo or pixel avatar, name, bio, arrival in the city, what you're looking for, interests,
+// and the private settings (birth year, your area, newsletter, venues' invitations)
 
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
@@ -8,15 +9,17 @@ import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
+import { PrivateSettingsFields } from '../../components/PrivateSettingsFields';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { colors } from '../../components/theme';
+import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
 import { intentLabels, interestOptions } from '../../lib/format';
 import { randomSeed } from '../../lib/identicon';
 import { pickProfilePhoto } from '../../lib/pickers';
-import type { PickedFile, UserIntent } from '../../lib/types';
+import type { PickedFile, UserIntent, UserSettings } from '../../lib/types';
 
 export default function EditProfileScreen() {
   const user = useAuth((state) => state.user)!;
@@ -28,6 +31,13 @@ export default function EditProfileScreen() {
   const [relocatedAt, setRelocatedAt] = useState(user.relocated_at);
   const [intent, setIntent] = useState<UserIntent>(user.intent);
   const [hideActivity, setHideActivity] = useState(user.hide_activity);
+  const isBusiness = user.account_type === 'business';
+  // Private settings: loaded, plus what you changed here
+  const savedSettings = useAsync(() => api.getMySettings(user.id), [user.id]);
+  const [settingsChanges, setSettingsChanges] = useState<Partial<UserSettings>>({});
+  const [birthYearText, setBirthYearText] = useState<string>();
+  const settings = savedSettings.data ? { ...savedSettings.data, ...settingsChanges } : null;
+  const birthYear = birthYearText ?? (savedSettings.data?.birth_year ? String(savedSettings.data.birth_year) : '');
   // Keep interests that are not in the standard list selectable too
   const [interests, setInterests] = useState<string[]>(user.interests);
   const allInterests = [...new Set([...interestOptions, ...user.interests])];
@@ -43,8 +53,13 @@ export default function EditProfileScreen() {
 
   async function handleSave() {
     setError(undefined);
+    const year = birthYear.trim() ? Number(birthYear) : null;
+    if (year !== null && !(Number.isInteger(year) && year >= 1900 && year <= new Date().getFullYear() - 14)) {
+      return setError('Scrivi l’anno di nascita per intero, es. 1994');
+    }
     setLoading(true);
     try {
+      if (settings) await api.updateMySettings(user.id, { ...settingsChanges, birth_year: year });
       const photoUrl = newPhoto ? await api.uploadAvatar(user.id, newPhoto) : avatarUrl;
       await updateProfile({
         avatar_url: photoUrl,
@@ -116,32 +131,36 @@ export default function EditProfileScreen() {
             style={{ height: 110, paddingTop: 12, textAlignVertical: 'top' }}
           />
 
-          <View className="gap-4 rounded-3xl bg-white p-4">
-            <View className="flex-row items-center justify-between gap-4">
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
-                <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” e ti suggeriamo i gruppi che accolgono persone nuove.</Text>
+          {isBusiness ? null : (
+            <View className="gap-4 rounded-3xl bg-white p-4">
+              <View className="flex-row items-center justify-between gap-4">
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
+                  <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” e ti suggeriamo i gruppi che accolgono persone nuove.</Text>
+                </View>
+                <Switch
+                  value={isRelocated}
+                  onValueChange={setIsRelocated}
+                  trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+                  thumbColor={colors.white}
+                  // react-native-web only: otherwise the "on" thumb is teal
+                  {...({ activeThumbColor: colors.white } as object)}
+                />
               </View>
-              <Switch
-                value={isRelocated}
-                onValueChange={setIsRelocated}
-                trackColor={{ true: colors.brand, false: '#D6D3D1' }}
-                thumbColor={colors.white}
-                // react-native-web only: otherwise the "on" thumb is teal
-                {...({ activeThumbColor: colors.white } as object)}
-              />
+              {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
             </View>
-            {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
-          </View>
+          )}
 
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
-                <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
-              ))}
+          {isBusiness ? null : (
+            <View className="gap-3">
+              <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
+                  <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
           <View className="gap-3">
             <Text className="text-lg font-semibold text-ink">I tuoi interessi</Text>
@@ -173,6 +192,16 @@ export default function EditProfileScreen() {
               {...({ activeThumbColor: colors.white } as object)}
             />
           </View>
+
+          {settings ? (
+            <PrivateSettingsFields
+              settings={settings}
+              birthYear={birthYear}
+              isBusiness={isBusiness}
+              onBirthYear={setBirthYearText}
+              onChange={(changes) => setSettingsChanges((prev) => ({ ...prev, ...changes }))}
+            />
+          ) : null}
 
           {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
           <Button title="Salva" icon="checkmark" onPress={handleSave} loading={loading} />

@@ -17,7 +17,8 @@ import { useAuth } from '../../../hooks/useAuth';
 import { computeAchievements, type Achievement } from '../../../lib/achievements';
 import * as api from '../../../lib/api';
 import { arrivalLabel, intentLabels, roleLabels } from '../../../lib/format';
-import { pointsRules } from '../../../lib/points';
+import { businessPointsRules, pointsRules, PROMOTION_COST } from '../../../lib/points';
+import { RELIABILITY, reliabilityFor, starsLabel } from '../../../lib/reliability';
 import { nextRank, rankFor, rankProgress, RANKS } from '../../../lib/ranks';
 import type { Membership } from '../../../lib/types';
 
@@ -25,6 +26,12 @@ export default function ProfileScreen() {
   const user = useAuth((state) => state.user)!;
   const signOut = useAuth((state) => state.signOut);
   const stats = useAsync(() => api.getProfileStats(user.id), [user.id], { refetchOnFocus: true });
+  // Points as the database counts them (per account type), and what a venue spent on promotions
+  const myPoints = useAsync(() => api.getMyPoints(), [user.id], { refetchOnFocus: true });
+  const isBusiness = user.account_type === 'business';
+  const earned = myPoints.data?.earned;
+  const reliability = earned !== undefined ? reliabilityFor(earned) : null;
+  const nextReliability = reliability ? RELIABILITY.find((level) => level.stars === reliability.stars + 1) : undefined;
   const email = useAsync(() => api.getCurrentEmail(), []);
 
   const list = stats.data?.memberships ?? [];
@@ -44,7 +51,11 @@ export default function ProfileScreen() {
                 <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
                 <View className="flex-row flex-wrap justify-center gap-2">
                   {user.is_relocated ? <RelocatedBadge /> : null}
+                  {isBusiness ? (
+                  <Badge label="Locale o azienda" tone="sky" icon="storefront" />
+                ) : (
                   <Badge label={roleLabels[user.role]} tone="brand" icon={user.role === 'group' ? 'people' : 'person'} />
+                )}
                 </View>
                 {user.is_relocated && user.relocated_at ? (
                   <View className="flex-row items-center gap-1">
@@ -58,7 +69,11 @@ export default function ProfileScreen() {
 
               {/* Stats */}
               <View className="flex-row gap-3">
-                <Stat value={String(stats.data?.points ?? '–')} label="Punti" highlight />
+                <Stat
+                  value={String(earned === undefined ? '–' : isBusiness ? earned - (myPoints.data?.spent ?? 0) : earned)}
+                  label={isBusiness ? 'Punti da spendere' : 'Punti'}
+                  highlight
+                />
                 <Stat value={String(stats.data?.attended ?? '–')} label="Eventi frequentati" />
                 <Stat value={String(stats.data?.thanks_received ?? '–')} label="Grazie ricevuti 🙏" />
               </View>
@@ -68,10 +83,31 @@ export default function ProfileScreen() {
                 </Text>
               ) : null}
 
+              {/* Reliability: what the points mean */}
+              {reliability ? (
+                <View className="gap-1 rounded-3xl border border-brand-100 bg-brand-50 p-4">
+                  <Text className="text-sm font-semibold text-brand-700">LA TUA AFFIDABILITÀ</Text>
+                  <Text className="text-xl font-bold text-ink">
+                    {starsLabel(reliability.stars)} {reliability.label}
+                  </Text>
+                  <Text className="text-sm text-stone-600">{reliability.description}</Text>
+                  <Text className="text-xs text-stone-500">
+                    {nextReliability
+                      ? `Con ${nextReliability.minPoints} punti diventi “${nextReliability.label}” (ne hai ${earned}). La vedono gli altri sul tuo profilo e nei gruppi.`
+                      : 'Livello massimo: la vedono gli altri sul tuo profilo e nei gruppi.'}
+                  </Text>
+                </View>
+              ) : null}
+
               {/* How points work */}
               <View className="gap-2 rounded-3xl bg-white p-4">
                 <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
-                {pointsRules.map((rule) => (
+                {isBusiness ? (
+                  <Text className="text-sm text-stone-500">
+                    Per i locali contano le persone che vengono. Con {PROMOTION_COST} punti mandi un tuo evento ai gruppi della zona.
+                  </Text>
+                ) : null}
+                {(isBusiness ? businessPointsRules : pointsRules).map((rule) => (
                   <View key={rule.label} className="flex-row items-center gap-3">
                     <Text className="text-lg">{rule.emoji}</Text>
                     <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>

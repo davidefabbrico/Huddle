@@ -13,9 +13,10 @@ import { Avatar, avatarOf } from './Avatar';
 import { colors } from './theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
-type Section = 'groups' | 'events' | 'create' | 'chats' | 'activity' | 'profile';
+type Section = 'search' | 'groups' | 'events' | 'create' | 'chats' | 'activity' | 'profile';
 
 const items: { section: Section; href: Href; label: string; icon: IconName; activeIcon: IconName }[] = [
+  { section: 'search', href: '/search', label: 'Cerca', icon: 'search-outline', activeIcon: 'search' },
   { section: 'groups', href: '/', label: 'Gruppi', icon: 'people-outline', activeIcon: 'people' },
   { section: 'events', href: '/events', label: 'Eventi', icon: 'calendar-outline', activeIcon: 'calendar' },
   { section: 'chats', href: '/chats', label: 'Chat', icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
@@ -27,6 +28,7 @@ function sectionOf(path: string): Section {
   if (/^\/group\/[^/]+\/chat/.test(path) || path.startsWith('/chats')) return 'chats';
   if (path.startsWith('/event') || path === '/create-event') return 'events';
   if (path.startsWith('/activity')) return 'activity';
+  if (path.startsWith('/search')) return 'search';
   if (['/profile', '/edit-profile', '/change-password'].includes(path)) return 'profile';
   if (path.startsWith('/create')) return 'create';
   return 'groups';

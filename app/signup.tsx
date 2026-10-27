@@ -16,7 +16,7 @@ import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 import { dateMonthsAgo, intentLabels, interestOptions } from '../lib/format';
-import type { UserIntent, UserRole } from '../lib/types';
+import type { AccountType, UserIntent, UserRole } from '../lib/types';
 
 const roleOptions: { value: UserRole; title: string; text: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
   { value: 'solo', title: 'Cerco un gruppo', text: 'Vorrei entrare in una compagnia già formata.', icon: 'person' },
@@ -29,6 +29,9 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
+  const [accountType, setAccountType] = useState<AccountType>('person');
+  const isBusiness = accountType === 'business';
+  const [birthYear, setBirthYear] = useState('');
   const [role, setRole] = useState<UserRole>('solo');
   const [intent, setIntent] = useState<UserIntent>('friends');
   const [isRelocated, setIsRelocated] = useState(false);
@@ -46,6 +49,10 @@ export default function SignupScreen() {
   // with email confirmation on, we ask to open the link first.
   async function handleSignUp() {
     if (!fullName.trim() || !email.includes('@')) return setError('Inserisci nome e una email valida');
+    const year = birthYear.trim() ? Number(birthYear) : null;
+    if (year !== null && !(Number.isInteger(year) && year >= 1900 && year <= new Date().getFullYear() - 14)) {
+      return setError('Scrivi l’anno di nascita per intero, es. 1994 (servono almeno 14 anni)');
+    }
     const invalidPassword = passwordError(password, repeat);
     if (invalidPassword) return setError(invalidPassword);
     setError(undefined);
@@ -55,11 +62,13 @@ export default function SignupScreen() {
         full_name: fullName,
         email,
         password,
-        role,
+        role: isBusiness ? 'group' : role,
         intent,
-        is_relocated: isRelocated,
+        is_relocated: !isBusiness && isRelocated,
         relocated_at: relocatedAt,
         interests,
+        account_type: accountType,
+        birth_year: isBusiness ? null : year,
       });
       if (result.needsEmailConfirmation) {
         setCheckEmail(true);
@@ -114,8 +123,28 @@ export default function SignupScreen() {
             <Text className="mt-1 text-base text-stone-600">Due minuti e potrai conoscere il tuo prossimo gruppo.</Text>
           </View>
 
+          <View className="gap-3">
+            <Text className="text-lg font-semibold text-ink">Chi si iscrive?</Text>
+            <View className="flex-row flex-wrap gap-2">
+              <Chip label="🙋 Una persona" selected={!isBusiness} onPress={() => setAccountType('person')} />
+              <Chip label="🏪 Un locale o un’azienda" selected={isBusiness} onPress={() => setAccountType('business')} />
+            </View>
+            {isBusiness ? (
+              <Text className="text-sm text-stone-500">
+                Avrai la pagina del locale dove pubblicare i tuoi eventi: chiunque potrà dire “Ci sono”. Con i punti
+                guadagnati potrai far arrivare un evento ai gruppi della zona.
+              </Text>
+            ) : null}
+          </View>
+
           <View className="gap-4">
-            <TextField label="Nome e cognome" value={fullName} onChangeText={setFullName} placeholder="Giulia Rossi" autoComplete="name" />
+            <TextField
+              label={isBusiness ? 'Nome del locale o dell’azienda' : 'Nome e cognome'}
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder={isBusiness ? 'Bar Centrale' : 'Giulia Rossi'}
+              autoComplete={isBusiness ? 'organization' : 'name'}
+            />
             <TextField
               label="Email"
               value={email}
@@ -133,68 +162,86 @@ export default function SignupScreen() {
               autoComplete="new-password"
             />
             <PasswordField label="Ripeti la password" value={repeat} onChangeText={setRepeat} autoComplete="new-password" />
-          </View>
-
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">Come vuoi usare Huddle?</Text>
-            {roleOptions.map((option) => {
-              const selected = role === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setRole(option.value)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
-                >
-                  <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-500' : 'bg-stone-100'}`}>
-                    <Ionicons name={option.icon} size={24} color={selected ? colors.white : colors.muted} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-ink">{option.title}</Text>
-                    <Text className="text-sm text-stone-500">{option.text}</Text>
-                  </View>
-                  <Ionicons
-                    name={selected ? 'radio-button-on' : 'radio-button-off'}
-                    size={22}
-                    color={selected ? colors.brand : colors.muted}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View className="gap-4 rounded-3xl bg-white p-4">
-            <View className="flex-row items-center justify-between gap-4">
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
-                <Text className="text-sm text-stone-500">
-                  Se ti sei trasferito/a da poco: badge “Da poco in città” e suggerimenti dei gruppi che accolgono persone nuove.
-                </Text>
+            {isBusiness ? null : (
+              <View className="gap-1">
+                <TextField
+                  label="Anno di nascita (facoltativo)"
+                  value={birthYear}
+                  onChangeText={setBirthYear}
+                  placeholder="Es. 1994"
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+                <Text className="text-xs text-stone-500">Resta privato: serve solo a trovarti gruppi della tua età.</Text>
               </View>
-              <Switch
-                value={isRelocated}
-                onValueChange={setIsRelocated}
-                trackColor={{ true: colors.brand, false: '#D6D3D1' }}
-                thumbColor={colors.white}
-                // react-native-web only: otherwise the "on" thumb is teal
-                {...({ activeThumbColor: colors.white } as object)}
-              />
-            </View>
-            {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
+            )}
           </View>
 
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
-                <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
-              ))}
-            </View>
-          </View>
+          {isBusiness ? null : (
+            <>
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">Come vuoi usare Huddle?</Text>
+                {roleOptions.map((option) => {
+                  const selected = role === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => setRole(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
+                    >
+                      <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-500' : 'bg-stone-100'}`}>
+                        <Ionicons name={option.icon} size={24} color={selected ? colors.white : colors.muted} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-base font-semibold text-ink">{option.title}</Text>
+                        <Text className="text-sm text-stone-500">{option.text}</Text>
+                      </View>
+                      <Ionicons
+                        name={selected ? 'radio-button-on' : 'radio-button-off'}
+                        size={22}
+                        color={selected ? colors.brand : colors.muted}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View className="gap-4 rounded-3xl bg-white p-4">
+                <View className="flex-row items-center justify-between gap-4">
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
+                    <Text className="text-sm text-stone-500">
+                      Se ti sei trasferito/a da poco: badge “Da poco in città” e suggerimenti dei gruppi che accolgono persone nuove.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isRelocated}
+                    onValueChange={setIsRelocated}
+                    trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+                    thumbColor={colors.white}
+                    // react-native-web only: otherwise the "on" thumb is teal
+                    {...({ activeThumbColor: colors.white } as object)}
+                  />
+                </View>
+                {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
+              </View>
+
+              <View className="gap-3">
+                <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
+                    <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
+                  ))}
+                </View>
+              </View>
+
+            </>
+          )}
 
           <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">I tuoi interessi</Text>
+            <Text className="text-lg font-semibold text-ink">{isBusiness ? 'Che eventi organizzate?' : 'I tuoi interessi'}</Text>
             <View className="flex-row flex-wrap gap-2">
               {interestOptions.map((interest) => (
                 <Chip

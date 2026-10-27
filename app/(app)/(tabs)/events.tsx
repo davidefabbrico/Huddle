@@ -7,14 +7,16 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { AgendaView } from '../../../components/AgendaView';
 import { Chip } from '../../../components/Chip';
 import { Grid } from '../../../components/Columns';
+import { NewsletterCard } from '../../../components/NewsletterCard';
 import { EventCard } from '../../../components/EventCard';
 import { Screen } from '../../../components/Screen';
+import { SearchButton } from '../../../components/SearchButton';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
 import { useAuth } from '../../../hooks/useAuth';
 import * as api from '../../../lib/api';
 import { dayLabel } from '../../../lib/format';
-import { recommendEvents } from '../../../lib/recommendations';
+import { recommendEvents, weeklyPicks } from '../../../lib/recommendations';
 import type { EventWithGroup } from '../../../lib/types';
 
 type Filter = 'forYou' | 'going' | 'all' | 'mine';
@@ -25,15 +27,30 @@ export default function EventsScreen() {
 
   const data = useAsync(
     async () => {
-      const [events, memberships, answers, signals, agenda] = await Promise.all([
+      const [events, memberships, answers, signals, agenda, settings] = await Promise.all([
         api.getUpcomingEvents(100),
         api.getMemberships(user.id),
         api.getMyAnswers(user.id),
         api.getForYouSignals(),
         api.getMyAgenda(user.id),
+        api.getMySettings(user.id),
+        api.sendNewsletterIfDue(), // the weekly newsletter in Attività, at most once a week
       ]);
       const myGroupIds = new Set(memberships.map((m) => m.group.id));
-      return { events, answers, myGroupIds, agenda, suggestions: recommendEvents(events, user, answers, myGroupIds, signals) };
+      const recommended = recommendEvents(events, user, answers, myGroupIds, signals);
+      // "La tua settimana" uses the fuller "Per te" reason when there is one ("ti piace: cinema · ci va…"),
+      // and what's in it isn't repeated in the suggestions below
+      const reasons = new Map(recommended.map((s) => [s.event.id, s.reason.charAt(0).toLowerCase() + s.reason.slice(1)]));
+      const weekly = settings.newsletter
+        ? weeklyPicks(events, user, answers, settings).map((p) => {
+            const reason = reasons.get(p.event.id);
+            // keep the distance ("a 2,3 km"), it's the point of a newsletter about nearby events
+            return { ...p, why: !reason ? p.why : p.why.startsWith('a ') ? `${p.why} · ${reason}` : reason };
+          })
+        : null;
+      const inWeekly = new Set(weekly?.map((p) => p.event.series_id ?? p.event.id));
+      const suggestions = recommended.filter((s) => !inWeekly.has(s.event.series_id ?? s.event.id));
+      return { events, answers, myGroupIds, agenda, settings, weekly, suggestions };
     },
     [user.id],
     { refetchOnFocus: true },
@@ -53,9 +70,12 @@ export default function EventsScreen() {
   return (
     <Screen width="wide">
       <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
-        <View className="gap-1">
-          <Text className="text-3xl font-bold text-ink">Eventi</Text>
-          <Text className="text-base text-stone-600">Rispondi “Ci sono” o “Non ci sono”: così chi organizza sa su chi contare.</Text>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1 gap-1">
+            <Text className="text-3xl font-bold text-ink">Eventi</Text>
+            <Text className="text-base text-stone-600">Rispondi “Ci sono” o “Non ci sono”: così chi organizza sa su chi contare.</Text>
+          </View>
+          <SearchButton />
         </View>
 
         <View className="flex-row flex-wrap gap-2">
@@ -72,22 +92,25 @@ export default function EventsScreen() {
         ) : filter === 'going' ? (
           <AgendaView events={data.data?.agenda ?? []} />
         ) : filter === 'forYou' ? (
-          suggestions.length === 0 ? (
-            <Text className="mt-6 text-center text-stone-500">
-              Nessun suggerimento: hai già risposto a tutti gli eventi in programma. Aggiungi interessi al profilo per scoprirne altri.
-            </Text>
-          ) : (
-            <View className="gap-3">
-              <Text className="text-sm text-stone-500">
-                In base ai tuoi interessi e a cosa piace a chi è nei tuoi gruppi. Ci sono solo eventi a cui non hai ancora risposto.
+          <View className="gap-5">
+            {data.data?.weekly ? <NewsletterCard picks={data.data.weekly} hasArea={data.data.settings.area_lat != null} /> : null}
+            {suggestions.length === 0 ? (
+              <Text className="mt-6 text-center text-stone-500">
+                Nessun suggerimento: hai già risposto a tutti gli eventi in programma. Aggiungi interessi al profilo per scoprirne altri.
               </Text>
-              <Grid>
-                {suggestions.map((s) => (
-                  <EventCard key={s.event.id} event={s.event} showGroup reason={s.reason} outside={s.outside} />
-                ))}
-              </Grid>
-            </View>
-          )
+            ) : (
+              <View className="gap-3">
+                <Text className="text-sm text-stone-500">
+                  In base ai tuoi interessi e a cosa piace a chi è nei tuoi gruppi. Ci sono solo eventi a cui non hai ancora risposto.
+                </Text>
+                <Grid>
+                  {suggestions.map((s) => (
+                    <EventCard key={s.event.id} event={s.event} showGroup reason={s.reason} outside={s.outside} />
+                  ))}
+                </Grid>
+              </View>
+            )}
+          </View>
         ) : days.length === 0 ? (
           <Text className="mt-6 text-center text-stone-500">
             {filter === 'mine' ? 'Nessun evento in programma nei tuoi gruppi.' : 'Nessun evento in programma.'}

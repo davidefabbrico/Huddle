@@ -19,11 +19,20 @@ interface Props {
   value: PlaceValue;
   onChange: (value: PlaceValue) => void;
   placeholder?: string;
+  hint?: string; // under the field, until a suggestion is picked
+  foundHint?: string; // once a suggestion is picked
 }
 
 const DEBOUNCE_MS = 600; // Nominatim allows about one request per second
 
-export function PlaceField({ label, value, onChange, placeholder }: Props) {
+export function PlaceField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint = 'Scegli un indirizzo dai suggerimenti per collegare l’evento alla mappa.',
+  foundHint = 'Posizione trovata: “Trova parcheggio” porterà qui',
+}: Props) {
   // Suggestions belong to the text they were searched for: stale ones are simply not shown
   const [found, setFound] = useState<{ query: string; places: Place[] }>({ query: '', places: [] });
   const picked = value.lat !== null && value.lon !== null;
@@ -57,7 +66,7 @@ export function PlaceField({ label, value, onChange, placeholder }: Props) {
       {picked ? (
         <View className="flex-row items-center gap-1">
           <Ionicons name="location" size={14} color={colors.green} />
-          <Text className="text-xs text-emerald-700">Posizione trovata: “Trova parcheggio” porterà qui</Text>
+          <Text className="text-xs text-emerald-700">{foundHint}</Text>
         </View>
       ) : results.length > 0 ? (
         <View className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
@@ -77,7 +86,7 @@ export function PlaceField({ label, value, onChange, placeholder }: Props) {
           <Text className="px-3 py-1.5 text-right text-[10px] text-stone-400">© OpenStreetMap</Text>
         </View>
       ) : searchable ? (
-        <Text className="text-xs text-stone-500">Scegli un indirizzo dai suggerimenti per collegare l’evento alla mappa.</Text>
+        <Text className="text-xs text-stone-500">{hint}</Text>
       ) : null}
     </View>
   );

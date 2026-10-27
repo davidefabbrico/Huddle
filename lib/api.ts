@@ -46,6 +46,7 @@ import type {
   Transport,
   TripItem,
   User,
+  UserSettings,
 } from './types';
 
 // Rows come back untyped from supabase-js; each function maps them to lib/types.ts shapes
@@ -81,7 +82,7 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 
 // ---- Row mappers ----
 
-const EVENT_SELECT = '*, groups(name, icon, color, type), event_series(weekdays, start_time, created_by)';
+const EVENT_SELECT = '*, groups(name, icon, color, type, age_min, age_max, is_business), event_series(weekdays, start_time, created_by)';
 const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
 
 function toEvent(row: Row): EventWithGroup {
@@ -104,6 +105,9 @@ function toEvent(row: Row): EventWithGroup {
     group_icon: row.groups?.icon ?? null,
     group_color: row.groups?.color ?? null,
     group_type: row.groups?.type ?? 'open_to_new',
+    group_age_min: row.groups?.age_min ?? null,
+    group_age_max: row.groups?.age_max ?? null,
+    group_is_business: row.groups?.is_business ?? false,
     series: row.event_series ?? null,
   };
 }
@@ -176,6 +180,8 @@ export async function signUp(input: SignUpInput): Promise<SignUpResult> {
         is_relocated: input.is_relocated,
         relocated_at: input.is_relocated ? input.relocated_at : null,
         interests: input.interests ?? [],
+        account_type: input.account_type ?? 'person',
+        birth_year: input.birth_year ?? null,
       },
     },
   });
@@ -224,6 +230,24 @@ export async function updateProfile(userId: string, changes: Partial<Omit<User, 
   const patch = { ...changes };
   if (patch.is_relocated === false) patch.relocated_at = null;
   return check(await supabase.from('users').update(patch).eq('id', userId).select().single()) as User;
+}
+
+// Private settings (age, area, newsletter…): defaults until the row exists
+export async function getMySettings(userId: string): Promise<UserSettings> {
+  const row: Row = check(await supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle());
+  return {
+    birth_year: row?.birth_year ?? null,
+    area: row?.area ?? null,
+    area_lat: row?.area_lat ?? null,
+    area_lon: row?.area_lon ?? null,
+    search_radius_km: row?.search_radius_km ?? 25,
+    newsletter: row?.newsletter ?? true,
+    accept_promos: row?.accept_promos ?? true,
+  };
+}
+
+export async function updateMySettings(userId: string, changes: Partial<UserSettings>): Promise<void> {
+  check(await supabase.from('user_settings').upsert({ user_id: userId, ...changes }));
 }
 
 export async function uploadAvatar(userId: string, file: PickedFile): Promise<string> {
@@ -275,6 +299,11 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         type: input.type,
         visibility: input.visibility ?? 'public',
         expenses_enabled: input.expenses_enabled ?? false,
+        lat: input.lat ?? null,
+        lon: input.lon ?? null,
+        age_min: input.age_min ?? null,
+        age_max: input.age_max ?? null,
+        tags: input.tags ?? [],
         icon: input.icon ?? null,
         color: input.color ?? null,
         admin_id: userId,
@@ -666,6 +695,46 @@ export async function deleteExpense(expenseId: string): Promise<void> {
   const { error, count } = await supabase.from('expenses').delete({ count: 'exact' }).eq('id', expenseId);
   if (error) throw toError(error);
   if (!count) throw new Error('Può toglierla solo chi l’ha aggiunta o pagata, o l’admin');
+}
+
+// ---- Points, reliability, venues ----
+
+// Your points: earned (same rules as lib/points.ts, per account type) and spent (venues' promotions)
+export async function getMyPoints(): Promise<{ earned: number; spent: number }> {
+  return check(await supabase.rpc('my_points')) as { earned: number; spent: number };
+}
+
+// Points behind the reliability of people and groups (lib/reliability.ts): id -> points
+export async function getReliability(
+  userIds: string[],
+  groupIds: string[],
+): Promise<{ users: Record<string, number>; groups: Record<string, number> }> {
+  if (!userIds.length && !groupIds.length) return { users: {}, groups: {} };
+  return check(await supabase.rpc('reliability', { p_users: userIds, p_groups: groupIds })) as {
+    users: Record<string, number>;
+    groups: Record<string, number>;
+  };
+}
+
+// Venue: send the event to the groups within radiusKm (costs points, once per event)
+export async function promoteEvent(eventId: string, radiusKm: number): Promise<{ groups: number; people: number; spent: number }> {
+  return check(await supabase.rpc('promote_event', { p_event: eventId, p_radius_km: radiusKm })) as {
+    groups: number;
+    people: number;
+    spent: number;
+  };
+}
+
+// Venue: whether this event was already promoted (once per event)
+export async function wasPromoted(eventId: string): Promise<boolean> {
+  const { count, error } = await supabase.from('point_spends').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+  if (error) throw toError(error);
+  return Boolean(count);
+}
+
+// Weekly newsletter: at most once a week the database adds "La tua settimana" to Attività (best effort)
+export async function sendNewsletterIfDue(): Promise<void> {
+  await supabase.rpc('newsletter_digest');
 }
 
 // ---- The group's history ----

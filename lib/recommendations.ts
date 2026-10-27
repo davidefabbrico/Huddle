@@ -9,7 +9,8 @@
 // like that doesn't match your interests. Signals are counts from the database, never names.
 
 import { interestOptions } from './format';
-import type { EventAttendee, EventWithGroup, ForYouSignals, User } from './types';
+import { distanceMeters } from './geo';
+import type { EventAttendee, EventWithGroup, ForYouSignals, User, UserSettings } from './types';
 
 export const WEIGHTS = {
   interest: 3,
@@ -121,4 +122,36 @@ export function recommendEvents(
     return rest;
   }
   return top;
+}
+
+// Weekly newsletter ("La tua settimana", top of "Per te"): up to 5 events of the next 7 days you
+// haven't answered, near your area or matching your interests. Same rule as newsletter_digest in
+// schema.sql, which also puts it in Attività once a week.
+export interface WeeklyPick {
+  event: EventWithGroup;
+  why: string; // "a 2,3 km" / "ti piace: cinema"
+}
+
+export function weeklyPicks(
+  events: EventWithGroup[],
+  me: Pick<User, 'interests'>,
+  answers: Record<string, EventAttendee>,
+  settings: UserSettings,
+  now = Date.now(),
+): WeeklyPick[] {
+  const area = settings.area_lat != null && settings.area_lon != null ? { lat: settings.area_lat, lon: settings.area_lon } : null;
+  const seenSeries = new Set<string>();
+  const picks: WeeklyPick[] = [];
+  for (const event of [...events].sort((a, b) => a.date_time.localeCompare(b.date_time))) {
+    const start = new Date(event.date_time).getTime();
+    if (start <= now || start > now + 7 * 24 * 3600e3 || answers[event.id]) continue;
+    if (event.series_id && seenSeries.has(event.series_id)) continue;
+    const km = area && event.lat != null && event.lon != null ? distanceMeters(area, { lat: event.lat, lon: event.lon }) / 1000 : null;
+    const liked = event.tags.find((t) => me.interests.includes(t));
+    if (!liked && (km == null || km > settings.search_radius_km)) continue;
+    if (event.series_id) seenSeries.add(event.series_id);
+    picks.push({ event, why: km != null && km <= settings.search_radius_km ? `a ${km.toFixed(1).replace('.', ',')} km` : `ti piace: ${liked}` });
+    if (picks.length === 5) break;
+  }
+  return picks;
 }

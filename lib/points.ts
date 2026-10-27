@@ -9,6 +9,22 @@ export const POINTS = {
   passenger: 5, // per person who came to an event in your car
 };
 
+// Venues and businesses earn differently (they organize as a job). Keep in sync with earned_points in schema.sql.
+export const BUSINESS_POINTS = {
+  organize: 5,
+  participant: 2, // per person at your events
+  thanksReceived: 2,
+};
+
+// Points a venue spends to send an event to the groups in the area (promote_event)
+export const PROMOTION_COST = 20;
+
+export const businessPointsRules = [
+  { emoji: '🗓️', label: 'Organizzi un evento', points: BUSINESS_POINTS.organize },
+  { emoji: '🙋', label: 'Ogni persona che viene', points: BUSINESS_POINTS.participant },
+  { emoji: '🙏', label: 'Ricevi un grazie', points: BUSINESS_POINTS.thanksReceived },
+];
+
 // The rules, as shown to users
 export const pointsRules = [
   { emoji: '🗓️', label: 'Organizzi un evento', points: POINTS.organize },

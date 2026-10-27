@@ -11,6 +11,7 @@ export type RsvpStatus = 'going' | 'not_going'; // "Ci sono" / "Non ci sono"
 export type Transport = 'car' | 'need_ride' | 'own'; // "In auto" / "Mi serve un passaggio" / "Per conto mio"
 export type RideStatus = 'requested' | 'accepted'; // the passenger asked, the driver accepted
 export type EventKind = 'event' | 'trip'; // "Evento" / "Vacanza" (several days, with a plan)
+export type AccountType = 'person' | 'business'; // "Persona" / "Locale o azienda"
 export type NotificationType =
   | 'join_request' // to the admin: someone wants to join
   | 'request_accepted'
@@ -20,7 +21,9 @@ export type NotificationType =
   | 'rank_up' // to you: you reached a new rank in a group
   | 'thanks' // to you: someone thanked you for an event
   | 'ride' // rides: someone asks you (driver), or the driver answered you
-  | 'expense'; // someone added an expense that includes you, or paid you back
+  | 'expense' // someone added an expense that includes you, or paid you back
+  | 'promo' // a venue near your groups invites you to its event
+  | 'digest'; // weekly newsletter: events for you
 
 // ---- Tables ----
 
@@ -37,6 +40,18 @@ export interface User {
   avatar_seed: string | null;
   role: UserRole;
   intent: UserIntent;
+  account_type: AccountType;
+}
+
+// Private settings, readable only by you (age and area are not on the public profile)
+export interface UserSettings {
+  birth_year: number | null;
+  area: string | null; // "your area", for distances
+  area_lat: number | null;
+  area_lon: number | null;
+  search_radius_km: number;
+  newsletter: boolean; // weekly "La tua settimana" in Attività
+  accept_promos: boolean; // events of venues near your groups
 }
 
 export interface Group {
@@ -52,6 +67,12 @@ export interface Group {
   icon: string | null;
   color: string | null;
   expenses_enabled: boolean; // shared expenses ("Spese") on events; holidays always have them
+  lat: number | null; // where they meet (from the "Zona" search)
+  lon: number | null;
+  age_min: number | null; // the ages it's for (either end may be open)
+  age_max: number | null;
+  tags: string[]; // what they're into (from interestOptions)
+  is_business: boolean; // a venue's page: anyone can answer its events
 }
 
 // What an invite link shows before joining (also for private groups)
@@ -244,6 +265,9 @@ export interface EventWithGroup extends Event {
   group_icon: string | null;
   group_color: string | null;
   group_type: GroupType;
+  group_age_min: number | null;
+  group_age_max: number | null;
+  group_is_business: boolean;
   series: Pick<EventSeries, 'weekdays' | 'start_time' | 'created_by'> | null;
 }
 
@@ -331,6 +355,8 @@ export interface SignUpInput {
   relocated_at?: string | null;
   bio?: string;
   interests?: string[];
+  account_type?: AccountType;
+  birth_year?: number | null;
 }
 
 export interface NewGroupInput {
@@ -342,6 +368,11 @@ export interface NewGroupInput {
   icon?: string | null;
   color?: string | null;
   expenses_enabled?: boolean;
+  lat?: number | null;
+  lon?: number | null;
+  age_min?: number | null;
+  age_max?: number | null;
+  tags?: string[];
   chat_url?: string | null;
   parking_code?: string | null;
 }

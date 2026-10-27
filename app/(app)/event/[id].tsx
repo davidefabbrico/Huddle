@@ -23,6 +23,7 @@ import { Columns } from '../../../components/Columns';
 import { GroupIcon } from '../../../components/GroupIcon';
 import { Header } from '../../../components/Header';
 import { PosterView } from '../../../components/PosterView';
+import { PromoteCard } from '../../../components/PromoteCard';
 import { Screen } from '../../../components/Screen';
 import { SeriesCard } from '../../../components/SeriesCard';
 import { SmartParkCard } from '../../../components/SmartParkCard';
@@ -110,6 +111,9 @@ export default function EventScreen() {
   const noAnswer = members.filter((m) => !attendees.some((a) => a.id === m.id));
   const canManage = event.created_by === user.id || group?.admin_id === user.id;
   const canThank = access && phase !== 'upcoming'; // once the event has started
+  // A venue's events are open: anyone can answer, see who's coming, add a photo (the chat stays for members)
+  const canJoin = access || Boolean(group?.is_business && group.visibility === 'public');
+  const isMyVenueEvent = user.account_type === 'business' && event.created_by === user.id;
   const thanked = (toUser: string) => thanks.some((t) => t.from_user === user.id && t.to_user === toUser);
   const thanksFor = (toUser: string) => thanks.filter((t) => t.to_user === toUser).length;
 
@@ -134,6 +138,7 @@ export default function EventScreen() {
                 {phase === 'ended' ? <Badge label="Concluso" icon="checkmark-done" /> : null}
                 <Text className="text-2xl font-bold text-ink">{event.title}</Text>
                 {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
+                {event.group_is_business ? <Badge label="Evento di un locale: aperto a tutti" tone="sky" icon="storefront" /> : null}
                 <InfoRow
                   icon="time-outline"
                   text={event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
@@ -167,7 +172,7 @@ export default function EventScreen() {
               ) : null}
 
               {/* Your answer */}
-              {!access ? (
+              {!canJoin ? (
                 <View className="gap-2">
                   <Button
                     title="Entra nel gruppo per rispondere"
@@ -247,7 +252,7 @@ export default function EventScreen() {
                 myId={user.id}
                 photos={photos}
                 people={people}
-                canAdd={access && phase !== 'upcoming'}
+                canAdd={canJoin && phase !== 'upcoming'}
                 isAdmin={group?.admin_id === user.id}
                 isPublic={group?.visibility !== 'private'}
                 onChanged={reload}
@@ -256,8 +261,10 @@ export default function EventScreen() {
           }
           side={
             <>
+              {isMyVenueEvent && phase !== 'ended' ? <PromoteCard eventId={event.id} hasPlace={event.lat != null} /> : null}
+
               {/* Getting there: SmartPark and carpool */}
-              {access ? (
+              {canJoin ? (
                 <SmartParkCard
                   event={event}
                   phase={phase}
@@ -270,7 +277,7 @@ export default function EventScreen() {
                   onDismissArrival={() => setArrivalDismissed(true)}
                 />
               ) : null}
-              {access ? (
+              {canJoin ? (
                 <CarpoolSection
                   attendees={attendees}
                   myId={user.id}
@@ -299,7 +306,7 @@ export default function EventScreen() {
               ) : null}
 
               {/* Who's in / out */}
-              {access ? (
+              {canJoin ? (
                 <>
                   <PeopleList
                     title={`Ci sono (${going.length})`}

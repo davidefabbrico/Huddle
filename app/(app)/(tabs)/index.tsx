@@ -8,6 +8,7 @@ import { Link, router } from 'expo-router';
 import { RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
+import { SearchButton } from '../../../components/SearchButton';
 import { Grid } from '../../../components/Columns';
 import { GroupCard } from '../../../components/GroupCard';
 import { Screen } from '../../../components/Screen';
@@ -36,7 +37,8 @@ export default function GroupsScreen() {
       const [groups, memberships] = await Promise.all([api.getGroups(), api.getMemberships(user.id)]);
       // Open groups first
       groups.sort((a, b) => (a.type === b.type ? 0 : a.type === 'open_to_new' ? -1 : 1));
-      return { groups, myGroupIds: new Set(memberships.map((m) => m.group.id)) };
+      const reliability = await api.getReliability([], groups.map((g) => g.id));
+      return { groups, myGroupIds: new Set(memberships.map((m) => m.group.id)), reliability: reliability.groups };
     },
     [user.id],
     { refetchOnFocus: true },
@@ -64,7 +66,12 @@ export default function GroupsScreen() {
             {user.is_relocated ? <RelocatedBadge /> : null}
             <Text className="text-base text-stone-600">{subtitle}</Text>
           </View>
-          {wide ? null : <BellButton unread={unread.data ?? 0} />}
+          {wide ? null : (
+            <View className="flex-row gap-2">
+              <SearchButton />
+              <BellButton unread={unread.data ?? 0} />
+            </View>
+          )}
         </View>
 
         <View className="flex-row flex-wrap gap-2">
@@ -91,7 +98,7 @@ export default function GroupsScreen() {
         ) : (
           <Grid>
             {visibleGroups.map((group) => (
-              <GroupCard key={group.id} group={group} />
+              <GroupCard key={group.id} group={group} reliability={feed.data?.reliability[group.id]} />
             ))}
           </Grid>
         )}
