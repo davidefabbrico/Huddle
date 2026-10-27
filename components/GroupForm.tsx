@@ -1,7 +1,7 @@
 // Group fields, shared by "Nuovo gruppo" and "Modifica gruppo"
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
 import { groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
@@ -18,11 +18,20 @@ interface Props {
   onSubmit: (values: NewGroupInput) => Promise<void>;
 }
 
-const empty: NewGroupInput = { name: '', description: '', location: '', type: 'open_to_new', chat_url: '', parking_code: '' };
+const empty: NewGroupInput = {
+  name: '',
+  description: '',
+  location: '',
+  type: 'open_to_new',
+  visibility: 'public',
+  chat_url: '',
+  parking_code: '',
+};
 
 export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: Props) {
   const [values, setValues] = useState<NewGroupInput>({
     ...initial,
+    visibility: initial.visibility ?? 'public',
     chat_url: initial.chat_url ?? '',
     parking_code: initial.parking_code ?? '',
   });
@@ -73,6 +82,30 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
           style={{ height: 110, paddingTop: 12, textAlignVertical: 'top' }}
         />
         <TextField label="Zona" value={values.location} onChangeText={(location) => set({ location })} placeholder="Es. Isola, Milano" />
+
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-stone-700">Chi può trovare il gruppo?</Text>
+          {(
+            [
+              { value: 'public', title: '🌍 Pubblico', text: 'Compare in “Gruppi”: chiunque può vederlo e chiedere di entrare.' },
+              { value: 'private', title: '🔒 Privato', text: 'Lo vede solo chi è dentro. Si entra solo con il link d’invito (e approvi tu).' },
+            ] as const
+          ).map((option) => {
+            const selected = values.visibility === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => set({ visibility: option.value })}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                className={`rounded-2xl border-2 bg-white px-4 py-3 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
+              >
+                <Text className="font-semibold text-ink">{option.title}</Text>
+                <Text className="text-sm text-stone-500">{option.text}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View className="gap-2">
           <Text className="text-sm font-medium text-stone-700">Accettate nuovi membri?</Text>

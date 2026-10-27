@@ -17,6 +17,11 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   8 colori: [lib/groupIcons.ts](lib/groupIcons.ts)); finché nessuno la sceglie, viene suggerita dal nome.
 - **Gruppi**: chiunque crea un gruppo (ne diventa admin) e invita gli amici con un link;
   chi vuole entrare chiede, l'admin accetta. Campanella **Attività** per le notifiche.
+  L'admin può **eliminare** il gruppo, i membri possono **uscire**.
+- **Gruppi pubblici o privati**: i pubblici li trovano tutti; i privati (con eventi e membri) li vede solo chi ne fa
+  parte e si entra solo con il **link d'invito** (`/invite/<codice>`), sempre con l'approvazione dell'admin.
+  L'admin può creare un link nuovo: quello vecchio smette di funzionare. Un link aperto senza essere
+  loggati si riapre dopo il login.
 - **Eventi**: qualunque membro organizza un evento; tutti rispondono **"Ci sono" / "Non ci sono"**
   e vedono chi non ha ancora risposto. Check-in **"Sono qui"** durante l'evento. Locandina PDF o immagine.
 - **Grazie e punti**: dopo l'evento si ringraziano l'organizzatore e chi c'era.
@@ -59,6 +64,7 @@ app/                         schermate (Expo Router)
   (app)/(tabs)/              barra in basso: Gruppi · Eventi · Crea · Chat · Profilo
   (app)/group/[id]/index.tsx gruppo: entra, organizza, invita, classifica, gestione admin
   (app)/group/[id]/chat.tsx  chat del gruppo
+  (app)/invite/[code].tsx    link d'invito (anche per i gruppi privati)
   (app)/event/[id].tsx       evento: Ci sono / Non ci sono, check-in, grazie, locandina
   (app)/activity.tsx         notifiche
   (app)/create-group.tsx, edit-group.tsx, create-event.tsx, edit-profile.tsx, change-password.tsx
@@ -88,6 +94,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | Script | Cosa aggiunge |
 |---|---|
 | `20261027_group_icons.sql` | icona (emoji) e colore dei gruppi |
+| `20261027_private_groups.sql` | gruppi pubblici/privati e link d'invito |
 
 ### 2. Login ed email
 

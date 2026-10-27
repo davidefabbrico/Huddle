@@ -9,6 +9,7 @@
 create type public.user_role   as enum ('solo', 'group');
 create type public.user_intent as enum ('friends', 'group', 'friends_and_dating');
 create type public.group_type  as enum ('closed', 'open_to_new');
+create type public.group_visibility as enum ('public', 'private');  -- private: only members and invite links
 create type public.member_role as enum ('admin', 'member');
 create type public.join_status as enum ('pending', 'guest', 'accepted', 'rejected');
 create type public.rsvp_status as enum ('going', 'not_going'); -- "Ci sono" / "Non ci sono"
@@ -41,6 +42,11 @@ create table public.groups (
   admin_id     uuid not null references public.users (id) on delete cascade,
   location     text not null default '',
   type         public.group_type not null default 'open_to_new',
+  -- public: listed in "Gruppi" for everyone; private: only members (and whoever has the invite link) see it
+  visibility   public.group_visibility not null default 'public',
+  -- Secret part of the invite link (/invite/<code>); the admin can replace it if it leaks
+  invite_code  text not null unique default substr(replace(gen_random_uuid()::text, '-', ''), 1, 12)
+               check (invite_code ~ '^[a-z0-9]{8,32}$'),
   -- Group "photo": an emoji on a colored tile, only from the lists in lib/groupIcons.ts (keep in sync)
   icon         text check (icon is null or icon = any (array[
       '⚽', '🏀', '🏐', '🎾', '🏓', '🏸', '⛳', '🥊', '⛷️', '🏂', '🚴', '🏃',
@@ -198,6 +204,21 @@ returns boolean language sql stable security definer set search_path = '' as $$
     select 1 from public.groups
     where id = gid and admin_id = (select auth.uid())
   );
+$$;
+
+-- Who can see a group (and its members and events): everyone for public groups; for private ones
+-- the admin, the members and whoever asked to join (with the invite link)
+create or replace function public.can_see_group(gid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+      select 1 from public.groups g
+      where g.id = gid and (g.visibility = 'public' or g.admin_id = (select auth.uid()))
+    )
+    or public.is_group_member(gid)
+    or exists (
+      select 1 from public.join_requests r
+      where r.group_id = gid and r.user_id = (select auth.uid()) and r.status <> 'rejected'
+    );
 $$;
 
 -- Members, guests and accepted requesters may use the lobby/chat and the events' details
@@ -493,6 +514,50 @@ create trigger on_thanks_created
   after insert on public.thanks
   for each row execute function public.handle_new_thanks();
 
+-- ---------- Invite links (/invite/<code>) ----------
+-- Private groups are invisible to non-members, so the invite link goes through these functions.
+
+-- Preview of the group behind an invite link (null if the link is wrong)
+create or replace function public.group_by_invite(p_code text)
+returns json language sql stable security definer set search_path = '' as $$
+  select json_build_object(
+    'id', g.id, 'name', g.name, 'description', g.description, 'icon', g.icon, 'color', g.color,
+    'type', g.type, 'visibility', g.visibility,
+    'member_count', (select count(*) from public.group_members m where m.group_id = g.id),
+    'my_status', case
+      when public.is_group_member(g.id) then 'member'
+      else (select r.status::text from public.join_requests r where r.group_id = g.id and r.user_id = (select auth.uid()))
+    end
+  )
+  from public.groups g
+  where g.invite_code = p_code;
+$$;
+
+-- "Chiedi di unirti" from an invite link: a pending request (the admin still approves). Returns the status.
+create or replace function public.request_join_by_invite(p_code text)
+returns text language plpgsql security definer set search_path = '' as $$
+declare
+  g public.groups;
+  existing public.join_requests;
+begin
+  if (select auth.uid()) is null then raise exception 'Accedi per entrare nel gruppo'; end if;
+  select * into g from public.groups where invite_code = p_code;
+  if not found then raise exception 'Link d''invito non valido o scaduto'; end if;
+  if public.is_group_member(g.id) then return 'member'; end if;
+  if g.type = 'closed' then raise exception 'Questo gruppo al momento non accetta nuovi membri'; end if;
+  select * into existing from public.join_requests where group_id = g.id and user_id = (select auth.uid());
+  if found then
+    if existing.status <> 'rejected' then return existing.status::text; end if;
+    delete from public.join_requests where id = existing.id;   -- rejected before: may ask again
+  end if;
+  insert into public.join_requests (user_id, group_id) values ((select auth.uid()), g.id);
+  return 'pending';
+end;
+$$;
+
+revoke execute on function public.group_by_invite(text), public.request_join_by_invite(text) from public, anon;
+grant execute on function public.group_by_invite(text), public.request_join_by_invite(text) to authenticated;
+
 -- ---------- Row Level Security ----------
 
 alter table public.users           enable row level security;
@@ -518,7 +583,8 @@ create policy "users: update own" on public.users
 
 -- groups: readable by signed-in users; only the admin can create/edit/delete
 create policy "groups: read" on public.groups
-  for select to authenticated using (true);
+  -- admin_id is read from the row itself: right after "create group" the helper function can't see it yet
+  for select to authenticated using (visibility = 'public' or admin_id = (select auth.uid()) or public.can_see_group(id));
 create policy "groups: create as admin" on public.groups
   for insert to authenticated with check (admin_id = (select auth.uid()));
 create policy "groups: admin update" on public.groups
@@ -530,7 +596,7 @@ create policy "groups: admin delete" on public.groups
 -- admins manage members, anyone can leave a group.
 -- Joining normally happens through the accepted-request trigger.
 create policy "group_members: read" on public.group_members
-  for select to authenticated using (true);
+  for select to authenticated using (public.can_see_group(group_id));
 create policy "group_members: admin add" on public.group_members
   for insert to authenticated with check (public.is_group_admin(group_id));
 create policy "group_members: admin update" on public.group_members
@@ -541,7 +607,7 @@ create policy "group_members: leave or admin remove" on public.group_members
 -- events: readable by signed-in users; any member organizes (as themselves);
 -- the organizer or the admin edits/deletes
 create policy "events: read" on public.events
-  for select to authenticated using (true);
+  for select to authenticated using (public.can_see_group(group_id));
 create policy "events: member organizes" on public.events
   for insert to authenticated
   with check (created_by = (select auth.uid()) and public.is_group_member(group_id));

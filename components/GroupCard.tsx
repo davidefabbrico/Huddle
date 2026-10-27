@@ -38,6 +38,7 @@ export function GroupCard({ group }: { group: GroupSummary }) {
           {group.relocated_count > 0 ? (
             <Badge label={`${group.relocated_count} da poco in città`} tone="sky" icon="airplane" />
           ) : null}
+          {group.visibility === 'private' ? <Badge label="Privato" icon="lock-closed" /> : null}
           {isOpen ? (
             <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" />
           ) : (

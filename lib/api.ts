@@ -21,6 +21,7 @@ import type {
   Group,
   GroupLinks,
   GroupSummary,
+  InvitePreview,
   JoinRequest,
   JoinRequestWithUser,
   JoinStatus,
@@ -259,6 +260,7 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         description: input.description.trim(),
         location: input.location.trim(),
         type: input.type,
+        visibility: input.visibility ?? 'public',
         icon: input.icon ?? null,
         color: input.color ?? null,
         admin_id: userId,
@@ -282,6 +284,40 @@ export async function updateGroup(groupId: string, changes: Partial<NewGroupInpu
     });
   }
   return check(await supabase.from('groups').update(fields).eq('id', groupId).select().single()) as Group;
+}
+
+// Leave a group (any member except the admin, who deletes it instead).
+// Your old request goes too, so you can ask again later.
+export async function leaveGroup(userId: string, groupId: string): Promise<void> {
+  check(await supabase.from('group_members').delete().eq('user_id', userId).eq('group_id', groupId));
+  check(await supabase.from('join_requests').delete().eq('user_id', userId).eq('group_id', groupId));
+}
+
+// Admin: deletes the group and, with it, members, events, chat, thanks and points (cascade in the database)
+export async function deleteGroup(groupId: string): Promise<void> {
+  // Posters are files in Storage, not rows: remove them first (best effort)
+  const posters: Row[] = check(await supabase.from('events').select('id').eq('group_id', groupId).not('poster_url', 'is', null));
+  if (posters.length) await supabase.storage.from('event-posters').remove(posters.map((e) => `${groupId}/${e.id}`));
+  const { error, count } = await supabase.from('groups').delete({ count: 'exact' }).eq('id', groupId);
+  if (error) throw toError(error);
+  if (!count) throw new Error('Solo l’admin può eliminare il gruppo');
+}
+
+// Admin of a private group: a new invite link (the old one stops working)
+export async function regenerateInviteCode(groupId: string): Promise<string> {
+  const code = Array.from({ length: 12 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
+  check(await supabase.from('groups').update({ invite_code: code }).eq('id', groupId));
+  return code;
+}
+
+// The group behind an invite link (also private ones), or null if the link is wrong
+export async function getGroupByInvite(code: string): Promise<InvitePreview | null> {
+  return check(await supabase.rpc('group_by_invite', { p_code: code })) as InvitePreview | null;
+}
+
+// "Chiedi di unirti" from an invite link: creates a pending request (the admin approves). Returns the status.
+export async function requestJoinByInvite(code: string): Promise<string> {
+  return check(await supabase.rpc('request_join_by_invite', { p_code: code })) as string;
 }
 
 // One row per group; removed when both links are empty

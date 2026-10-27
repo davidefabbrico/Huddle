@@ -4,6 +4,7 @@
 export type UserRole = 'solo' | 'group';
 export type UserIntent = 'friends' | 'group' | 'friends_and_dating';
 export type GroupType = 'closed' | 'open_to_new';
+export type GroupVisibility = 'public' | 'private'; // private: only members and invite links
 export type MemberRole = 'admin' | 'member';
 export type JoinStatus = 'pending' | 'guest' | 'accepted' | 'rejected';
 export type RsvpStatus = 'going' | 'not_going'; // "Ci sono" / "Non ci sono"
@@ -41,9 +42,24 @@ export interface Group {
   admin_id: string;
   location: string;
   type: GroupType;
+  visibility: GroupVisibility;
+  invite_code: string; // secret part of the invite link /invite/<code>
   // Group "photo": emoji + tile color from lib/groupIcons.ts (null = suggested from the name)
   icon: string | null;
   color: string | null;
+}
+
+// What an invite link shows before joining (also for private groups)
+export interface InvitePreview {
+  id: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  color: string | null;
+  type: GroupType;
+  visibility: GroupVisibility;
+  member_count: number;
+  my_status: 'member' | JoinStatus | null;
 }
 
 export interface GroupMember {
@@ -233,6 +249,7 @@ export interface NewGroupInput {
   description: string;
   location: string;
   type: GroupType;
+  visibility?: GroupVisibility;
   icon?: string | null;
   color?: string | null;
   chat_url?: string | null;

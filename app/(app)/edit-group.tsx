@@ -34,6 +34,7 @@ export default function EditGroupScreen() {
             description: group.description,
             location: group.location,
             type: group.type,
+            visibility: group.visibility,
             icon: group.icon,
             color: group.color,
             chat_url: data.data.links.chat_url,

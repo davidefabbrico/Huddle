@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
+import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { EventCard } from '../../../../components/EventCard';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { InviteButton } from '../../../../components/InviteButton';
@@ -101,11 +102,14 @@ export default function GroupDetailScreen() {
               <Text className="text-stone-500">{group.location}</Text>
             </View>
           ) : null}
-          {group.type === 'open_to_new' ? (
-            <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" centered />
-          ) : (
-            <Badge label="Al completo" icon="lock-closed" centered />
-          )}
+          <View className="flex-row flex-wrap justify-center gap-2">
+            {group.type === 'open_to_new' ? (
+              <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" centered />
+            ) : (
+              <Badge label="Al completo" icon="lock-closed" centered />
+            )}
+            {group.visibility === 'private' ? <Badge label="Gruppo privato" icon="lock-closed" tone="brand" centered /> : null}
+          </View>
         </View>
 
         {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
@@ -126,12 +130,12 @@ export default function GroupDetailScreen() {
               />
             </View>
             <View className="flex-1">
-              <InviteButton groupId={group.id} groupName={group.name} />
+              <InviteButton group={group} />
             </View>
           </View>
         ) : null}
 
-        {group.admin_id === user.id ? <AdminSection groupId={group.id} onChanged={details.reload} /> : null}
+        {group.admin_id === user.id ? <AdminSection group={group} onChanged={details.reload} /> : null}
 
         <View className="gap-3">
           <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
@@ -172,6 +176,24 @@ export default function GroupDetailScreen() {
             ))}
           </View>
         </View>
+
+        {isMember && group.admin_id !== user.id ? (
+          <ConfirmButton
+            title="Esci dal gruppo"
+            confirmTitle="Sì, esci"
+            icon="exit-outline"
+            warning={
+              group.visibility === 'private'
+                ? 'Non vedrai più il gruppo, i suoi eventi e la chat. Per rientrare servirà un nuovo invito.'
+                : 'Non vedrai più la chat e gli eventi dei membri. Potrai chiedere di rientrare.'
+            }
+            onConfirm={async () => {
+              await api.leaveGroup(user.id, group.id);
+              useJoinStore.getState().reset();
+              router.replace('/');
+            }}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -219,8 +241,10 @@ function JoinSection({ group, access, onRequest }: { group: Group; access: Group
   );
 }
 
-// Admin tools: approve/guest/reject requests and create events
-function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () => void }) {
+// Admin tools: edit, invite link (private groups), requests, delete
+function AdminSection({ group, onChanged }: { group: Group; onChanged: () => void }) {
+  const groupId = group.id;
+  const [newLink, setNewLink] = useState(false);
   const requests = useAsync(() => api.getGroupJoinRequests(groupId), [groupId]);
   const [busyId, setBusyId] = useState<string>();
 
@@ -302,6 +326,42 @@ function AdminSection({ groupId, onChanged }: { groupId: string; onChanged: () =
           </View>
         ))
       )}
+
+      {group.visibility === 'private' ? (
+        <View className="mt-1 gap-2">
+          <Text className="text-sm font-semibold text-stone-600">Link d’invito</Text>
+          <Text className="text-sm text-stone-500">
+            Il gruppo è privato: si entra solo con il link (usa “Invita amici”). Se è finito in mani sbagliate, creane uno nuovo:
+            quello vecchio smette di funzionare.
+          </Text>
+          <Button
+            title={newLink ? 'Nuovo link creato ✓' : 'Crea un nuovo link'}
+            icon="refresh"
+            size="sm"
+            variant="secondary"
+            disabled={newLink}
+            onPress={async () => {
+              await api.regenerateInviteCode(groupId);
+              setNewLink(true);
+              onChanged();
+            }}
+          />
+        </View>
+      ) : null}
+
+      <View className="mt-2">
+        <ConfirmButton
+          title="Elimina il gruppo"
+          confirmTitle="Sì, elimina"
+          icon="trash-outline"
+          warning={`Vuoi eliminare «${group.name}»? Spariscono per tutti i membri eventi, chat, grazie e classifica. Non si può annullare.`}
+          onConfirm={async () => {
+            await api.deleteGroup(groupId);
+            useJoinStore.getState().reset();
+            router.replace('/');
+          }}
+        />
+      </View>
     </View>
   );
 }
