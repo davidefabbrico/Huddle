@@ -1,6 +1,7 @@
 // New event form: any member can organize in their groups. Optional ?groupId= preselects the group.
 // Date = a chip for each of the next 14 days; time = "HH:MM" text (no extra libraries needed).
-// "Si ripete ogni settimana": weekday chips instead of the date (a recurring event, e.g. the gym).
+// "Si ripete ogni settimana": weekday chips and the period (first and last day, at most a year) on a
+// month calendar, instead of the date: all its dates are created at once (e.g. the gym).
 // "Vacanza" (?kind=trip): first and last day on a month calendar, a destination, no time; the group
 // then plans it together (things to do/see) and shares the expenses.
 // Topics (from the interests list) help "Per te". Optional poster ("locandina"): a PDF or an image.
@@ -20,10 +21,11 @@ import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
 import { MonthCalendar } from '../../components/MonthCalendar';
+import { VisibilityChoice } from '../../components/VisibilityChoice';
 import { isInPast } from '../../lib/eventTiming';
 import { dayKey, fromDayKey, interestOptions, isoWeekday, parseTime, tripDatesLabel, weekdayNames } from '../../lib/format';
 import { isPdf, pickPoster } from '../../lib/pickers';
-import type { EventKind, NewEventInput, PickedFile } from '../../lib/types';
+import type { EventKind, EventVisibility, NewEventInput, PickedFile } from '../../lib/types';
 
 // Today + the next 13 days, as { label, date } with date at local midnight
 function nextDays(count = 14) {
@@ -42,8 +44,10 @@ export default function CreateEventScreen() {
   const groupId = params.groupId;
   const [kind, setKind] = useState<EventKind>(params.kind === 'trip' ? 'trip' : 'event');
   const isTrip = kind === 'trip';
-  const [tripMonth, setTripMonth] = useState(() => new Date());
-  const [tripDays, setTripDays] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const [periodMonth, setPeriodMonth] = useState(() => new Date());
+  // Holiday dates, or the period of a recurring event
+  const [period, setPeriod] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const [visibility, setVisibility] = useState<EventVisibility>('public');
   const user = useAuth((state) => state.user)!;
   const memberships = useAsync(() => api.getMemberships(user.id), [user.id]);
 
@@ -62,35 +66,46 @@ export default function CreateEventScreen() {
 
   const groups = memberships.data ?? [];
   const groupIdToUse = selectedGroup ?? (groups.length === 1 ? groups[0].group.id : undefined);
+  const groupIsPrivate = groups.find((m) => m.group.id === groupIdToUse)?.group.visibility === 'private';
 
-  // Holiday dates: the first tap is the first day, the second the last day (tap again to restart)
-  function pickTripDay(day: string) {
-    setTripDays(({ start, end }) => (!start || end || day < start ? { start: day, end: null } : { start, end: day }));
+  // Range: the first tap is the first day, the second the last day (tap again to restart).
+  // For a recurring event the first day also suggests the weekday.
+  function pickPeriodDay(day: string) {
+    if (!isTrip && weekdays.length === 0) setWeekdays([isoWeekday(fromDayKey(day))]);
+    setPeriod(({ start, end }) => (!start || end || day < start ? { start: day, end: null } : { start, end: day }));
   }
 
   async function handleCreate() {
     setError(undefined);
     if (!groupIdToUse) return setError('Scegli il gruppo');
     if (isTrip) {
-      if (!tripDays.start) return setError('Scegli il primo e l’ultimo giorno sul calendario');
+      if (!period.start) return setError('Scegli il primo e l’ultimo giorno sul calendario');
       // 9:00 of the first day to 21:00 of the last one (in the calendar, the whole days)
-      const start = fromDayKey(tripDays.start);
+      const start = fromDayKey(period.start);
       start.setHours(9);
-      const end = fromDayKey(tripDays.end ?? tripDays.start);
+      const end = fromDayKey(period.end ?? period.start);
       end.setHours(21);
       return create({ date_time: start.toISOString(), ends_at: end.toISOString(), kind: 'trip' });
     }
     const parsed = parseTime(time);
     if (!parsed) return setError('Scrivi l’orario come 19:30');
-    if (repeat && weekdays.length === 0) return setError('Scegli in quali giorni si ripete');
-    const start = new Date(days[repeat ? 0 : dayIndex].date);
+    if (repeat) {
+      if (weekdays.length === 0) return setError('Scegli in quali giorni si ripete');
+      if (!period.start || !period.end) return setError('Scegli sul calendario il primo e l’ultimo giorno');
+      if ((fromDayKey(period.end).getTime() - fromDayKey(period.start).getTime()) / 86400e3 > 366) {
+        return setError('Al massimo un anno: potrai allungarlo più avanti');
+      }
+      const first = fromDayKey(period.start);
+      first.setHours(Number(parsed.slice(0, 2)), Number(parsed.slice(3)));
+      return create({ date_time: first.toISOString(), repeat_weekdays: weekdays, repeat_until: period.end });
+    }
+    const start = new Date(days[dayIndex].date);
     start.setHours(Number(parsed.slice(0, 2)), Number(parsed.slice(3)));
-    if (!repeat && isInPast(start)) return setError('Scegli un orario nel futuro');
-
-    return create({ date_time: start.toISOString(), repeat_weekdays: repeat ? weekdays : null });
+    if (isInPast(start)) return setError('Scegli un orario nel futuro');
+    return create({ date_time: start.toISOString() });
   }
 
-  async function create(when: Pick<NewEventInput, 'date_time' | 'ends_at' | 'kind' | 'repeat_weekdays'>) {
+  async function create(when: Pick<NewEventInput, 'date_time' | 'ends_at' | 'kind' | 'repeat_weekdays' | 'repeat_until'>) {
     setLoading(true);
     try {
       const event = await api.createEvent(user.id, {
@@ -101,6 +116,7 @@ export default function CreateEventScreen() {
         lon: place.lon,
         tags,
         poster,
+        visibility: groupIsPrivate ? 'private' : visibility,
         ...when,
       });
       router.replace({ pathname: '/event/[id]', params: { id: event.id } });
@@ -171,16 +187,16 @@ export default function CreateEventScreen() {
           {isTrip ? (
             <View className="gap-2">
               <Text className="text-sm font-medium text-stone-700">
-                {tripDays.start
-                  ? `🏖️ ${tripDatesLabel(fromDayKey(tripDays.start).toISOString(), fromDayKey(tripDays.end ?? tripDays.start).toISOString())}${tripDays.end ? '' : ' · ora tocca l’ultimo giorno'}`
+                {period.start
+                  ? `🏖️ ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
                   : 'Tocca il primo e l’ultimo giorno'}
               </Text>
               <MonthCalendar
-                month={tripMonth}
-                onMonthChange={setTripMonth}
-                range={tripDays}
+                month={periodMonth}
+                onMonthChange={setPeriodMonth}
+                range={period}
                 minDay={dayKey(new Date())}
-                onDayPress={pickTripDay}
+                onDayPress={pickPeriodDay}
               />
             </View>
           ) : (
@@ -190,11 +206,8 @@ export default function CreateEventScreen() {
                 <Chip
                   label="🔁 Si ripete ogni settimana"
                   selected={repeat}
-                  onPress={() => {
-                    // start from the weekday of the chosen day
-                    if (!repeat && weekdays.length === 0) setWeekdays([isoWeekday(days[dayIndex].date)]);
-                    setRepeat(!repeat);
-                  }}
+                  // the weekday is suggested by the first day of the period, picked on the calendar
+                  onPress={() => setRepeat(!repeat)}
                 />
               </View>
               {repeat ? (
@@ -220,9 +233,24 @@ export default function CreateEventScreen() {
                 </ScrollView>
               )}
               {repeat ? (
-                <Text className="text-xs text-stone-500">
-                  Le date vengono create due settimane in anticipo. Chi dice “Ci sono ogni volta” risulta già presente, con la sua auto.
-                </Text>
+                <>
+                  <Text className="mt-2 text-sm font-medium text-stone-700">
+                    {period.start
+                      ? `🔁 ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
+                      : 'Da quando a quando? Tocca il primo e l’ultimo giorno'}
+                  </Text>
+                  <MonthCalendar
+                    month={periodMonth}
+                    onMonthChange={setPeriodMonth}
+                    range={period}
+                    minDay={dayKey(new Date())}
+                    onDayPress={pickPeriodDay}
+                  />
+                  <Text className="text-xs text-stone-500">
+                    Tutte le date vengono create subito (al massimo un anno; potrai allungarlo o accorciarlo). Chi dice “Ci
+                    sono ogni volta” risulta già presente, con la sua auto.
+                  </Text>
+                </>
               ) : null}
             </View>
 
@@ -237,6 +265,8 @@ export default function CreateEventScreen() {
             onChange={setPlace}
             placeholder={isTrip ? 'Es. Palermo' : 'Es. Via Pascal 12, Milano'}
           />
+
+          <VisibilityChoice groupIsPrivate={groupIsPrivate} value={visibility} onChange={setVisibility} isTrip={isTrip} />
 
           <View className="gap-2">
             <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>

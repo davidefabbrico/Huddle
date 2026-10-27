@@ -1,12 +1,15 @@
 // Recurring event (on each occurrence): when it repeats, who's there every time, and
 // "Ci sono ogni volta": your choices here (car, seats, departure, the driver who accepted you)
 // are copied to the next occurrences, so the cars for the gym get organized once.
+// The creator or the admin can move the last day ("Allunga o accorcia") or stop it.
 
+import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { firstName, shortTime, weekdaysLabel } from '../lib/format';
+import { dayKey, firstName, fromDayKey, shortDayLabel, shortTime, weekdaysLabel } from '../lib/format';
 import type { EventWithGroup, SeriesRegular, User } from '../lib/types';
 import { Button } from './Button';
 import { ConfirmButton } from './ConfirmButton';
+import { MonthCalendar } from './MonthCalendar';
 
 interface Props {
   series: NonNullable<EventWithGroup['series']>;
@@ -19,11 +22,17 @@ interface Props {
   onSetRegular: () => void;
   onRemoveRegular: () => void;
   onStop: () => Promise<void>;
+  onSetEnd: (lastDay: string) => void;
 }
 
 const transportLabels = { car: '🚗 in auto', need_ride: '🙋 cerchi un passaggio', own: '🚶 per conto tuo' };
 
-export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop, busy, onSetRegular, onRemoveRegular, onStop }: Props) {
+export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop, busy, onSetRegular, onRemoveRegular, onStop, onSetEnd }: Props) {
+  const [editingEnd, setEditingEnd] = useState(false);
+  const [newEnd, setNewEnd] = useState(series.ends_on ?? dayKey(new Date()));
+  const [month, setMonth] = useState(() => fromDayKey(series.ends_on ?? dayKey(new Date())));
+  // at most a year from the first day
+  const maxEnd = series.starts_on ? dayKey(new Date(fromDayKey(series.starts_on).getTime() + 366 * 86400e3)) : null;
   const nameOf = (id: string) => {
     const person = people.find((p) => p.id === id);
     return id === myId ? 'tu' : person ? firstName(person.full_name) : 'qualcuno';
@@ -50,6 +59,11 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
       <Text className="text-base font-semibold text-violet-950">
         🔁 Si ripete {weekdaysLabel(series.weekdays)} alle {shortTime(series.start_time)}
       </Text>
+      {series.ends_on ? (
+        <Text className="-mt-2 text-sm text-violet-900">
+          {series.starts_on ? `Dal ${shortDayLabel(series.starts_on)} ` : 'Fino '}al {shortDayLabel(series.ends_on)}
+        </Text>
+      ) : null}
       {others.length > 0 ? (
         <Text className="text-sm text-violet-900">Ci sono ogni volta: {others.map((r) => nameOf(r.user_id)).join(', ')}</Text>
       ) : null}
@@ -77,6 +91,35 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
             </Text>
           </View>
         )
+      ) : null}
+
+      {canStop && editingEnd ? (
+        <View className="gap-2">
+          <Text className="text-sm font-semibold text-violet-950">Nuovo ultimo giorno: {shortDayLabel(newEnd)}</Text>
+          <MonthCalendar
+            month={month}
+            onMonthChange={setMonth}
+            selected={newEnd}
+            minDay={dayKey(new Date())}
+            onDayPress={(d) => (!maxEnd || d <= maxEnd ? setNewEnd(d) : undefined)}
+          />
+          <Text className="text-xs text-violet-800">Più avanti: si aggiungono le date. Prima: le date dopo spariscono.</Text>
+          <View className="flex-row gap-2">
+            <Button
+              title="Salva"
+              icon="checkmark"
+              size="sm"
+              disabled={busy}
+              onPress={() => {
+                onSetEnd(newEnd);
+                setEditingEnd(false);
+              }}
+            />
+            <Button title="Annulla" size="sm" variant="muted" onPress={() => setEditingEnd(false)} />
+          </View>
+        </View>
+      ) : canStop ? (
+        <Button title="Allunga o accorcia" icon="calendar-outline" size="sm" variant="secondary" onPress={() => setEditingEnd(true)} />
       ) : null}
 
       {canStop ? (

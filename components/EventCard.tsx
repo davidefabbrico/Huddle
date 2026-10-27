@@ -34,6 +34,8 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
             {outside ? <Badge label="Fuori dal solito" tone="sky" icon="compass" /> : null}
             {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
             {event.group_is_business ? <Badge label="Locale" tone="sky" icon="storefront" /> : null}
+            {event.cancelled_at ? <Badge label="Annullato" icon="close-circle" /> : null}
+            {event.visibility === 'private' ? <Badge label="Solo gruppo" icon="lock-closed" /> : null}
             {eventPhase(event.date_time, event.ends_at) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
             {event.series ? <Badge label={weekdaysLabel(event.series.weekdays)} icon="repeat" /> : null}
             {answer?.status === 'going' ? <Badge label="Ci sei" tone="green" icon="checkmark" /> : null}

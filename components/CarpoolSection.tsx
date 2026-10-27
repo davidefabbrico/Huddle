@@ -1,4 +1,4 @@
-// "Come ci arrivi?": drivers offer seats and say where and when they leave (an area and a time,
+// "Come ci arrivi?" (holidays: "Come si parte?", with plane/train instead of "on my own"): drivers offer seats and say where and when they leave (an area and a time,
 // never a live position); passengers ask a driver, who accepts or declines. The driver can show
 // the accepted passengers where the car is parked (shared from SmartPark, visible only to them).
 
@@ -16,6 +16,7 @@ import { TextField } from './TextField';
 import { colors } from './theme';
 
 interface Props {
+  isTrip?: boolean; // holiday: nobody drives to the Maldives
   attendees: AttendeeWithProfile[];
   myId: string;
   carSpots: CarSpot[];
@@ -30,7 +31,7 @@ interface Props {
 
 const MAX_SEATS = 8;
 
-export function CarpoolSection({ attendees, myId, carSpots, canChoose, busy, onTransport, onDeparture, onRide, onAnswer, onStopSharing }: Props) {
+export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canChoose, busy, onTransport, onDeparture, onRide, onAnswer, onStopSharing }: Props) {
   const going = attendees.filter((a) => a.status === 'going');
   const me = going.find((a) => a.id === myId);
   const drivers = going.filter((a) => a.transport === 'car');
@@ -46,14 +47,21 @@ export function CarpoolSection({ attendees, myId, carSpots, canChoose, busy, onT
 
   return (
     <View className="gap-3">
-      <Text className="text-base font-semibold text-ink">Come ci arrivi?</Text>
+      <Text className="text-base font-semibold text-ink">{isTrip ? 'Come si parte?' : 'Come ci arrivi?'}</Text>
+      {isTrip && canChoose ? (
+        <Text className="text-sm text-stone-500">In auto insieme, oppure in aereo, treno o nave: dillo agli altri.</Text>
+      ) : null}
 
       {canChoose && me ? (
         <View className="gap-3">
           <View className="flex-row flex-wrap gap-2">
             <Chip label="🚗 In auto" selected={me.transport === 'car'} onPress={busy ? undefined : () => onTransport('car', Math.max(me.seats, 1))} />
-            <Chip label="🙋 Mi serve un passaggio" selected={me.transport === 'need_ride'} onPress={busy ? undefined : () => onTransport('need_ride')} />
-            <Chip label="🚶 Per conto mio" selected={me.transport === 'own'} onPress={busy ? undefined : () => onTransport('own')} />
+            <Chip label={isTrip ? '🙋 Cerco un passaggio in auto' : '🙋 Mi serve un passaggio'} selected={me.transport === 'need_ride'} onPress={busy ? undefined : () => onTransport('need_ride')} />
+            <Chip
+              label={isTrip ? '✈️ Aereo, treno o nave' : '🚶 Per conto mio'}
+              selected={me.transport === 'own'}
+              onPress={busy ? undefined : () => onTransport('own')}
+            />
           </View>
           {me.transport === 'car' ? (
             <>

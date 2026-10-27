@@ -26,12 +26,13 @@ const typeStyle: Record<NotificationType, { icon: ComponentProps<typeof Ionicons
   expense: { icon: 'wallet', box: 'bg-emerald-100', color: colors.green },
   promo: { icon: 'megaphone', box: 'bg-violet-100', color: '#6D28D9' },
   digest: { icon: 'newspaper', box: 'bg-brand-100', color: colors.brandDark },
+  event_update: { icon: 'alert-circle', box: 'bg-amber-100', color: '#B45309' },
 };
 
 // Where tapping a notification takes you
 function destination(n: Notification): Href | null {
   if (n.type === 'digest') return '/events';
-  if ((n.type === 'new_event' || n.type === 'thanks' || n.type === 'ride' || n.type === 'expense' || n.type === 'promo') && n.event_id) return { pathname: '/event/[id]', params: { id: n.event_id } };
+  if ((n.type === 'new_event' || n.type === 'thanks' || n.type === 'ride' || n.type === 'expense' || n.type === 'promo' || n.type === 'event_update') && n.event_id) return { pathname: '/event/[id]', params: { id: n.event_id } };
   if (n.type === 'rank_up') return '/profile';
   if ((n.type === 'request_accepted' || n.type === 'request_guest') && n.group_id) {
     return { pathname: '/group/[id]/chat', params: { id: n.group_id } };

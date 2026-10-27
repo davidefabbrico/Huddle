@@ -12,6 +12,7 @@ export type Transport = 'car' | 'need_ride' | 'own'; // "In auto" / "Mi serve un
 export type RideStatus = 'requested' | 'accepted'; // the passenger asked, the driver accepted
 export type EventKind = 'event' | 'trip'; // "Evento" / "Vacanza" (several days, with a plan)
 export type AccountType = 'person' | 'business'; // "Persona" / "Locale o azienda"
+export type EventVisibility = 'public' | 'private'; // private: only the group's members and guests
 export type NotificationType =
   | 'join_request' // to the admin: someone wants to join
   | 'request_accepted'
@@ -23,7 +24,8 @@ export type NotificationType =
   | 'ride' // rides: someone asks you (driver), or the driver answered you
   | 'expense' // someone added an expense that includes you, or paid you back
   | 'promo' // a venue near your groups invites you to its event
-  | 'digest'; // weekly newsletter: events for you
+  | 'digest' // weekly newsletter: events for you
+  | 'event_update'; // an event you're going to changed date or place, or was cancelled
 
 // ---- Tables ----
 
@@ -110,6 +112,8 @@ export interface Event {
   series_id: string | null; // occurrence of a recurring event
   kind: EventKind;
   ends_at: string | null; // holidays: the last day (ISO 8601)
+  visibility: EventVisibility;
+  cancelled_at: string | null; // "Annullato": stays visible, nobody can answer
 }
 
 // Holiday plan item: something to do or to see, optionally on a day. Every member can edit it.
@@ -122,6 +126,7 @@ export interface TripItem {
   done: boolean;
   created_by: string | null;
   updated_by: string | null;
+  votes: string[]; // who voted for it: the most voted come first
 }
 
 // One photo per person per event, seen by whoever sees the group
@@ -164,6 +169,8 @@ export interface EventSeries {
   title: string;
   weekdays: number[]; // 1 = Monday … 7 = Sunday
   start_time: string; // "19:00:00", local time of the series
+  starts_on: string | null; // first and last day, "YYYY-MM-DD" (no end: dates four weeks ahead)
+  ends_on: string | null;
 }
 
 // "Ci sono ogni volta": usual choices added to each new occurrence
@@ -268,7 +275,7 @@ export interface EventWithGroup extends Event {
   group_age_min: number | null;
   group_age_max: number | null;
   group_is_business: boolean;
-  series: Pick<EventSeries, 'weekdays' | 'start_time' | 'created_by'> | null;
+  series: Pick<EventSeries, 'id' | 'weekdays' | 'start_time' | 'created_by' | 'starts_on' | 'ends_on'> | null;
 }
 
 export interface AttendeeWithProfile extends User {
@@ -390,7 +397,12 @@ export interface NewEventInput {
   repeat_weekdays?: number[] | null;
   kind?: EventKind; // 'trip': a holiday from date_time to ends_at
   ends_at?: string | null;
+  visibility?: EventVisibility;
+  repeat_until?: string | null; // recurring: the last day, "YYYY-MM-DD" (the first is the day of date_time)
 }
+
+// What the organizer can change after creating an event
+export type EventChanges = Partial<Pick<Event, 'title' | 'date_time' | 'ends_at' | 'location' | 'lat' | 'lon' | 'tags' | 'visibility'>>;
 
 
 // A file chosen with expo-image-picker / expo-document-picker, before upload

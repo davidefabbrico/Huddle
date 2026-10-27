@@ -27,8 +27,11 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   loggati si riapre dopo il login.
 - **Eventi**: qualunque membro organizza un evento; tutti rispondono **"Ci sono" / "Non ci sono"**
   e vedono chi non ha ancora risposto. Check-in **"Sono qui"** durante l'evento. Locandina PDF o immagine.
+  Eventi e vacanze sono **pubblici** (li vede chi vede il gruppo) o **solo per il gruppo**. Chi li organizza (o l'admin)
+  li può **modificare** o **annullare** (restano visibili come "Annullato"): chi ha detto "Ci sono" riceve una notifica.
   Ogni evento ha i suoi argomenti (dalla lista degli interessi; se mancano si ricavano dal titolo).
-- **Eventi ricorrenti** (es. palestra lun, mer, ven alle 19): le date si creano da sole due settimane in anticipo.
+- **Eventi ricorrenti** (es. palestra lun, mer, ven alle 19): si sceglie sul calendario il periodo (dal… al…, al massimo
+  un anno) e tutte le date vengono create subito; chi l'ha creato (o l'admin) può allungarlo o accorciarlo.
   Con **"Ci sono ogni volta"** le tue scelte (auto, posti, partenza, il passaggio accettato) valgono anche per le
   prossime date: le auto si organizzano una volta sola. Chi l'ha creato (o l'admin) può fermare la ricorrenza.
 - **Cerca** (lente in Gruppi ed Eventi, "Cerca" nel menu laterale su computer): eventi e gruppi per testo,
@@ -48,7 +51,9 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Ci vado** (scheda Eventi): la tua agenda, cioè gli eventi e le vacanze a cui hai detto "Ci sono", con un calendario
   del mese (un pallino nei giorni impegnati; toccando un giorno vedi cosa c'è) e l'elenco dei prossimi.
 - **Vacanze** (Crea → Nuova vacanza): più giorni insieme, scelti sul calendario. Hanno una **scaletta** di cose da fare
-  e da vedere (anche giorno per giorno) che ogni membro può aggiungere, spuntare, rinominare e togliere.
+  e da vedere (anche giorno per giorno) che ogni membro può aggiungere, spuntare, rinominare, togliere e **votare**:
+  le più votate vanno in cima e ogni riga si colora in proporzione a quanti, tra chi viene, l'hanno votata.
+  Al posto di "Come ci arrivi?" c'è "Come si parte?" (auto insieme, oppure aereo, treno o nave).
 - **Foto**: in ogni evento, una foto a testa da quando inizia. Le vede chi vede il gruppo: per un gruppo pubblico
   anche le persone di altri gruppi. L'admin può rimuoverle.
 - **Spese condivise** (stile Splitwise): l'admin le attiva per gli eventi del gruppo (alla creazione o in Modifica
@@ -72,6 +77,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   parcheggi condivisi nel gruppo.
 - **Chat** del gruppo in tempo reale, più il link al gruppo WhatsApp/Telegram (visibile solo ai membri).
 - **Avatar**: foto profilo, avatar a pixel stile GitHub o iniziali.
+- **Eliminare l'account** (Profilo → Account): per sempre, con tutti i dati personali; i gruppi di cui eri admin passano
+  al membro entrato per primo (quelli senza altri membri vengono eliminati).
 - **Icona app**: salvando il sito nella schermata Home (iPhone: Condividi → Aggiungi a Home) compare l'icona di Huddle.
 
 ## Collegamento con SmartPark
@@ -107,7 +114,7 @@ app/                         schermate (Expo Router)
   (app)/event/[id].tsx       evento: Ci sono / Non ci sono, check-in, grazie, locandina
   (app)/activity.tsx         notifiche
   (app)/search.tsx           cerca eventi e gruppi (distanza, età, interessi)
-  (app)/create-group.tsx, edit-group.tsx, create-event.tsx, edit-profile.tsx, change-password.tsx
+  (app)/create-group.tsx, edit-group.tsx, create-event.tsx, edit-event.tsx, edit-profile.tsx, change-password.tsx
 components/                  componenti UI
 hooks/                       store Zustand e hook (useAuth, useJoinStore, useChat, useAsync)
 lib/
@@ -141,6 +148,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261028_per_te_passaggi_ricorrenti.sql` | "Per te", passaggi su richiesta, eventi ricorrenti, nuovo nome del primo grado |
 | `20261029_vacanze_foto_spese_storia.sql` | vacanze con scaletta, foto degli eventi, spese condivise, storia del gruppo |
 | `20261030_cerca_eta_affidabilita_locali.sql` | ricerca (zona e fascia d'età dei gruppi), affidabilità, locali/aziende e promozioni, newsletter |
+| `20261031_ricorrenze_eventi_voti_account.sql` | periodo delle ricorrenze, eventi pubblici/privati, modifica e annullamento, voti nella scaletta, eliminazione account |
 
 ### 2. Login ed email
 

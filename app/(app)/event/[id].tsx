@@ -1,6 +1,7 @@
 // Event detail: info, "Ci sono" / "Non ci sono", check-in while it's live, who's in / out / hasn't answered,
 // and "Grazie" to the organizer and to the people who came (points for them).
-// The organizer and the group admin can add a poster or delete the event.
+// The organizer and the group admin can edit it (edit-event), cancel it (it stays, marked "Annullato",
+// and who's going gets a notification), add a poster or delete it.
 // Getting there: "Trova parcheggio" with SmartPark, carpool ("Come ci arrivi?"), and the "you parked" card
 // when SmartPark sends you back here (?smartpark=arrivato&auto=lat,lon).
 // Occurrence of a recurring event: when it repeats and "Ci sono ogni volta" (SeriesCard).
@@ -16,6 +17,7 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { CarpoolSection } from '../../../components/CarpoolSection';
+import { ConfirmButton } from '../../../components/ConfirmButton';
 import { EventPhotos } from '../../../components/EventPhotos';
 import { ExpensesSection } from '../../../components/ExpensesSection';
 import { TripPlan } from '../../../components/TripPlan';
@@ -71,7 +73,7 @@ export default function EventScreen() {
       withExpenses ? api.getExpenses(id) : Promise.resolve(null),
     ]);
     return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses };
-  }, [id, version]);
+  }, [id, version], { refetchOnFocus: true }); // also when coming back from "Modifica"
 
   async function run(action: () => Promise<void>) {
     setError(undefined);
@@ -139,6 +141,15 @@ export default function EventScreen() {
                 <Text className="text-2xl font-bold text-ink">{event.title}</Text>
                 {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
                 {event.group_is_business ? <Badge label="Evento di un locale: aperto a tutti" tone="sky" icon="storefront" /> : null}
+                {event.visibility === 'private' ? <Badge label="Solo per il gruppo" icon="lock-closed" /> : null}
+                {event.cancelled_at ? (
+                  <View className="rounded-2xl bg-red-50 p-3">
+                    <Text className="font-semibold text-red-700">
+                      ❌ {event.kind === 'trip' ? 'Vacanza annullata' : 'Evento annullato'}
+                    </Text>
+                    <Text className="text-sm text-red-700">Non si fa più: chi aveva detto “Ci sono” ha ricevuto una notifica.</Text>
+                  </View>
+                ) : null}
                 <InfoRow
                   icon="time-outline"
                   text={event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
@@ -181,7 +192,7 @@ export default function EventScreen() {
                   />
                   <Text className="text-center text-sm text-stone-500">Anche da ospite puoi venire agli eventi.</Text>
                 </View>
-              ) : phase === 'ended' ? (
+              ) : event.cancelled_at ? null : phase === 'ended' ? (
                 <Button title={mine?.status === 'going' ? 'C’eri anche tu ✓' : 'Evento concluso'} variant="muted" disabled />
               ) : (
                 <View className="gap-3">
@@ -228,6 +239,7 @@ export default function EventScreen() {
                   busy={busy}
                   onSetRegular={() => run(() => api.setRegular(event.id))}
                   onRemoveRegular={() => run(() => api.removeRegular(event.id))}
+                  onSetEnd={(lastDay) => run(() => api.setSeriesEnd(event.series!.id, lastDay))}
                   onStop={async () => {
                     await api.stopSeries(event.series_id!);
                     if (router.canGoBack()) router.back();
@@ -242,6 +254,7 @@ export default function EventScreen() {
                   myId={user.id}
                   days={dayKeysBetween(event.date_time, event.ends_at)}
                   items={tripItems}
+                  participants={going.length}
                   canEdit={access}
                   onChanged={reload}
                 />
@@ -263,8 +276,8 @@ export default function EventScreen() {
             <>
               {isMyVenueEvent && phase !== 'ended' ? <PromoteCard eventId={event.id} hasPlace={event.lat != null} /> : null}
 
-              {/* Getting there: SmartPark and carpool */}
-              {canJoin ? (
+              {/* Getting there: SmartPark (not for holidays: parking at the destination isn't the point) and carpool */}
+              {canJoin && event.kind !== 'trip' && !event.cancelled_at ? (
                 <SmartParkCard
                   event={event}
                   phase={phase}
@@ -279,10 +292,11 @@ export default function EventScreen() {
               ) : null}
               {canJoin ? (
                 <CarpoolSection
+                  isTrip={event.kind === 'trip'}
                   attendees={attendees}
                   myId={user.id}
                   carSpots={carSpots}
-                  canChoose={mine?.status === 'going' && phase !== 'ended'}
+                  canChoose={mine?.status === 'going' && phase !== 'ended' && !event.cancelled_at}
                   busy={busy}
                   onTransport={(transport, seats) => run(() => api.setTransport(user.id, event.id, transport, seats))}
                   onDeparture={(area, time) => run(() => api.setDeparture(user.id, event.id, area, time))}
@@ -346,6 +360,24 @@ export default function EventScreen() {
                   <Text className="text-sm font-semibold text-stone-600">Gestisci l’evento</Text>
                   <View className="flex-row flex-wrap gap-2">
                     <Button
+                      title="Modifica"
+                      icon="create-outline"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onPress={() => router.push({ pathname: '/edit-event', params: { id: event.id } })}
+                    />
+                    {event.cancelled_at ? (
+                      <Button
+                        title="Si fa di nuovo"
+                        icon="refresh"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        onPress={() => run(() => api.setEventCancelled(event.id, false))}
+                      />
+                    ) : null}
+                    <Button
                       title={event.poster_url ? 'Cambia locandina' : 'Aggiungi locandina'}
                       icon="attach"
                       size="sm"
@@ -367,6 +399,17 @@ export default function EventScreen() {
                         onPress={() => run(async () => void (await api.setEventPoster(event, null)))}
                       />
                     ) : null}
+                  </View>
+                  {event.cancelled_at || phase === 'ended' ? null : (
+                    <ConfirmButton
+                      title={event.kind === 'trip' ? 'Annulla la vacanza' : 'Annulla l’evento'}
+                      confirmTitle="Sì, annulla"
+                      icon="close-circle-outline"
+                      warning="Resta visibile come “Annullato” e nessuno potrà più rispondere. Chi ha detto “Ci sono” riceve una notifica. Puoi farlo tornare quando vuoi."
+                      onConfirm={() => api.setEventCancelled(event.id, true).then(reload)}
+                    />
+                  )}
+                  <View className="flex-row flex-wrap gap-2">
                     <DeleteEventButton
                       disabled={busy}
                       onConfirm={() =>

@@ -57,7 +57,7 @@ export function recommendEvents(
     .sort((a, b) => a.date_time.localeCompare(b.date_time))
     // Still to decide: upcoming and not answered yet; for a recurring event only the next date
     .filter((event) => {
-      if (new Date(event.date_time).getTime() <= now || answers[event.id]) return false;
+      if (new Date(event.date_time).getTime() <= now || answers[event.id] || event.cancelled_at) return false;
       if (!event.series_id) return true;
       if (seenSeries.has(event.series_id)) return false;
       seenSeries.add(event.series_id);
@@ -144,7 +144,7 @@ export function weeklyPicks(
   const picks: WeeklyPick[] = [];
   for (const event of [...events].sort((a, b) => a.date_time.localeCompare(b.date_time))) {
     const start = new Date(event.date_time).getTime();
-    if (start <= now || start > now + 7 * 24 * 3600e3 || answers[event.id]) continue;
+    if (start <= now || start > now + 7 * 24 * 3600e3 || answers[event.id] || event.cancelled_at) continue;
     if (event.series_id && seenSeries.has(event.series_id)) continue;
     const km = area && event.lat != null && event.lon != null ? distanceMeters(area, { lat: event.lat, lon: event.lon }) / 1000 : null;
     const liked = event.tags.find((t) => me.interests.includes(t));

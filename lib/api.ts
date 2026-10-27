@@ -18,6 +18,7 @@ import type {
   ChatPreview,
   Event,
   EventAttendee,
+  EventChanges,
   EventPhoto,
   EventWithGroup,
   Expense,
@@ -82,7 +83,8 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 
 // ---- Row mappers ----
 
-const EVENT_SELECT = '*, groups(name, icon, color, type, age_min, age_max, is_business), event_series(weekdays, start_time, created_by)';
+const EVENT_SELECT =
+  '*, groups(name, icon, color, type, age_min, age_max, is_business), event_series(id, weekdays, start_time, created_by, starts_on, ends_on)';
 const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
 
 function toEvent(row: Row): EventWithGroup {
@@ -101,6 +103,8 @@ function toEvent(row: Row): EventWithGroup {
     series_id: row.series_id ?? null,
     kind: row.kind ?? 'event',
     ends_at: row.ends_at ?? null,
+    visibility: row.visibility ?? 'public',
+    cancelled_at: row.cancelled_at ?? null,
     group_name: row.groups?.name ?? '',
     group_icon: row.groups?.icon ?? null,
     group_color: row.groups?.color ?? null,
@@ -250,6 +254,16 @@ export async function updateMySettings(userId: string, changes: Partial<UserSett
   check(await supabase.from('user_settings').upsert({ user_id: userId, ...changes }));
 }
 
+// Deletes your account for good: your groups pass to the member who joined first (empty ones are
+// deleted), your answers, messages, photos and settings go. Files first (best effort), then the data.
+export async function deleteMyAccount(userId: string): Promise<void> {
+  const photos: Row[] = check(await supabase.from('event_photos').select('event_id').eq('user_id', userId));
+  if (photos.length) await supabase.storage.from('event-photos').remove(photos.map((p) => `${p.event_id}/${userId}`));
+  await supabase.storage.from('avatars').remove([`${userId}/avatar`]);
+  check(await supabase.rpc('delete_my_account'));
+  await supabase.auth.signOut({ scope: 'local' });
+}
+
 export async function uploadAvatar(userId: string, file: PickedFile): Promise<string> {
   return uploadFile('avatars', `${userId}/avatar`, file);
 }
@@ -382,12 +396,12 @@ export async function getGroupLinks(groupId: string): Promise<GroupLinks> {
   return { chat_url: row?.chat_url ?? null, parking_code: row?.parking_code ?? null };
 }
 
-// Your answers to events, with each event's group and date (for ranks and points)
+// Your answers to events, with each event's group and date (for ranks and points; cancelled events don't count)
 async function myAttendance(userId: string) {
   const rows: Row[] = check(
     await supabase.from('event_attendees').select('status, checked_in, events(*)').eq('user_id', userId),
   );
-  return rows.filter((r) => r.events).map((r) => ({ status: r.status, checked_in: r.checked_in, event: r.events as Event }));
+  return rows.filter((r) => r.events && !r.events.cancelled_at).map((r) => ({ status: r.status, checked_in: r.checked_in, event: r.events as Event }));
 }
 
 export async function getMemberships(userId: string): Promise<Membership[]> {
@@ -422,18 +436,24 @@ export async function getProfileStats(userId: string): Promise<ProfileStats> {
     getMemberships(userId),
     myAttendance(userId),
     // Occurrences of a recurring event don't count as organized (they'd be +10 every week)
-    supabase.from('events').select('id', { count: 'exact', head: true }).eq('created_by', userId).is('series_id', null).lte('date_time', nowIso),
+    supabase
+      .from('events')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', userId)
+      .is('series_id', null)
+      .is('cancelled_at', null)
+      .lte('date_time', nowIso),
     supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('to_user', userId),
     supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('from_user', userId),
     supabase
       .from('event_attendees')
-      .select('status, checked_in, events(date_time)')
+      .select('status, checked_in, events(date_time, cancelled_at)')
       .eq('ride_with', userId)
       .eq('ride_status', 'accepted')
       .then(check),
   ]);
   const attendedEvents = attendance.filter((a) => isAttended(a, a.event.date_time)).map((a) => a.event);
-  const passengers = (passengerRows as Row[]).filter((r) => r.events && isAttended(r, r.events.date_time)).length;
+  const passengers = (passengerRows as Row[]).filter((r) => r.events && !r.events.cancelled_at && isAttended(r, r.events.date_time)).length;
   return {
     ...pointsBreakdown(organized.count ?? 0, attendedEvents.length, thanksReceived.count ?? 0, passengers),
     memberships,
@@ -447,11 +467,13 @@ export async function getGroupLeaderboard(groupId: string): Promise<LeaderboardE
   const now = Date.now();
   const [members, events, answers, thanks]: [MemberWithProfile[], Row[], Row[], Row[]] = await Promise.all([
     getGroupMembers(groupId),
-    supabase.from('events').select('id, created_by, date_time, series_id').eq('group_id', groupId).then(check),
+    // cancelled events don't count
+    supabase.from('events').select('id, created_by, date_time, series_id').eq('group_id', groupId).is('cancelled_at', null).then(check),
     supabase
       .from('event_attendees')
       .select('user_id, status, checked_in, ride_with, ride_status, events!inner(group_id, date_time)')
       .eq('events.group_id', groupId)
+      .is('events.cancelled_at', null)
       .then(check),
     supabase.from('thanks').select('to_user, events!inner(group_id)').eq('events.group_id', groupId).then(check),
   ]);
@@ -476,13 +498,22 @@ async function extendSeries(): Promise<void> {
   await supabase.rpc('extend_series');
 }
 
+const inTwoWeeks = () => new Date(Date.now() + 14 * 24 * 3600e3).toISOString();
+
 // Upcoming and live events (live = started less than 6 hours ago, see lib/eventTiming.ts)
 export async function getUpcomingEvents(limit = 50): Promise<EventWithGroup[]> {
   await extendSeries();
   const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
   const rows: Row[] = check(
     // holidays stay listed until their last day
-    await supabase.from('events').select(EVENT_SELECT).or(`date_time.gte.${since},ends_at.gte.${since}`).order('date_time').limit(limit),
+    await supabase
+      .from('events')
+      .select(EVENT_SELECT)
+      .or(`date_time.gte.${since},ends_at.gte.${since}`)
+      // a recurring event can have dates up to a year ahead: lists show its next two weeks
+      .or(`series_id.is.null,date_time.lte.${inTwoWeeks()}`)
+      .order('date_time')
+      .limit(limit),
   );
   return rows.map(toEvent);
 }
@@ -496,6 +527,7 @@ export async function getGroupEvents(groupId: string): Promise<EventWithGroup[]>
       .select(EVENT_SELECT)
       .eq('group_id', groupId)
       .or(`date_time.gte.${since},ends_at.gte.${since}`)
+      .or(`series_id.is.null,date_time.lte.${inTwoWeeks()}`)
       .order('date_time'),
   );
   return rows.map(toEvent);
@@ -526,6 +558,7 @@ export async function createEvent(userId: string, input: NewEventInput): Promise
         tags,
         kind: input.kind ?? 'event',
         ends_at: input.kind === 'trip' ? (input.ends_at ?? null) : null,
+        visibility: input.visibility ?? 'public',
       })
       .select(EVENT_SELECT)
       .single(),
@@ -536,7 +569,10 @@ export async function createEvent(userId: string, input: NewEventInput): Promise
 
 // ---- Recurring events ----
 
-// The series keeps the time of date_time in the phone's time zone ("every Monday at 19:00")
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// The series keeps the time of date_time in the phone's time zone ("every Monday at 19:00"), from
+// the day of date_time to repeat_until: all its dates are created now
 async function createSeries(userId: string, input: NewEventInput, weekdays: number[]): Promise<EventWithGroup> {
   const start = new Date(input.date_time);
   const series: Row = check(
@@ -553,6 +589,9 @@ async function createSeries(userId: string, input: NewEventInput, weekdays: numb
         lat: input.lat ?? null,
         lon: input.lon ?? null,
         tags: input.tags ?? [],
+        visibility: input.visibility ?? 'public',
+        starts_on: localDay(start),
+        ends_on: input.repeat_until ?? null,
       })
       .select('id')
       .single(),
@@ -578,6 +617,11 @@ export async function setRegular(eventId: string): Promise<void> {
 // "Non più ogni volta": your answers to the next occurrences go away
 export async function removeRegular(eventId: string): Promise<void> {
   check(await supabase.rpc('remove_regular', { p_event: eventId }));
+}
+
+// Creator or admin: move the last day (later: new dates; earlier: the dates after it go away)
+export async function setSeriesEnd(seriesId: string, lastDay: string): Promise<void> {
+  check(await supabase.rpc('set_series_end', { p_series: seriesId, p_end: lastDay }));
 }
 
 // Creator or admin: no more occurrences. Past ones stay (with their points); future ones are deleted.
@@ -606,6 +650,19 @@ export async function setEventPoster(event: Pick<Event, 'id' | 'group_id'>, file
   return toEvent(row);
 }
 
+// Organizer or admin: change title, date, place, topics, visibility (who's going gets a notification
+// when date or place change)
+export async function updateEvent(eventId: string, changes: EventChanges): Promise<EventWithGroup> {
+  if (changes.title !== undefined && !changes.title.trim()) throw new Error('Dai un titolo all’evento');
+  const row: Row = check(await supabase.from('events').update(changes).eq('id', eventId).select(EVENT_SELECT).single());
+  return toEvent(row);
+}
+
+// Organizer or admin: "Annulla" (it stays visible as cancelled, people going get a notification), or undo it
+export async function setEventCancelled(eventId: string, cancelled: boolean): Promise<void> {
+  check(await supabase.from('events').update({ cancelled_at: cancelled ? new Date().toISOString() : null }).eq('id', eventId));
+}
+
 // Organizer or admin. Its photos are files in Storage: removed first (best effort).
 export async function deleteEvent(eventId: string): Promise<void> {
   const photos = await getEventPhotos(eventId);
@@ -625,9 +682,21 @@ export async function getMyAgenda(userId: string): Promise<EventWithGroup[]> {
 // ---- Holiday plan ("Cosa fare / cosa vedere"): every member and guest can edit it ----
 
 export async function getTripItems(eventId: string): Promise<TripItem[]> {
-  return check(
-    await supabase.from('trip_items').select('*').eq('event_id', eventId).order('day', { nullsFirst: true }).order('created_at'),
-  ) as TripItem[];
+  const rows: Row[] = check(
+    await supabase
+      .from('trip_items')
+      .select('*, trip_item_votes(user_id)')
+      .eq('event_id', eventId)
+      .order('day', { nullsFirst: true })
+      .order('created_at'),
+  );
+  return rows.map(({ trip_item_votes, ...item }) => ({ ...item, votes: trip_item_votes.map((v: Row) => v.user_id) }));
+}
+
+// Vote (or take the vote back) for a plan item
+export async function voteTripItem(userId: string, itemId: string, vote: boolean): Promise<void> {
+  if (vote) check(await supabase.from('trip_item_votes').insert({ item_id: itemId, user_id: userId }));
+  else check(await supabase.from('trip_item_votes').delete().eq('item_id', itemId).eq('user_id', userId));
 }
 
 export async function addTripItem(userId: string, eventId: string, item: Pick<TripItem, 'title' | 'kind' | 'day'>): Promise<void> {

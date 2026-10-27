@@ -1,5 +1,6 @@
 // Holiday plan: things to do ("Da fare") and to see ("Da vedere"), optionally on a day of the holiday.
-// Every member and guest can add, tick, rename (tap the text) and remove items.
+// Every member and guest can add, tick, rename (tap the text), remove and vote items: within each day
+// the most voted come first, and each row fills with color as more of the people going vote for it.
 
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -16,13 +17,14 @@ interface Props {
   myId: string;
   days: string[]; // the holiday's days, "YYYY-MM-DD"
   items: TripItem[];
+  participants: number; // people going: a row is "full" when all of them voted
   canEdit: boolean; // members and guests
   onChanged: () => void;
 }
 
 const kindLabel = { todo: '✅ Da fare', see: '📍 Da vedere' } as const;
 
-export function TripPlan({ eventId, myId, days, items, canEdit, onChanged }: Props) {
+export function TripPlan({ eventId, myId, days, items, participants, canEdit, onChanged }: Props) {
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<TripItem['kind']>('see');
   const [day, setDay] = useState<string | null>(null);
@@ -48,10 +50,11 @@ export function TripPlan({ eventId, myId, days, items, canEdit, onChanged }: Pro
       setTitle('');
     });
 
-  // Items without a day first ("Quando capita"), then day by day
+  // Items without a day first ("Quando capita"), then day by day; the most voted first
+  const byVotes = (list: TripItem[]) => [...list].sort((a, b) => b.votes.length - a.votes.length);
   const groups = [
-    { key: 'any', label: 'Quando capita', items: items.filter((i) => !i.day) },
-    ...days.map((d) => ({ key: d, label: shortDayLabel(d), items: items.filter((i) => i.day === d) })),
+    { key: 'any', label: 'Quando capita', items: byVotes(items.filter((i) => !i.day)) },
+    ...days.map((d) => ({ key: d, label: shortDayLabel(d), items: byVotes(items.filter((i) => i.day === d)) })),
   ].filter((g) => g.items.length > 0);
   const done = items.filter((i) => i.done).length;
 
@@ -73,12 +76,15 @@ export function TripPlan({ eventId, myId, days, items, canEdit, onChanged }: Pro
                 <PlanRow
                   key={item.id}
                   item={item}
+                  myId={myId}
+                  participants={participants}
                   first={index === 0}
                   canEdit={canEdit}
                   busy={busy}
                   onToggle={() => run(() => api.updateTripItem(item.id, { done: !item.done }))}
                   onRename={(newTitle) => run(() => api.updateTripItem(item.id, { title: newTitle }))}
                   onDelete={() => run(() => api.deleteTripItem(item.id))}
+                  onVote={() => run(() => api.voteTripItem(myId, item.id, !item.votes.includes(myId)))}
                 />
               ))}
             </View>
@@ -118,16 +124,21 @@ export function TripPlan({ eventId, myId, days, items, canEdit, onChanged }: Pro
   );
 }
 
-function PlanRow({ item, first, canEdit, busy, onToggle, onRename, onDelete }: {
+function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onRename, onDelete, onVote }: {
   item: TripItem;
+  myId: string;
+  participants: number;
   first: boolean;
   canEdit: boolean;
   busy: boolean;
   onToggle: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
+  onVote: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const voted = item.votes.includes(myId);
+  const share = Math.min(1, item.votes.length / Math.max(1, participants));
   const [text, setText] = useState(item.title);
   const save = () => {
     setEditing(false);
@@ -137,6 +148,10 @@ function PlanRow({ item, first, canEdit, busy, onToggle, onRename, onDelete }: {
 
   return (
     <View className={`flex-row items-center gap-3 px-3 py-2.5 ${first ? '' : 'border-t border-stone-100'}`}>
+      {/* How many of the people going voted for it: the row fills with color */}
+      {share > 0 ? (
+        <View pointerEvents="none" className="absolute bottom-0 left-0 top-0 bg-brand-100" style={{ width: `${Math.round(share * 100)}%` }} />
+      ) : null}
       <Pressable
         onPress={canEdit && !busy ? onToggle : undefined}
         accessibilityRole="checkbox"
@@ -163,6 +178,17 @@ function PlanRow({ item, first, canEdit, busy, onToggle, onRename, onDelete }: {
           <Text className={`text-base ${item.done ? 'text-stone-400 line-through' : 'text-ink'}`}>{item.title}</Text>
         </Pressable>
       )}
+      <Pressable
+        onPress={canEdit && !busy ? onVote : undefined}
+        accessibilityRole="button"
+        accessibilityLabel={voted ? `Togli il voto a ${item.title}` : `Vota ${item.title}`}
+        aria-pressed={voted}
+        hitSlop={6}
+        className={`flex-row items-center gap-1 rounded-full border px-2 py-1 ${voted ? 'border-brand-500 bg-brand-500' : 'border-stone-300 bg-white'}`}
+      >
+        <Text className="text-xs">👍</Text>
+        <Text className={`text-xs font-semibold ${voted ? 'text-white' : 'text-stone-600'}`}>{item.votes.length}</Text>
+      </Pressable>
       {canEdit ? (
         <Pressable onPress={busy ? undefined : onDelete} accessibilityRole="button" accessibilityLabel={`Togli ${item.title}`} hitSlop={6}>
           <Ionicons name="close" size={20} color={colors.muted} />

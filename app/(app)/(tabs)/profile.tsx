@@ -8,6 +8,7 @@ import { Avatar, avatarOf } from '../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
+import { ConfirmButton } from '../../../components/ConfirmButton';
 import { Columns } from '../../../components/Columns';
 import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
@@ -199,6 +200,13 @@ export default function ProfileScreen() {
                 {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
                 <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
                 <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
+              <ConfirmButton
+                title="Elimina il mio account"
+                confirmTitle="Sì, elimina tutto"
+                icon="trash-outline"
+                warning="Per sempre: profilo, risposte, messaggi, foto, punti e impostazioni. I gruppi di cui sei admin passano al membro entrato per primo (quelli senza altri membri vengono eliminati)."
+                onConfirm={() => api.deleteMyAccount(user.id)}
+              />
               </View>
             </>
           }

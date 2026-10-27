@@ -17,8 +17,9 @@ create type public.transport as enum ('car', 'need_ride', 'own');  -- "In auto" 
 create type public.ride_status as enum ('requested', 'accepted'); -- the driver accepts a ride request
 create type public.event_kind  as enum ('event', 'trip');        -- "Evento" / "Vacanza" (several days, with a plan)
 create type public.account_type as enum ('person', 'business');  -- "Persona" / "Locale o azienda"
+create type public.event_visibility as enum ('public', 'private'); -- private: only the group's members and guests
 create type public.notification_type as enum
-  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride', 'expense', 'promo', 'digest');
+  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride', 'expense', 'promo', 'digest', 'event_update');
 
 -- ---------- Tables ----------
 
@@ -103,7 +104,12 @@ create table public.event_series (
   lon              double precision check (lon between -180 and 180),
   tags             text[] not null default '{}' check (cardinality(tags) <= 5),
   generated_until  date,  -- occurrences exist up to this day: a deleted occurrence is not created again
-  created_at       timestamptz not null default now()
+  -- From the first to the last day (at most a year; the last day can be moved). No end: four weeks ahead.
+  starts_on        date,
+  ends_on          date,
+  visibility       public.event_visibility not null default 'public',
+  created_at       timestamptz not null default now(),
+  check (ends_on is null or (starts_on is not null and ends_on >= starts_on and ends_on <= starts_on + 366))
 );
 create index event_series_group_idx on public.event_series (group_id);
 
@@ -128,6 +134,8 @@ create table public.events (
   -- Holiday ("Vacanza"): lasts until ends_at (the last day), with a plan (trip_items)
   kind        public.event_kind not null default 'event',
   ends_at     timestamptz check (ends_at is null or ends_at >= date_time),
+  visibility  public.event_visibility not null default 'public',
+  cancelled_at timestamptz,  -- "Annullato": stays visible, nobody can answer
   created_at  timestamptz not null default now(),
   unique (series_id, date_time)
 );
@@ -206,6 +214,14 @@ create table public.trip_items (
   updated_at  timestamptz not null default now()
 );
 create index trip_items_event_idx on public.trip_items (event_id, day);
+
+-- Votes on the holiday plan: the most voted items come first
+create table public.trip_item_votes (
+  item_id     uuid not null references public.trip_items (id) on delete cascade,
+  user_id     uuid not null references public.users (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (item_id, user_id)
+);
 
 -- Event photos: at most one per person per event (Storage bucket "event-photos", <event_id>/<user_id>).
 -- Seen by whoever sees the group: for a public group, everyone, also from other groups.
@@ -363,6 +379,15 @@ returns boolean language sql stable security definer set search_path = '' as $$
     where group_id = gid
       and user_id = (select auth.uid())
       and status in ('guest', 'accepted')
+  );
+$$;
+
+-- Who sees an event: whoever sees the group; a private event only members and guests
+create or replace function public.can_see_event(eid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.events e
+    where e.id = eid and public.can_see_group(e.group_id) and (e.visibility = 'public' or public.can_access_chat(e.group_id))
   );
 $$;
 
@@ -813,6 +838,7 @@ declare
   s public.event_series;
   today date;
   d date;
+  last date;
   starts timestamptz;
   new_id uuid;
   created integer := 0;
@@ -825,13 +851,15 @@ begin
     where (p_series is null or x.id = p_series) and public.can_access_chat(x.group_id)
   loop
     today := (now() at time zone s.timezone)::date;
-    d := greatest(today, coalesce(s.generated_until + 1, today));
-    while d <= today + 13 loop
+    d := greatest(today, coalesce(s.starts_on, today), coalesce(s.generated_until + 1, today));
+    -- with an end date: every date up to it; without (older series): four weeks ahead
+    last := coalesce(s.ends_on, today + 27);
+    while d <= last loop
       if extract(isodow from d)::smallint = any (s.weekdays) then
         starts := (d + s.start_time) at time zone s.timezone;
         if starts > now() then
-          insert into public.events (group_id, created_by, title, date_time, location, lat, lon, tags, series_id)
-          values (s.group_id, s.created_by, s.title, starts, s.location, s.lat, s.lon, s.tags, s.id)
+          insert into public.events (group_id, created_by, title, date_time, location, lat, lon, tags, series_id, visibility)
+          values (s.group_id, s.created_by, s.title, starts, s.location, s.lat, s.lon, s.tags, s.id, s.visibility)
           on conflict (series_id, date_time) do nothing
           returning id into new_id;
           if new_id is not null then
@@ -842,7 +870,7 @@ begin
       end if;
       d := d + 1;
     end loop;
-    update public.event_series set generated_until = today + 13 where id = s.id;
+    update public.event_series set generated_until = greatest(coalesce(generated_until, last), last) where id = s.id;
 
     if p_user = me then
       for new_id in select e.id from public.events e where e.series_id = s.id and e.date_time > now() loop
@@ -931,7 +959,7 @@ returns json language sql stable security definer set search_path = '' as $$
     join public.events e on e.id = a.event_id
     join public.users u on u.id = a.user_id
     where a.status = 'going' and a.user_id <> (select auth.uid()) and not u.hide_activity
-      and e.date_time > now() and public.can_see_group(e.group_id)
+      and e.date_time > now() and e.cancelled_at is null and public.can_see_event(e.id)
   ),
   taste as (
     select t.tag, count(*)::int as weight from (
@@ -993,13 +1021,16 @@ grant execute on function
 
 -- ---------- Holidays, photos, shared expenses, history ----------
 
--- Plan items: who changed them last, and when
+-- Plan items: who changed them last, and when. Only real changes count: when an account is deleted
+-- the database clears created_by/updated_by, and that must not be signed by anyone.
 create or replace function public.touch_trip_item()
 returns trigger language plpgsql set search_path = '' as $$
 begin
   new.title := trim(new.title);
-  new.updated_at := now();
-  new.updated_by := (select auth.uid());
+  if tg_op = 'INSERT' or (new.title, new.kind, new.day, new.done) is distinct from (old.title, old.kind, old.day, old.done) then
+    new.updated_at := now();
+    new.updated_by := (select auth.uid());
+  end if;
   return new;
 end;
 $$;
@@ -1088,7 +1119,8 @@ returns json language sql stable security definer set search_path = '' as $$
           (select count(*) from public.event_attendees a where a.event_id = e.id and (a.status = 'going' or a.checked_in))::int as going,
           coalesce((select json_agg(p.url order by p.created_at) from public.event_photos p where p.event_id = e.id), '[]'::json) as photos
         from public.events e
-        where e.group_id = g.id and e.date_time <= now()
+        where e.group_id = g.id and e.date_time <= now() and e.cancelled_at is null
+          and (e.visibility = 'public' or public.can_access_chat(g.id))
       ) x
     ), '[]'::json),
     'members', coalesce((
@@ -1153,17 +1185,17 @@ $$;
 create or replace function public.earned_points(uid uuid)
 returns integer language sql stable security definer set search_path = '' as $$
   select (case when u.account_type = 'business' then
-      5 * (select count(*) from public.events e where e.created_by = uid and e.series_id is null and e.date_time <= now())
+      5 * (select count(*) from public.events e where e.created_by = uid and e.series_id is null and e.date_time <= now() and e.cancelled_at is null)
     + 2 * (select count(*) from public.event_attendees a join public.events e on e.id = a.event_id
-           where e.created_by = uid and a.user_id <> uid and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
+           where e.created_by = uid and a.user_id <> uid and e.cancelled_at is null and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
     + 2 * (select count(*) from public.thanks t where t.to_user = uid)
   else
-      10 * (select count(*) from public.events e where e.created_by = uid and e.series_id is null and e.date_time <= now())
+      10 * (select count(*) from public.events e where e.created_by = uid and e.series_id is null and e.date_time <= now() and e.cancelled_at is null)
     + 5 * (select count(*) from public.event_attendees a join public.events e on e.id = a.event_id
-           where a.user_id = uid and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
+           where a.user_id = uid and e.cancelled_at is null and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
     + 2 * (select count(*) from public.thanks t where t.to_user = uid)
     + 5 * (select count(*) from public.event_attendees a join public.events e on e.id = a.event_id
-           where a.ride_with = uid and a.ride_status = 'accepted' and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
+           where a.ride_with = uid and a.ride_status = 'accepted' and e.cancelled_at is null and (a.checked_in or (a.status = 'going' and e.date_time <= now())))
   end)::integer
   from public.users u where u.id = uid;
 $$;
@@ -1269,7 +1301,7 @@ begin
       select distinct on (coalesce(e.series_id, e.id)) e.id, e.title, e.date_time
       from public.events e
       where e.date_time between now() and now() + interval '7 days'
-        and public.can_see_group(e.group_id)
+        and e.cancelled_at is null and public.can_see_event(e.id)
         and not exists (select 1 from public.event_attendees a where a.event_id = e.id and a.user_id = me.id)
         and (e.tags && me.interests or (
           s.area_lat is not null and e.lat is not null
@@ -1309,6 +1341,94 @@ grant execute on function
   public.my_points(), public.reliability(uuid[], uuid[]), public.promote_event(uuid, integer),
   public.newsletter_digest(), public.earned_points(uuid)
   to authenticated;
+
+-- ---------- Visibility of events, editing, deleting your account ----------
+
+-- Creator or admin: move the last day of a recurring event (later: new dates; earlier: the dates
+-- after it are deleted)
+create or replace function public.set_series_end(p_series uuid, p_end date)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  s public.event_series;
+begin
+  select * into s from public.event_series where id = p_series;
+  if s.id is null or not (s.created_by = (select auth.uid()) or public.is_group_admin(s.group_id)) then
+    raise exception 'Solo chi l''ha creato o l''admin può cambiare la durata';
+  end if;
+  if p_end < s.starts_on or p_end > s.starts_on + 366 then
+    raise exception 'La fine deve essere dopo l''inizio ed entro un anno';
+  end if;
+  update public.event_series set ends_on = p_end, generated_until = least(generated_until, p_end) where id = s.id;
+  delete from public.events
+  where series_id = s.id and date_time > now() and (date_time at time zone s.timezone)::date > p_end;
+  perform public.extend_series(s.id);
+end;
+$$;
+
+-- Tell the people going when an event changes date or place, is cancelled, or happens again
+create or replace function public.handle_event_change()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  what text;
+  details text;
+  word text := case when new.kind = 'trip' then 'La vacanza' else 'L''evento' end;
+begin
+  if old.cancelled_at is null and new.cancelled_at is not null then
+    what := case when new.kind = 'trip' then 'Vacanza annullata ❌' else 'Evento annullato ❌' end;
+    details := '«' || new.title || '» del ' || to_char(new.date_time at time zone 'Europe/Rome', 'DD/MM') || ' non si fa più';
+  elsif old.cancelled_at is not null and new.cancelled_at is null then
+    what := word || ' si fa di nuovo 🎉';
+    details := '«' || new.title || '» del ' || to_char(new.date_time at time zone 'Europe/Rome', 'DD/MM HH24:MI');
+  elsif new.date_time is distinct from old.date_time or new.ends_at is distinct from old.ends_at
+     or new.location is distinct from old.location then
+    what := word || case when new.kind = 'trip' then ' è cambiata' else ' è cambiato' end;
+    details := '«' || new.title || '»: ora ' || case when new.kind = 'trip'
+        then to_char(new.date_time at time zone 'Europe/Rome', 'DD/MM') || '–' || to_char(coalesce(new.ends_at, new.date_time) at time zone 'Europe/Rome', 'DD/MM')
+        else to_char(new.date_time at time zone 'Europe/Rome', 'DD/MM HH24:MI') end
+      || coalesce(' · ' || nullif(new.location, ''), '');
+  else
+    return new;
+  end if;
+  insert into public.notifications (user_id, type, title, body, group_id, event_id)
+  select a.user_id, 'event_update', what, details, new.group_id, new.id
+  from public.event_attendees a
+  where a.event_id = new.id and a.status = 'going' and a.user_id is distinct from (select auth.uid());
+  return new;
+end;
+$$;
+
+-- Delete your account: your groups pass to the member who joined first (a group left empty, or a
+-- venue's page, is deleted), then the profile and everything personal go (database cascades).
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := (select auth.uid());
+  g record;
+  heir uuid;
+begin
+  if me is null then
+    raise exception 'Accedi per eliminare l''account';
+  end if;
+  for g in select id, is_business from public.groups where admin_id = me loop
+    select m.user_id into heir from public.group_members m
+    where m.group_id = g.id and m.user_id <> me order by m.joined_at limit 1;
+    if heir is null or g.is_business then
+      delete from public.groups where id = g.id;
+    else
+      update public.groups set admin_id = heir where id = g.id;
+      update public.group_members set role = 'admin' where group_id = g.id and user_id = heir;
+    end if;
+  end loop;
+  delete from auth.users where id = me;
+end;
+$$;
+
+create trigger after_event_change
+  after update of date_time, ends_at, location, cancelled_at on public.events
+  for each row execute function public.handle_event_change();
+
+revoke execute on function public.set_series_end(uuid, date), public.delete_my_account(), public.can_see_event(uuid) from public, anon;
+grant execute on function public.set_series_end(uuid, date), public.delete_my_account(), public.can_see_event(uuid) to authenticated;
 
 -- ---------- Invite links (/invite/<code>) ----------
 -- Private groups are invisible to non-members, so the invite link goes through these functions.
@@ -1376,6 +1496,7 @@ alter table public.expenses        enable row level security;
 alter table public.expense_shares  enable row level security;
 alter table public.user_settings   enable row level security;
 alter table public.point_spends    enable row level security;
+alter table public.trip_item_votes enable row level security;
 
 -- users: any signed-in user can read profiles; you can only create/edit your own
 create policy "users: read" on public.users
@@ -1415,11 +1536,13 @@ create policy "group_members: admin update" on public.group_members
 create policy "group_members: leave or admin remove" on public.group_members
   for delete to authenticated using (user_id = (select auth.uid()) or public.is_group_admin(group_id));
 
--- events: seen by whoever sees the group; any member organizes (as themselves; occurrences of a
+-- events: seen by whoever sees the group (private ones only by members and guests); any member organizes (as themselves; occurrences of a
 -- recurring event are created only by extend_series);
 -- the organizer or the admin edits/deletes
 create policy "events: read" on public.events
-  for select to authenticated using (public.can_see_group(group_id));
+  for select to authenticated using (
+    public.can_see_group(group_id) and (visibility = 'public' or public.can_access_chat(group_id))
+  );
 create policy "events: member organizes" on public.events
   for insert to authenticated
   with check (created_by = (select auth.uid()) and public.is_group_member(group_id) and series_id is null);
@@ -1440,7 +1563,10 @@ create policy "event_attendees: read" on public.event_attendees
 create policy "event_attendees: answer self" on public.event_attendees
   for insert to authenticated with check (
     user_id = (select auth.uid())
-    and exists (select 1 from public.events e where e.id = event_id and public.can_join_event(e.group_id))
+    and exists (
+      select 1 from public.events e
+      where e.id = event_id and e.cancelled_at is null and public.can_join_event(e.group_id)
+    )
     and (not checked_in or public.is_checkin_open(event_id))
   );
 create policy "event_attendees: change own answer" on public.event_attendees
@@ -1517,12 +1643,29 @@ create policy "trip_items: delete with access" on public.trip_items
     exists (select 1 from public.events e where e.id = event_id and public.can_access_chat(e.group_id))
   );
 
+-- trip_item_votes: members and guests see the votes and vote for themselves
+create policy "trip_item_votes: read with access" on public.trip_item_votes
+  for select to authenticated using (
+    exists (
+      select 1 from public.trip_items t join public.events e on e.id = t.event_id
+      where t.id = item_id and public.can_access_chat(e.group_id)
+    )
+  );
+create policy "trip_item_votes: vote" on public.trip_item_votes
+  for insert to authenticated with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.trip_items t join public.events e on e.id = t.event_id
+      where t.id = item_id and public.can_access_chat(e.group_id)
+    )
+  );
+create policy "trip_item_votes: take back" on public.trip_item_votes
+  for delete to authenticated using (user_id = (select auth.uid()));
+
 -- event_photos: seen like the group; your own photo once the event has started (1 hour before);
 -- you or the group admin can remove it
 create policy "event_photos: read" on public.event_photos
-  for select to authenticated using (
-    exists (select 1 from public.events e where e.id = event_id and public.can_see_group(e.group_id))
-  );
+  for select to authenticated using (public.can_see_event(event_id));
 create policy "event_photos: add own" on public.event_photos
   for insert to authenticated with check (
     user_id = (select auth.uid())
