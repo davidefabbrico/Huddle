@@ -3,6 +3,7 @@
 // The organizer and the group admin can add a poster or delete the event.
 // Getting there: "Trova parcheggio" with SmartPark, carpool ("Come ci arrivi?"), and the "you parked" card
 // when SmartPark sends you back here (?smartpark=arrivato&auto=lat,lon).
+// Occurrence of a recurring event: when it repeats and "Ci sono ogni volta" (SeriesCard).
 
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -16,6 +17,7 @@ import { GroupIcon } from '../../../components/GroupIcon';
 import { Header } from '../../../components/Header';
 import { PosterView } from '../../../components/PosterView';
 import { Screen } from '../../../components/Screen';
+import { SeriesCard } from '../../../components/SeriesCard';
 import { SmartParkCard } from '../../../components/SmartParkCard';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
@@ -44,18 +46,19 @@ export default function EventScreen() {
   const data = useAsync(async () => {
     const event = await api.getEventById(id);
     if (!event) return null;
-    const [access, group, members, attendees, thanks, carSpots] = await Promise.all([
+    const [access, group, members, attendees, thanks, carSpots, regulars] = await Promise.all([
       api.canAccessChat(event.group_id),
       api.getGroupById(event.group_id),
       api.getGroupMembers(event.group_id),
       api.getEventAttendees(id),
       api.getEventThanks(id),
       api.getCarSpots(id),
+      event.series_id ? api.getSeriesRegulars(event.series_id) : Promise.resolve([]),
     ]);
     const organizer = event.created_by
       ? (members.find((m) => m.id === event.created_by) ?? (await api.getUserById(event.created_by)))
       : null;
-    return { event, access, group, members, attendees, thanks, carSpots, organizer };
+    return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer };
   }, [id, version]);
 
   async function run(action: () => Promise<void>) {
@@ -86,7 +89,7 @@ export default function EventScreen() {
     );
   }
 
-  const { event, access, group, members, attendees, thanks, carSpots, organizer } = data.data;
+  const { event, access, group, members, attendees, thanks, carSpots, regulars, organizer } = data.data;
   const phase = eventPhase(event.date_time);
   const mine = attendees.find((a) => a.id === user.id);
   const going = attendees.filter((a) => a.status === 'going');
@@ -189,6 +192,25 @@ export default function EventScreen() {
         )}
         {error ? <Text className="text-center text-sm text-red-600">{error}</Text> : null}
 
+        {event.series && event.series_id ? (
+          <SeriesCard
+            series={event.series}
+            regulars={regulars}
+            people={[...members, ...attendees]}
+            myId={user.id}
+            canAnswer={access && phase !== 'ended'}
+            canStop={event.series.created_by === user.id || group?.admin_id === user.id}
+            busy={busy}
+            onSetRegular={() => run(() => api.setRegular(event.id))}
+            onRemoveRegular={() => run(() => api.removeRegular(event.id))}
+            onStop={async () => {
+              await api.stopSeries(event.series_id!);
+              if (router.canGoBack()) router.back();
+              else router.replace('/events');
+            }}
+          />
+        ) : null}
+
         {/* Getting there: SmartPark and carpool */}
         {access ? (
           <SmartParkCard
@@ -211,7 +233,9 @@ export default function EventScreen() {
             canChoose={mine?.status === 'going' && phase !== 'ended'}
             busy={busy}
             onTransport={(transport, seats) => run(() => api.setTransport(user.id, event.id, transport, seats))}
+            onDeparture={(area, time) => run(() => api.setDeparture(user.id, event.id, area, time))}
             onRide={(driverId) => run(() => api.rideWith(user.id, event.id, driverId))}
+            onAnswer={(passengerId, accept) => run(() => api.answerRide(event.id, passengerId, accept))}
             onStopSharing={() => run(() => api.stopSharingCarSpot(user.id, event.id))}
           />
         ) : null}

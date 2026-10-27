@@ -31,7 +31,7 @@ export default function SignupScreen() {
   const [repeat, setRepeat] = useState('');
   const [role, setRole] = useState<UserRole>('solo');
   const [intent, setIntent] = useState<UserIntent>('friends');
-  const [isRelocated, setIsRelocated] = useState(true);
+  const [isRelocated, setIsRelocated] = useState(false);
   const [relocatedAt, setRelocatedAt] = useState<string | null>(dateMonthsAgo(0));
   const [interests, setInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -167,8 +167,10 @@ export default function SignupScreen() {
           <View className="gap-4 rounded-3xl bg-white p-4">
             <View className="flex-row items-center justify-between gap-4">
               <View className="flex-1">
-                <Text className="text-base font-semibold text-ink">Mi sono trasferito/a da poco</Text>
-                <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” sul tuo profilo.</Text>
+                <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
+                <Text className="text-sm text-stone-500">
+                  Se ti sei trasferito/a da poco: badge “Da poco in città” e suggerimenti dei gruppi che accolgono persone nuove.
+                </Text>
               </View>
               <Switch
                 value={isRelocated}

@@ -27,6 +27,7 @@ export default function EditProfileScreen() {
   const [isRelocated, setIsRelocated] = useState(user.is_relocated);
   const [relocatedAt, setRelocatedAt] = useState(user.relocated_at);
   const [intent, setIntent] = useState<UserIntent>(user.intent);
+  const [hideActivity, setHideActivity] = useState(user.hide_activity);
   // Keep interests that are not in the standard list selectable too
   const [interests, setInterests] = useState<string[]>(user.interests);
   const allInterests = [...new Set([...interestOptions, ...user.interests])];
@@ -54,6 +55,7 @@ export default function EditProfileScreen() {
         relocated_at: isRelocated ? relocatedAt : null,
         intent,
         interests,
+        hide_activity: hideActivity,
       });
       router.back();
     } catch (e) {
@@ -117,8 +119,8 @@ export default function EditProfileScreen() {
           <View className="gap-4 rounded-3xl bg-white p-4">
             <View className="flex-row items-center justify-between gap-4">
               <View className="flex-1">
-                <Text className="text-base font-semibold text-ink">Mi sono trasferito/a da poco</Text>
-                <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città”.</Text>
+                <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
+                <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” e ti suggeriamo i gruppi che accolgono persone nuove.</Text>
               </View>
               <Switch
                 value={isRelocated}
@@ -153,6 +155,23 @@ export default function EditProfileScreen() {
                 />
               ))}
             </View>
+          </View>
+
+          <View className="flex-row items-center justify-between gap-4 rounded-3xl bg-white p-4">
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-ink">Nascondi la mia attività nei suggerimenti</Text>
+              <Text className="text-sm text-stone-500">
+                “Per te” mostra solo numeri (“ci vanno 3 persone dei tuoi gruppi”), mai nomi. Attivandolo non vieni
+                contato/a nemmeno lì.
+              </Text>
+            </View>
+            <Switch
+              value={hideActivity}
+              onValueChange={setHideActivity}
+              trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+              thumbColor={colors.white}
+              {...({ activeThumbColor: colors.white } as object)}
+            />
           </View>
 
           {error ? <Text className="text-sm text-red-600">{error}</Text> : null}

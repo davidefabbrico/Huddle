@@ -3,7 +3,7 @@
 import type { PointsBreakdown } from './types';
 
 export const POINTS = {
-  organize: 10, // per event you organized, once it has started
+  organize: 10, // per event you organized, once it has started (not the dates of a recurring event)
   attend: 5, // per event you attended (check-in, or "Ci sono" and it started)
   thanksReceived: 2, // per "grazie" received
   passenger: 5, // per person who came to an event in your car

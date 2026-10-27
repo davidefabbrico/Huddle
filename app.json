@@ -24,7 +24,7 @@
       "output": "single",
       "lang": "it",
       "themeColor": "#F26B3A",
-      "description": "Entra in un gruppo che esiste già nella tua nuova città."
+      "description": "Organizza eventi con i tuoi gruppi e conosci gente nuova."
     },
     "plugins": [
       "expo-router",

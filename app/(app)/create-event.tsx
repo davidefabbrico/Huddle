@@ -1,6 +1,7 @@
 // New event form: any member can organize in their groups. Optional ?groupId= preselects the group.
 // Date = a chip for each of the next 14 days; time = "HH:MM" text (no extra libraries needed).
-// Optional poster ("locandina"): a PDF or an image.
+// "Si ripete ogni settimana": weekday chips instead of the date (a recurring event, e.g. the gym).
+// Topics (from the interests list) help "Per te". Optional poster ("locandina"): a PDF or an image.
 
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
@@ -17,6 +18,7 @@ import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
 import { isInPast } from '../../lib/eventTiming';
+import { interestOptions, isoWeekday, parseTime, weekdayNames } from '../../lib/format';
 import { isPdf, pickPoster } from '../../lib/pickers';
 import type { PickedFile } from '../../lib/types';
 
@@ -43,6 +45,9 @@ export default function CreateEventScreen() {
   const [time, setTime] = useState('19:30');
   const [place, setPlace] = useState<PlaceValue>({ text: '', lat: null, lon: null });
   const [poster, setPoster] = useState<PickedFile | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [repeat, setRepeat] = useState(false);
+  const [weekdays, setWeekdays] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const days = nextDays();
@@ -52,12 +57,13 @@ export default function CreateEventScreen() {
 
   async function handleCreate() {
     setError(undefined);
-    const match = time.trim().match(/^([01]?\d|2[0-3])[:.]([0-5]\d)$/);
+    const parsed = parseTime(time);
     if (!groupIdToUse) return setError('Scegli il gruppo');
-    if (!match) return setError('Scrivi l’orario come 19:30');
-    const start = new Date(days[dayIndex].date);
-    start.setHours(Number(match[1]), Number(match[2]));
-    if (isInPast(start)) return setError('Scegli un orario nel futuro');
+    if (!parsed) return setError('Scrivi l’orario come 19:30');
+    if (repeat && weekdays.length === 0) return setError('Scegli in quali giorni si ripete');
+    const start = new Date(days[repeat ? 0 : dayIndex].date);
+    start.setHours(Number(parsed.slice(0, 2)), Number(parsed.slice(3)));
+    if (!repeat && isInPast(start)) return setError('Scegli un orario nel futuro');
 
     setLoading(true);
     try {
@@ -68,7 +74,9 @@ export default function CreateEventScreen() {
         lat: place.lat,
         lon: place.lon,
         date_time: start.toISOString(),
+        tags,
         poster,
+        repeat_weekdays: repeat ? weekdays : null,
       });
       router.replace({ pathname: '/event/[id]', params: { id: event.id } });
     } catch (e) {
@@ -126,16 +134,69 @@ export default function CreateEventScreen() {
           <TextField label="Titolo" value={title} onChangeText={setTitle} placeholder="Es. Corsa serale 6 km" />
 
           <View className="gap-2">
-            <Text className="text-sm font-medium text-stone-700">Giorno</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
-              {days.map((day, index) => (
-                <Chip key={day.label} label={day.label} selected={dayIndex === index} onPress={() => setDayIndex(index)} />
-              ))}
-            </ScrollView>
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="text-sm font-medium text-stone-700">{repeat ? 'Ogni settimana, di' : 'Giorno'}</Text>
+              <Chip
+                label="🔁 Si ripete ogni settimana"
+                selected={repeat}
+                onPress={() => {
+                  // start from the weekday of the chosen day
+                  if (!repeat && weekdays.length === 0) setWeekdays([isoWeekday(days[dayIndex].date)]);
+                  setRepeat(!repeat);
+                }}
+              />
+            </View>
+            {repeat ? (
+              <View className="flex-row flex-wrap gap-2">
+                {weekdayNames.map((name, index) => {
+                  const day = index + 1;
+                  const selected = weekdays.includes(day);
+                  return (
+                    <Chip
+                      key={name}
+                      label={name}
+                      selected={selected}
+                      onPress={() => setWeekdays(selected ? weekdays.filter((d) => d !== day) : [...weekdays, day])}
+                    />
+                  );
+                })}
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+                {days.map((day, index) => (
+                  <Chip key={day.label} label={day.label} selected={dayIndex === index} onPress={() => setDayIndex(index)} />
+                ))}
+              </ScrollView>
+            )}
+            {repeat ? (
+              <Text className="text-xs text-stone-500">
+                Le date vengono create due settimane in anticipo. Chi dice “Ci sono ogni volta” risulta già presente, con la sua auto.
+              </Text>
+            ) : null}
           </View>
 
           <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
           <PlaceField label="Luogo" value={place} onChange={setPlace} placeholder="Es. Via Pascal 12, Milano" />
+
+          <View className="gap-2">
+            <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {interestOptions.map((interest) => {
+                const selected = tags.includes(interest);
+                return (
+                  <Chip
+                    key={interest}
+                    label={interest}
+                    selected={selected}
+                    onPress={() =>
+                      setTags(selected ? tags.filter((t) => t !== interest) : tags.length < 3 ? [...tags, interest] : tags)
+                    }
+                  />
+                );
+              })}
+            </View>
+            <Text className="text-xs text-stone-500">Così “Per te” lo suggerisce a chi ha questi interessi.</Text>
+          </View>
 
           <View className="gap-2">
             <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
@@ -164,7 +225,7 @@ export default function CreateEventScreen() {
           </View>
 
           {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-          <Button title="Crea evento" icon="calendar" onPress={handleCreate} loading={loading} />
+          <Button title={repeat ? 'Crea evento ricorrente' : 'Crea evento'} icon={repeat ? 'repeat' : 'calendar'} onPress={handleCreate} loading={loading} />
           <Text className="text-center text-sm text-stone-500">I membri del gruppo riceveranno una notifica.</Text>
         </ScrollView>
       </KeyboardAvoidingView>

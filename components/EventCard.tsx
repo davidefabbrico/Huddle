@@ -1,11 +1,12 @@
 // Upcoming event row: date tile + title, group, time and place.
-// `showGroup` adds the group name; tapping opens the event. Badges: live, poster, and your answer.
+// `showGroup` adds the group name; tapping opens the event. Badges: live, recurring, poster, and your answer.
+// In "Per te": `reason` says why it's suggested, `outside` marks the "Fuori dal solito" slot.
 
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { eventPhase } from '../lib/eventTiming';
-import { dateTile, formatEventDate } from '../lib/format';
+import { dateTile, formatEventDate, weekdaysLabel } from '../lib/format';
 import type { EventAttendee, EventWithGroup } from '../lib/types';
 import { Badge } from './Badge';
 import { colors } from './theme';
@@ -14,9 +15,11 @@ interface Props {
   event: EventWithGroup;
   showGroup?: boolean;
   answer?: EventAttendee; // your "Ci sono" / "Non ci sono"
+  reason?: string;
+  outside?: boolean;
 }
 
-export function EventCard({ event, showGroup = false, answer }: Props) {
+export function EventCard({ event, showGroup = false, answer, reason, outside = false }: Props) {
   const tile = dateTile(event.date_time);
 
   return (
@@ -28,7 +31,9 @@ export function EventCard({ event, showGroup = false, answer }: Props) {
         </View>
         <View className="flex-1 justify-center">
           <View className="flex-row flex-wrap gap-1">
+            {outside ? <Badge label="Fuori dal solito" tone="sky" icon="compass" /> : null}
             {eventPhase(event.date_time) === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
+            {event.series ? <Badge label={weekdaysLabel(event.series.weekdays)} icon="repeat" /> : null}
             {answer?.status === 'going' ? <Badge label="Ci sei" tone="green" icon="checkmark" /> : null}
             {answer?.status === 'not_going' ? <Badge label="Non ci sei" icon="close" /> : null}
             {event.poster_url ? <Badge label="Locandina" tone="brand" icon="attach" /> : null}
@@ -45,12 +50,19 @@ export function EventCard({ event, showGroup = false, answer }: Props) {
             <Ionicons name="time-outline" size={13} color={colors.muted} />
             <Text className="text-sm text-stone-500">{formatEventDate(event.date_time)}</Text>
           </View>
-          <View className="flex-row items-center gap-1">
-            <Ionicons name="location-outline" size={13} color={colors.muted} />
-            <Text numberOfLines={1} className="flex-1 text-sm text-stone-500">
-              {event.location}
+          {event.location ? (
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="location-outline" size={13} color={colors.muted} />
+              <Text numberOfLines={1} className="flex-1 text-sm text-stone-500">
+                {event.location}
+              </Text>
+            </View>
+          ) : null}
+          {reason ? (
+            <Text numberOfLines={2} className="mt-1 text-sm font-medium text-brand-700">
+              ✨ {reason}
             </Text>
-          </View>
+          ) : null}
         </View>
       </Pressable>
     </Link>

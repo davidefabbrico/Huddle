@@ -1,7 +1,7 @@
 # Huddle
 
-App per organizzare eventi con i propri gruppi di amici e sapere chi c'è: nata per chi si è trasferito
-per lavoro e vuole entrare in **gruppi che esistono già** nella sua città.
+App per organizzare eventi con i propri gruppi di amici, sapere chi c'è e conoscere gente nuova.
+Pensata per tutti, con un occhio di riguardo per chi è **nuovo in città** e vuole entrare in gruppi che esistono già.
 
 Un'unica base di codice Expo che gira come app (Expo Go) e come sito web pubblicato su GitHub Pages,
 con i dati su **Supabase** (login, database, file, tempo reale).
@@ -24,12 +24,22 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   loggati si riapre dopo il login.
 - **Eventi**: qualunque membro organizza un evento; tutti rispondono **"Ci sono" / "Non ci sono"**
   e vedono chi non ha ancora risposto. Check-in **"Sono qui"** durante l'evento. Locandina PDF o immagine.
+  Ogni evento ha i suoi argomenti (dalla lista degli interessi; se mancano si ricavano dal titolo).
+- **Eventi ricorrenti** (es. palestra lun, mer, ven alle 19): le date si creano da sole due settimane in anticipo.
+  Con **"Ci sono ogni volta"** le tue scelte (auto, posti, partenza, il passaggio accettato) valgono anche per le
+  prossime date: le auto si organizzano una volta sola. Chi l'ha creato (o l'admin) può fermare la ricorrenza.
+- **Per te** (scheda Eventi): eventi suggeriti con un punteggio trasparente ([lib/recommendations.ts](lib/recommendations.ts))
+  che unisce i tuoi interessi e cosa piace a chi è nei tuoi gruppi (filtro collaborativo, per uscire dalla bolla),
+  con una riga che spiega il perché e uno spazio "Fuori dal solito". Per chi è nuovo in città pesano di più
+  i gruppi che accolgono persone nuove. Si vedono solo numeri, mai nomi; nel profilo si può nascondere la propria attività.
 - **Grazie e punti**: dopo l'evento si ringraziano l'organizzatore e chi c'era.
-  Punti: organizzare +10, partecipare +5, ricevere un grazie +2. Classifica in ogni gruppo.
-- **Gradi** in ogni gruppo: Turista per caso → Faccia nota → Prezzemolo → Anima della festa →
+  Punti: organizzare +10 (non a ogni data di un evento ricorrente), partecipare +5, ricevere un grazie +2.
+  Classifica in ogni gruppo.
+- **Gradi** in ogni gruppo: Volto nuovo → Faccia nota → Prezzemolo → Anima della festa →
   Colonna portante → Leggenda vivente. **Traguardi** nel profilo.
-- **Come ci arrivi?**: in ogni evento chi va in auto offre posti, chi cerca un passaggio sale con un clic
-  (+5 punti all'autista per ogni passeggero). L'autista può mostrare ai suoi passeggeri dove ha lasciato l'auto.
+- **Come ci arrivi?**: in ogni evento chi va in auto offre posti e dice da che zona e a che ora parte (mai la posizione);
+  chi cerca un passaggio lo chiede e l'autista accetta o rifiuta, con notifica (+5 punti all'autista per ogni passeggero).
+  L'autista può mostrare ai passeggeri accettati dove ha lasciato l'auto.
 - **SmartPark** (l'app dei parcheggi, vedi sotto): "Trova parcheggio" dall'evento, arrivo rilevato da SmartPark,
   parcheggi condivisi nel gruppo.
 - **Chat** del gruppo in tempo reale, più il link al gruppo WhatsApp/Telegram (visibile solo ai membri).
@@ -75,6 +85,7 @@ lib/
   supabase.ts                client Supabase (URL e chiave da variabili d'ambiente)
   types.ts                   tipi = tabelle del database
   points.ts, ranks.ts, achievements.ts   punti, gradi, traguardi
+  recommendations.ts         "Per te": punteggio e motivazione dei suggerimenti
 supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
 
@@ -95,6 +106,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 |---|---|
 | `20261027_group_icons.sql` | icona (emoji) e colore dei gruppi |
 | `20261027_private_groups.sql` | gruppi pubblici/privati e link d'invito |
+| `20261028_per_te_passaggi_ricorrenti.sql` | "Per te", passaggi su richiesta, eventi ricorrenti, nuovo nome del primo grado |
 
 ### 2. Login ed email
 

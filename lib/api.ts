@@ -8,6 +8,7 @@ import { normalizeParkingCode, validateParkingCode } from './smartpark';
 import { CHECKIN_CLOSES_AFTER_MS } from './eventTiming';
 import { isAttended, pointsBreakdown } from './points';
 import { rankFor, type Rank } from './ranks';
+import { eventTopics } from './recommendations';
 import { supabase } from './supabase';
 import type {
   AdminGroup,
@@ -18,6 +19,7 @@ import type {
   Event,
   EventAttendee,
   EventWithGroup,
+  ForYouSignals,
   Group,
   GroupLinks,
   GroupSummary,
@@ -34,6 +36,7 @@ import type {
   PickedFile,
   ProfileStats,
   RsvpStatus,
+  SeriesRegular,
   SignUpInput,
   SignUpResult,
   Thanks,
@@ -74,7 +77,7 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 
 // ---- Row mappers ----
 
-const EVENT_SELECT = '*, groups(name, icon, color)';
+const EVENT_SELECT = '*, groups(name, icon, color, type), event_series(weekdays, start_time, created_by)';
 const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
 
 function toEvent(row: Row): EventWithGroup {
@@ -89,9 +92,13 @@ function toEvent(row: Row): EventWithGroup {
     lon: row.lon,
     poster_url: row.poster_url,
     poster_mime: row.poster_mime,
+    tags: row.tags ?? [],
+    series_id: row.series_id ?? null,
     group_name: row.groups?.name ?? '',
     group_icon: row.groups?.icon ?? null,
     group_color: row.groups?.color ?? null,
+    group_type: row.groups?.type ?? 'open_to_new',
+    series: row.event_series ?? null,
   };
 }
 
@@ -376,10 +383,16 @@ export async function getProfileStats(userId: string): Promise<ProfileStats> {
   const [memberships, attendance, organized, thanksReceived, thanksSent, passengerRows] = await Promise.all([
     getMemberships(userId),
     myAttendance(userId),
-    supabase.from('events').select('id', { count: 'exact', head: true }).eq('created_by', userId).lte('date_time', nowIso),
+    // Occurrences of a recurring event don't count as organized (they'd be +10 every week)
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('created_by', userId).is('series_id', null).lte('date_time', nowIso),
     supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('to_user', userId),
     supabase.from('thanks').select('id', { count: 'exact', head: true }).eq('from_user', userId),
-    supabase.from('event_attendees').select('status, checked_in, events(date_time)').eq('ride_with', userId).then(check),
+    supabase
+      .from('event_attendees')
+      .select('status, checked_in, events(date_time)')
+      .eq('ride_with', userId)
+      .eq('ride_status', 'accepted')
+      .then(check),
   ]);
   const attendedEvents = attendance.filter((a) => isAttended(a, a.event.date_time)).map((a) => a.event);
   const passengers = (passengerRows as Row[]).filter((r) => r.events && isAttended(r, r.events.date_time)).length;
@@ -396,20 +409,22 @@ export async function getGroupLeaderboard(groupId: string): Promise<LeaderboardE
   const now = Date.now();
   const [members, events, answers, thanks]: [MemberWithProfile[], Row[], Row[], Row[]] = await Promise.all([
     getGroupMembers(groupId),
-    supabase.from('events').select('id, created_by, date_time').eq('group_id', groupId).then(check),
+    supabase.from('events').select('id, created_by, date_time, series_id').eq('group_id', groupId).then(check),
     supabase
       .from('event_attendees')
-      .select('user_id, status, checked_in, ride_with, events!inner(group_id, date_time)')
+      .select('user_id, status, checked_in, ride_with, ride_status, events!inner(group_id, date_time)')
       .eq('events.group_id', groupId)
       .then(check),
     supabase.from('thanks').select('to_user, events!inner(group_id)').eq('events.group_id', groupId).then(check),
   ]);
   return members
     .map(({ member_role: _role, ...user }) => {
-      const organized = events.filter((e) => e.created_by === user.id && new Date(e.date_time).getTime() <= now).length;
+      const organized = events.filter((e) => e.created_by === user.id && !e.series_id && new Date(e.date_time).getTime() <= now).length;
       const attended = answers.filter((a) => a.user_id === user.id && isAttended(a, a.events.date_time, now)).length;
       const received = thanks.filter((t) => t.to_user === user.id).length;
-      const passengers = answers.filter((a) => a.ride_with === user.id && isAttended(a, a.events.date_time, now)).length;
+      const passengers = answers.filter(
+        (a) => a.ride_with === user.id && a.ride_status === 'accepted' && isAttended(a, a.events.date_time, now),
+      ).length;
       return { user, ...pointsBreakdown(organized, attended, received, passengers) };
     })
     .sort((a, b) => b.points - a.points || a.user.full_name.localeCompare(b.user.full_name));
@@ -417,8 +432,15 @@ export async function getGroupLeaderboard(groupId: string): Promise<LeaderboardE
 
 // ---- Events ----
 
+// Creates the next two weeks of occurrences of your groups' recurring events (no scheduled job needed:
+// whoever lists events does it). Best effort: a failure only means fewer occurrences listed.
+async function extendSeries(): Promise<void> {
+  await supabase.rpc('extend_series');
+}
+
 // Upcoming and live events (live = started less than 6 hours ago, see lib/eventTiming.ts)
 export async function getUpcomingEvents(limit = 50): Promise<EventWithGroup[]> {
+  await extendSeries();
   const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
   const rows: Row[] = check(
     await supabase.from('events').select(EVENT_SELECT).gte('date_time', since).order('date_time').limit(limit),
@@ -427,6 +449,7 @@ export async function getUpcomingEvents(limit = 50): Promise<EventWithGroup[]> {
 }
 
 export async function getGroupEvents(groupId: string): Promise<EventWithGroup[]> {
+  await extendSeries();
   const since = new Date(Date.now() - CHECKIN_CLOSES_AFTER_MS).toISOString();
   const rows: Row[] = check(
     await supabase.from('events').select(EVENT_SELECT).eq('group_id', groupId).gte('date_time', since).order('date_time'),
@@ -440,8 +463,11 @@ export async function getEventById(eventId: string): Promise<EventWithGroup | nu
 }
 
 // Any member can organize. The organizer is automatically "Ci sono" and the members get a notification (triggers).
+// With repeat_weekdays it creates a recurring event and returns its first occurrence.
 export async function createEvent(userId: string, input: NewEventInput): Promise<EventWithGroup> {
   if (!input.title.trim()) throw new Error('Dai un titolo all’evento');
+  const tags = input.tags?.length ? input.tags : eventTopics({ title: input.title, tags: [] }).slice(0, 5);
+  if (input.repeat_weekdays?.length) return createSeries(userId, { ...input, tags }, input.repeat_weekdays);
   const row: Row = check(
     await supabase
       .from('events')
@@ -453,12 +479,72 @@ export async function createEvent(userId: string, input: NewEventInput): Promise
         location: input.location.trim(),
         lat: input.lat ?? null,
         lon: input.lon ?? null,
+        tags,
       })
       .select(EVENT_SELECT)
       .single(),
   );
   const event = toEvent(row);
   return input.poster ? setEventPoster(event, input.poster) : event;
+}
+
+// ---- Recurring events ----
+
+// The series keeps the time of date_time in the phone's time zone ("every Monday at 19:00")
+async function createSeries(userId: string, input: NewEventInput, weekdays: number[]): Promise<EventWithGroup> {
+  const start = new Date(input.date_time);
+  const series: Row = check(
+    await supabase
+      .from('event_series')
+      .insert({
+        group_id: input.group_id,
+        created_by: userId,
+        title: input.title.trim(),
+        weekdays,
+        start_time: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome',
+        location: input.location.trim(),
+        lat: input.lat ?? null,
+        lon: input.lon ?? null,
+        tags: input.tags ?? [],
+      })
+      .select('id')
+      .single(),
+  );
+  check(await supabase.rpc('extend_series', { p_series: series.id }));
+  const first: Row = check(
+    await supabase.from('events').select(EVENT_SELECT).eq('series_id', series.id).order('date_time').limit(1).single(),
+  );
+  const event = toEvent(first);
+  return input.poster ? setEventPoster(event, input.poster) : event;
+}
+
+// The regulars ("Ci sono ogni volta") of a series
+export async function getSeriesRegulars(seriesId: string): Promise<SeriesRegular[]> {
+  return check(await supabase.from('series_regulars').select('*').eq('series_id', seriesId)) as SeriesRegular[];
+}
+
+// "Ci sono ogni volta": your choices at this occurrence become the usual ones for the next ones
+export async function setRegular(eventId: string): Promise<void> {
+  check(await supabase.rpc('set_regular', { p_event: eventId }));
+}
+
+// "Non più ogni volta": your answers to the next occurrences go away
+export async function removeRegular(eventId: string): Promise<void> {
+  check(await supabase.rpc('remove_regular', { p_event: eventId }));
+}
+
+// Creator or admin: no more occurrences. Past ones stay (with their points); future ones are deleted.
+export async function stopSeries(seriesId: string): Promise<void> {
+  check(await supabase.from('events').delete().eq('series_id', seriesId).gt('date_time', new Date().toISOString()));
+  check(await supabase.from('event_series').delete().eq('id', seriesId));
+}
+
+// ---- "Per te" ----
+
+// Counts from the database (never names): see lib/recommendations.ts
+export async function getForYouSignals(): Promise<ForYouSignals> {
+  return check(await supabase.rpc('for_you_signals')) as ForYouSignals;
 }
 
 // Organizer or admin: add, replace or remove (file = null) the poster
@@ -485,12 +571,12 @@ export async function getEventAttendees(eventId: string): Promise<AttendeeWithPr
     // users!…user_id: the person who answered (ride_with is a second link to users, the driver)
     await supabase
       .from('event_attendees')
-      .select('status, checked_in, transport, seats, ride_with, users!event_attendees_user_id_fkey(*)')
+      .select('status, checked_in, transport, seats, depart_area, depart_time, ride_with, ride_status, users!event_attendees_user_id_fkey(*)')
       .eq('event_id', eventId),
   );
   return rows
     .filter((r) => r.users)
-    .map((r) => ({ ...r.users, status: r.status, checked_in: r.checked_in, transport: r.transport, seats: r.seats, ride_with: r.ride_with }))
+    .map(({ users, ...answer }) => ({ ...users, ...answer }))
     .sort(
       (a, b) =>
         Number(a.status === 'not_going') - Number(b.status === 'not_going') ||
@@ -544,13 +630,30 @@ export async function setTransport(userId: string, eventId: string, transport: T
   );
 }
 
-// Get in a driver's car (null = get out). The database checks the free seats and notifies the driver.
+// Driver: where and when you leave (an area like "Piazza Dante", never your position); null clears it
+export async function setDeparture(userId: string, eventId: string, area: string | null, time: string | null): Promise<void> {
+  check(
+    await supabase
+      .from('event_attendees')
+      .update({ depart_area: area?.trim() || null, depart_time: time })
+      .eq('event_id', eventId)
+      .eq('user_id', userId),
+  );
+}
+
+// Ask a driver for a ride (null = withdraw the request, or get out). The database checks the free
+// seats and notifies the driver, who accepts or declines (answerRide).
 export async function rideWith(userId: string, eventId: string, driverId: string | null): Promise<void> {
   check(
     await supabase
       .from('event_attendees')
       .upsert({ event_id: eventId, user_id: userId, status: 'going', transport: 'need_ride', ride_with: driverId }),
   );
+}
+
+// Driver: accept or decline a ride request (the passenger gets a notification)
+export async function answerRide(eventId: string, passengerId: string, accept: boolean): Promise<void> {
+  check(await supabase.rpc('answer_ride', { p_event: eventId, p_passenger: passengerId, p_accept: accept }));
 }
 
 // Car positions you can see for this event: yours, and your driver's if they shared it (RLS)

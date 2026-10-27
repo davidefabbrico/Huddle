@@ -11,7 +11,7 @@ export interface Rank {
 }
 
 export const RANKS: Rank[] = [
-  { level: 1, name: 'Turista per caso', emoji: '🧳', minEvents: 0, description: 'Hai appena messo piede nel gruppo: si parte!' },
+  { level: 1, name: 'Volto nuovo', emoji: '🌱', minEvents: 0, description: 'Hai appena messo piede nel gruppo: si parte!' },
   { level: 2, name: 'Faccia nota', emoji: '👋', minEvents: 1, description: 'Ti hanno visto a un evento: iniziano a ricordarsi il tuo nome.' },
   { level: 3, name: 'Prezzemolo', emoji: '🌿', minEvents: 3, description: 'Ci sei sempre, come il prezzemolo.' },
   { level: 4, name: 'Anima della festa', emoji: '🎉', minEvents: 6, description: 'Se manchi tu, la serata non parte.' },

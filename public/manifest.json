@@ -1,7 +1,7 @@
 {
   "name": "Huddle",
   "short_name": "Huddle",
-  "description": "Entra in un gruppo che esiste già nella tua nuova città.",
+  "description": "Organizza eventi con i tuoi gruppi e conosci gente nuova.",
   "lang": "it",
   "start_url": "/Huddle/",
   "scope": "/Huddle/",

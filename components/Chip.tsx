@@ -15,6 +15,8 @@ export function Chip({ label, selected = false, onPress }: Props) {
       disabled={!onPress}
       accessibilityRole={onPress ? 'checkbox' : undefined}
       accessibilityState={onPress ? { checked: selected } : undefined}
+      // react-native-web ignores accessibilityState.checked: screen readers on the web need aria-checked
+      aria-checked={onPress ? selected : undefined}
       className={`rounded-full border px-3 py-1.5 ${selected ? 'border-brand-500 bg-brand-500' : 'border-stone-300 bg-white'}`}
     >
       <Text className={`text-sm ${selected ? 'font-semibold text-white' : 'text-stone-700'}`}>{label}</Text>

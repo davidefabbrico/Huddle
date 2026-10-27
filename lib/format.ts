@@ -82,6 +82,33 @@ export const interestOptions = [
   'lingue',
 ];
 
+// ---- Recurring events and rides ----
+
+// Short weekday names, 1 = Monday (ISO, like event_series.weekdays)
+export const weekdayNames = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
+
+// 1 = Monday … 7 = Sunday, for a date
+export function isoWeekday(date: Date): number {
+  return ((date.getDay() + 6) % 7) + 1;
+}
+
+// "ogni lun, mer, ven" / "ogni giorno"
+export function weekdaysLabel(weekdays: number[]): string {
+  if (weekdays.length === 7) return 'ogni giorno';
+  return `ogni ${[...weekdays].sort().map((d) => weekdayNames[d - 1]).join(', ')}`;
+}
+
+// Database time "18:30:00" -> "18:30"
+export function shortTime(time: string): string {
+  return time.slice(0, 5);
+}
+
+// "19.30" / "7:30" -> "07:30", or null if it isn't a time
+export function parseTime(text: string): string | null {
+  const match = text.trim().match(/^([01]?\d|2[0-3])[:.]([0-5]\d)$/);
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
+}
+
 // "adesso", "5 min fa", "3 h fa", "2 g fa", or a short date
 export function timeAgo(iso: string): string {
   const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);

@@ -9,6 +9,7 @@ export type MemberRole = 'admin' | 'member';
 export type JoinStatus = 'pending' | 'guest' | 'accepted' | 'rejected';
 export type RsvpStatus = 'going' | 'not_going'; // "Ci sono" / "Non ci sono"
 export type Transport = 'car' | 'need_ride' | 'own'; // "In auto" / "Mi serve un passaggio" / "Per conto mio"
+export type RideStatus = 'requested' | 'accepted'; // the passenger asked, the driver accepted
 export type NotificationType =
   | 'join_request' // to the admin: someone wants to join
   | 'request_accepted'
@@ -17,7 +18,7 @@ export type NotificationType =
   | 'new_event' // to members: a new event in their group
   | 'rank_up' // to you: you reached a new rank in a group
   | 'thanks' // to you: someone thanked you for an event
-  | 'ride'; // to you (driver): someone is coming in your car
+  | 'ride'; // rides: someone asks you (driver), or the driver answered you
 
 // ---- Tables ----
 
@@ -28,6 +29,7 @@ export interface User {
   is_relocated: boolean;
   relocated_at: string | null; // YYYY-MM-DD, roughly when they moved to the city
   interests: string[];
+  hide_activity: boolean; // never counted in other people's "Per te" suggestions
   // Avatar: a photo if avatar_url is set, else a pixel identicon if avatar_seed is set, else initials
   avatar_url: string | null;
   avatar_seed: string | null;
@@ -80,6 +82,29 @@ export interface Event {
   // Optional poster ("locandina"): a PDF or an image
   poster_url: string | null;
   poster_mime: string | null;
+  tags: string[]; // what it's about (from interestOptions): drives "Per te"
+  series_id: string | null; // occurrence of a recurring event
+}
+
+// Recurring event ("Palestra lun, mer, ven alle 19"): its occurrences are normal events, created two weeks ahead
+export interface EventSeries {
+  id: string;
+  group_id: string;
+  created_by: string | null;
+  title: string;
+  weekdays: number[]; // 1 = Monday … 7 = Sunday
+  start_time: string; // "19:00:00", local time of the series
+}
+
+// "Ci sono ogni volta": usual choices added to each new occurrence
+export interface SeriesRegular {
+  series_id: string;
+  user_id: string;
+  transport: Transport | null;
+  seats: number;
+  depart_area: string | null;
+  depart_time: string | null;
+  ride_with: string | null; // the usual driver (once they accepted)
 }
 
 // Private links of a group, readable only by members and guests (separate table)
@@ -105,7 +130,10 @@ export interface EventAttendee {
   checked_in: boolean;
   transport: Transport | null;
   seats: number; // free seats offered by a driver
-  ride_with: string | null; // the driver a passenger travels with
+  depart_area: string | null; // driver: where they leave from (an area, never a live position)
+  depart_time: string | null; // driver: "18:30:00"
+  ride_with: string | null; // the driver a passenger asked
+  ride_status: RideStatus | null;
 }
 
 // A "grazie" sent to the organizer or to someone who came to an event
@@ -166,6 +194,8 @@ export interface EventWithGroup extends Event {
   group_name: string;
   group_icon: string | null;
   group_color: string | null;
+  group_type: GroupType;
+  series: Pick<EventSeries, 'weekdays' | 'start_time' | 'created_by'> | null;
 }
 
 export interface AttendeeWithProfile extends User {
@@ -173,7 +203,17 @@ export interface AttendeeWithProfile extends User {
   checked_in: boolean;
   transport: Transport | null;
   seats: number;
+  depart_area: string | null;
+  depart_time: string | null;
   ride_with: string | null;
+  ride_status: RideStatus | null;
+}
+
+// "Per te" signals from the database: counts only, never names (people with hide_activity are left out)
+export interface ForYouSignals {
+  events: { event_id: string; mates_going: number; similar_going: number; newcomers_going: number }[];
+  taste: Record<string, number>; // what the people in your groups like: interest/tag -> weight
+  mine: Record<string, number>; // tags of the events you went to
 }
 
 export interface ChatMessageWithAuthor extends ChatMessage {
@@ -263,7 +303,10 @@ export interface NewEventInput {
   location: string;
   lat?: number | null;
   lon?: number | null;
+  tags?: string[];
   poster?: PickedFile | null;
+  // Every week on these days (1 = Monday) at the time of date_time: creates a recurring event
+  repeat_weekdays?: number[] | null;
 }
 
 

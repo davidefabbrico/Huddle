@@ -115,7 +115,7 @@ export default function ProfileScreen() {
           ) : list.length === 0 ? (
             <View className="items-center gap-3 rounded-3xl border border-dashed border-stone-300 p-6">
               <Text className="text-center text-stone-500">
-                Entra in un gruppo e partecipa agli eventi per salire di grado: da Turista per caso a Leggenda vivente.
+                Entra in un gruppo e partecipa agli eventi per salire di grado: da Volto nuovo a Leggenda vivente.
               </Text>
               <Button title="Trova un gruppo" icon="people" variant="secondary" onPress={() => router.navigate('/')} />
             </View>
