@@ -45,8 +45,10 @@ export default function TabsLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           display: wide ? 'none' : 'flex',
-          backgroundColor: neutrals.surface2, // Material 3 surface container (light or dark theme)
-          borderTopWidth: 0,
+          // White like the cards (dark grey at night), with a hairline over the page
+          backgroundColor: neutrals.white,
+          borderTopWidth: 1,
+          borderTopColor: neutrals.stone[200],
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
           ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
         },

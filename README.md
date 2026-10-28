@@ -17,8 +17,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   I colori sono variabili CSS che cambiano con il tema, quindi anche i colori dei gruppi hanno la versione notte.
 - **Mascotte del gruppo**: l'admin sceglie tra 6 creature (volpe, gatto, panda, rana, pinguino, draghetto) disegnate
   e animate nell'app ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
-  cucciolo → giovane → leggenda). È un piccolo dettaglio accanto al nome del gruppo (e quando si organizza):
-  saluta, salta ogni tanto, e toccandola mostra stadio e clan. Si muove anche con "Riduci movimento" attivo.
+  cucciolo → giovane → leggenda) e compare solo quando si apre un gruppo o si organizza qualcosa. Si muove anche
+  con "Riduci movimento" attivo.
 - **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
   uno dei tuoi gruppi e lì compare come scheda da aprire.
 - **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
@@ -232,7 +232,8 @@ Dettagli tecnici:
 ## Easter egg (spoiler)
 
 - **Clan**: ogni gruppo appartiene a un clan, fatto della sua mascotte e di un elemento (Fuoco, Acqua, Vento, Terra,
-  Fulmine) che nasce da cosa fa il gruppo. Si scopre toccando la mascotte; lo stemma prende un anello a ogni stadio.
+  Fulmine) che nasce da cosa fa il gruppo. Si scopre toccando lo stemma accanto alla mascotte; lo stemma prende un
+  anello a ogni stadio.
 - **Carte leggendarie**: nella storia del gruppo, i momenti speciali (primo evento, prima vacanza, tutti presenti,
   un anno insieme…) diventano carte comuni, rare, epiche e leggendarie da collezionare.
 - **Traguardi segreti** nel profilo, nascosti finché non si sbloccano; ogni nuovo traguardo arriva con i coriandoli.

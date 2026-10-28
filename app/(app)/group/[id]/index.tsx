@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
-import { GroupMascot } from '../../../../components/GroupMascot';
+import { GroupMascotCard } from '../../../../components/GroupMascotCard';
 import { GroupTheme, useBrand } from '../../../../components/GroupTheme';
 import { ReliabilityBadge } from '../../../../components/ReliabilityBadge';
 import { Columns } from '../../../../components/Columns';
@@ -107,7 +107,7 @@ export default function GroupDetailScreen() {
           <Columns
             main={
               <>
-                <View className="z-20 flex-row items-center gap-4">
+                <View className="flex-row items-center gap-4">
                   <GroupIcon {...groupIconOf(group)} size={64} />
                   <View className="flex-1 gap-1.5">
                     {group.location ? (
@@ -128,11 +128,11 @@ export default function GroupDetailScreen() {
                       <ReliabilityBadge points={reliability.groups[group.id]} />
                     </View>
                   </View>
-                  {/* the mascot: a small decoration, tap it for its stage and the clan */}
-                  <GroupMascot group={group} level={level} />
                 </View>
 
                 {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
+
+                <GroupMascotCard group={group} level={level} />
 
                 <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 

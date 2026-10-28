@@ -5,7 +5,7 @@
 
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ClanEmblem } from '../../../../components/GroupMascot';
+import { ClanEmblem } from '../../../../components/GroupMascotCard';
 import { GroupTheme } from '../../../../components/GroupTheme';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';

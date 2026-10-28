@@ -44,7 +44,7 @@ export function SideNav() {
   const unread = useAsync(() => (user ? api.getUnreadNotificationCount(user.id) : Promise.resolve(0)), [user?.id, pathname]);
 
   return (
-    <View className="w-64 gap-1 bg-surface2 px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
+    <View className="w-64 gap-1 border-r border-stone-200 bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
       <Pressable
         onPress={() => router.navigate('/')}
         onLongPress={() => setBurst((b) => b + 1)} // easter egg: confetti

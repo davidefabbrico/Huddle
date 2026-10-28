@@ -59,7 +59,8 @@ export function paletteVars(palette: Palette): Record<string, string> {
 
 export type ThemeMode = 'light' | 'dark';
 
-// Neutrals: "white" is the cards' color, "surface" the page, "surface2" the bars (bottom bar, side menu).
+// Neutrals: "white" is the cards' and the bars' color (bottom bar, side menu), "surface" the page,
+// "surface2" a slightly darker grey.
 // The stone greys flip in the dark theme, so text-stone-500 stays readable on both.
 export interface Neutrals {
   white: string;

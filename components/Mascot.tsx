@@ -51,10 +51,9 @@ interface Props {
   size?: number;
   animated?: boolean; // false: a still picture (pickers)
   onSecret?: () => void; // seven quick taps
-  onTap?: () => void; // every tap (after its bounce)
 }
 
-export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, onSecret, onTap }: Props) {
+export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, onSecret }: Props) {
   const look = LOOKS[species];
   const [blink, setBlink] = useState(false);
   const [hearts, setHearts] = useState<number[]>([]);
@@ -105,7 +104,6 @@ export function Mascot({ species, stage, accent, hat = null, size = 120, animate
   function tap() {
     if (!animated) return;
     scale.set(withSequence(MOVE, withTiming(1.18, { duration: 120, reduceMotion: MOVE }), withSpring(1, { damping: 6, reduceMotion: MOVE })));
-    onTap?.();
     const id = Date.now();
     setHearts((h) => [...h, id]);
     setTimeout(() => setHearts((h) => h.filter((x) => x !== id)), 1100);
