@@ -1,6 +1,6 @@
 // Profile achievements ("traguardi"), computed from the user's activity.
 // Pure functions: no storage needed, they unlock as soon as the data allows.
-// Secret ones (easter egg) show as "???" until unlocked; newAchievements() tells which ones are new
+// Secret ones (easter egg) are hidden until unlocked; newAchievements() tells which ones are new
 // since the last visit (remembered on this device), for the celebration on the profile.
 
 import type { ProfileStats } from './types';
@@ -11,7 +11,7 @@ export interface Achievement {
   name: string;
   description: string; // how to unlock it
   unlocked: boolean;
-  secret?: boolean; // hidden ("???") until unlocked
+  secret?: boolean; // hidden until unlocked
 }
 
 export function computeAchievements(stats: ProfileStats): Achievement[] {

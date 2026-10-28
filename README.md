@@ -15,8 +15,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
   I colori sono variabili CSS che cambiano con il tema, quindi anche i colori dei gruppi hanno la versione notte.
-- **Mascotte del gruppo**: l'admin sceglie tra 6 creature (volpe, gatto, panda, rana, pinguino, draghetto) disegnate
-  e animate nell'app ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
+- **Mascotte del gruppo**: l'admin sceglie tra 6 creature (volpe, gatto, panda, rana, pinguino, draghetto) in pixel
+  art vintage, animate come gli sprite dei vecchi videogiochi ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
   cucciolo → giovane → leggenda) e compare solo quando si apre un gruppo o si organizza qualcosa. Si muove anche
   con "Riduci movimento" attivo.
 - **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
@@ -59,6 +59,7 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Newsletter** "📰 La tua settimana": in cima a "Per te" e una volta a settimana in Attività, gli eventi dei prossimi
   7 giorni vicini alla tua zona o con i tuoi interessi. Si disattiva nel profilo. (Per riceverla anche via email
   servirà un servizio di invio, vedi "Login ed email".)
+- **Scheda Eventi**: filtri "Dei miei gruppi" (si apre qui), "Per te", "Tutti" e "Ci vado".
 - **Ci vado** (scheda Eventi): la tua agenda, cioè gli eventi e le vacanze a cui hai detto "Ci sono", con un calendario
   del mese (un pallino nei giorni impegnati; toccando un giorno vedi cosa c'è) e l'elenco dei prossimi.
 - **Vacanze** (Crea → Nuova vacanza): più giorni insieme, scelti sul calendario. Hanno una **scaletta** di cose da fare
@@ -234,8 +235,8 @@ Dettagli tecnici:
 - **Clan**: ogni gruppo appartiene a un clan, fatto della sua mascotte e di un elemento (Fuoco, Acqua, Vento, Terra,
   Fulmine) che nasce da cosa fa il gruppo. Si scopre toccando lo stemma accanto alla mascotte; lo stemma prende un
   anello a ogni stadio.
-- **Carte leggendarie**: nella storia del gruppo, i momenti speciali (primo evento, prima vacanza, tutti presenti,
+- **Carte leggendarie**: nascoste nella storia del gruppo (compaiono toccando lo stemma del clan), i momenti speciali (primo evento, prima vacanza, tutti presenti,
   un anno insieme…) diventano carte comuni, rare, epiche e leggendarie da collezionare.
-- **Traguardi segreti** nel profilo, nascosti finché non si sbloccano; ogni nuovo traguardo arriva con i coriandoli.
+- **Traguardi segreti** nel profilo: non si vedono (né si contano) finché non si sbloccano; ogni nuovo traguardo arriva con i coriandoli.
 - **Segreti**: 7 tocchi sulla mascotte la fanno ballare; tenendo premuto il saluto "Ciao, …" (o il logo su computer)
   partono i coriandoli; le mascotte mettono il cappello a Halloween, a Natale e al compleanno del gruppo.

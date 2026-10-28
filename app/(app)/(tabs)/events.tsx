@@ -1,5 +1,5 @@
-// Eventi tab: "Per te" (suggestions with the reason, lib/recommendations.ts), upcoming events
-// grouped by day (all or only from your groups), and "Ci vado": your agenda with a month calendar.
+// Eventi tab: upcoming events from your groups (first) or from everyone, grouped by day; "Per te"
+// (suggestions with the reason, lib/recommendations.ts); and "Ci vado": your agenda with a month calendar.
 // Cards in a grid on wide screens.
 
 import { useState } from 'react';
@@ -24,7 +24,7 @@ type Filter = 'forYou' | 'going' | 'all' | 'mine';
 
 export default function EventsScreen() {
   const user = useAuth((state) => state.user)!;
-  const [filter, setFilter] = useState<Filter>('forYou');
+  const [filter, setFilter] = useState<Filter>('mine');
 
   const data = useAsync(
     async () => {
@@ -79,10 +79,10 @@ export default function EventsScreen() {
         {/* Filters on one scrolling row (Material chips); the ⓘ stays outside so its bubble isn't clipped */}
         <View className="z-10 flex-row items-center gap-2">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1" contentContainerClassName="gap-2">
-            <Chip label="✨ Per te" selected={filter === 'forYou'} onPress={() => setFilter('forYou')} />
-            <Chip label="📅 Ci vado" selected={filter === 'going'} onPress={() => setFilter('going')} />
-            <Chip label="Tutti" selected={filter === 'all'} onPress={() => setFilter('all')} />
             <Chip label="Dei miei gruppi" selected={filter === 'mine'} onPress={() => setFilter('mine')} />
+            <Chip label="✨ Per te" selected={filter === 'forYou'} onPress={() => setFilter('forYou')} />
+            <Chip label="Tutti" selected={filter === 'all'} onPress={() => setFilter('all')} />
+            <Chip label="📅 Ci vado" selected={filter === 'going'} onPress={() => setFilter('going')} />
           </ScrollView>
           {filter === 'forYou' ? (
             <InfoTip text="Eventi scelti per te dai tuoi interessi e da cosa piace a chi è nei tuoi gruppi. Solo quelli a cui non hai ancora risposto." />

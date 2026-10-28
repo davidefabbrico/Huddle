@@ -48,7 +48,8 @@ export default function ProfileScreen() {
   const email = useAsync(() => api.getCurrentEmail(), []);
 
   const list = stats.data?.memberships ?? [];
-  const achievements = stats.data ? computeAchievements(stats.data) : [];
+  // Secret achievements stay out of sight (not even counted) until you unlock one
+  const achievements = stats.data ? computeAchievements(stats.data).filter((a) => !a.secret || a.unlocked) : [];
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const bestRank = rankFor(Math.max(0, ...list.map((m) => m.attended_events)));
 
@@ -277,17 +278,8 @@ function Stat({ value, label, highlight = false }: { value: string; label: strin
   );
 }
 
-// One achievement badge; locked ones are faded and show how to unlock them
+// One achievement badge; locked ones are faded and show how to unlock them (secret ones aren't shown)
 function AchievementTile({ achievement }: { achievement: Achievement }) {
-  if (achievement.secret && !achievement.unlocked) {
-    return (
-      <View className="w-[31%] flex-grow items-center gap-1 rounded-3xl border border-dashed border-stone-300 p-3">
-        <Text className="text-3xl opacity-40">🔒</Text>
-        <Text className="text-center text-sm font-semibold text-stone-400">???</Text>
-        <Text className="text-center text-xs text-stone-400">Traguardo segreto</Text>
-      </View>
-    );
-  }
   return (
     <View
       className={`w-[31%] flex-grow items-center gap-1 rounded-3xl p-3 ${achievement.unlocked ? 'bg-white' : 'border border-dashed border-stone-300'}`}

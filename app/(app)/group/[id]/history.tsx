@@ -1,8 +1,10 @@
 // "La nostra storia": what the group has done from its creation to today, as a timeline, with the
-// clan's emblem and the legendary cards to collect (easter eggs, lib/mascot.ts). In the group's colors.
+// clan's emblem. Tapping the emblem uncovers the legendary cards to collect (easter eggs, lib/mascot.ts),
+// kept out of sight otherwise. In the group's colors.
 // Past events and holidays (how many came, their photos), who joined; a recurring event is one line
 // per month ("Palestra serale · 12 volte"). Seen by whoever sees the group (counts only, no attendee names).
 
+import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ClanEmblem } from '../../../../components/GroupMascotCard';
@@ -82,6 +84,7 @@ function timeline(history: GroupHistory, groupName: string): Item[] {
 
 export default function GroupHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [showCards, setShowCards] = useState(false);
   const data = useAsync(async () => {
     const [group, history, level] = await Promise.all([api.getGroupById(id), api.getGroupHistory(id), api.getGroupLevel(id)]);
     return group && history ? { group, history, level } : null;
@@ -120,14 +123,16 @@ export default function GroupHistoryScreen() {
         <Header title="La nostra storia" subtitle={group.name} />
         <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2 wide:px-8">
           <View className="flex-row items-center gap-4 rounded-3xl bg-brand-200 p-4">
-            <ClanEmblem element={clan.element} rings={stageFor(level.xp).level} size={56} />
+            <Pressable onPress={() => setShowCards(!showCards)} accessibilityRole="button" accessibilityLabel="Lo stemma del clan" hitSlop={8}>
+              <ClanEmblem element={clan.element} rings={stageFor(level.xp).level} size={56} />
+            </Pressable>
             <View className="flex-1 gap-0.5">
               <Text className="text-xs text-brand-800">{clan.name} · dal {formatDate(history.created_at)}</Text>
               <Text className="text-lg font-semibold text-brand-800">{stats.join(' · ')}</Text>
             </View>
           </View>
 
-          <LegendCards cards={cards} />
+          {showCards ? <LegendCards cards={cards} /> : null}
 
           <View>
             {items.map((item) => (

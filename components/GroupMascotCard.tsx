@@ -1,4 +1,4 @@
-// The group's mascot, shown only when you interact with a group (its page, organizing for it):
+// The group's pixel-art mascot, shown only when you interact with a group (its page, organizing for it):
 // it pops in animated with a speech bubble, the stage and the way to the next one. Next to it, the
 // clan's emblem (easter egg): tap it to discover the clan's name, element and motto.
 // Seven taps on the mascot: it dances and throws confetti.
@@ -18,6 +18,8 @@ const GREETINGS = [
   'Siamo una bella squadra!',
   'Siamo leggenda 👑',
 ];
+
+const BLOCKS = 10;
 
 interface Props {
   group: Pick<Group, 'name' | 'tags' | 'icon' | 'mascot'> & { created_at?: string | null };
@@ -58,8 +60,11 @@ export function GroupMascotCard({ group, level, compact = false, cheer }: Props)
                   <ClanEmblem element={clan.element} rings={stage.level} size={30} />
                 </Pressable>
               </View>
-              <View className="h-1.5 overflow-hidden rounded-full bg-brand-100">
-                <View className="h-full rounded-full bg-brand-300" style={{ width: `${Math.round(progress * 100)}%` }} />
+              {/* Progress in blocks, like an old game's energy bar */}
+              <View className="flex-row gap-0.5">
+                {Array.from({ length: BLOCKS }, (_, i) => (
+                  <View key={i} className={`h-2 flex-1 ${i < Math.round(progress * BLOCKS) ? 'bg-brand-300' : 'bg-brand-100'}`} />
+                ))}
               </View>
             </View>
           )}

@@ -21,11 +21,11 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 const TAB_BAR_CONTENT_HEIGHT = 60;
 const TAB_PADDING = 5;
 
-// Material 3 navigation bar: outline icon, or filled icon on a pastel pill when active
+// Material 3 navigation bar: outline icon, or filled icon on a pastel pill when active (a round one, not squashed)
 function tabIcon(outline: IconName, filled: IconName) {
   return function TabIcon({ focused }: { focused: boolean }) {
     return (
-      <View className={`h-8 w-16 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
+      <View className={`h-10 w-14 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
         <Ionicons name={focused ? filled : outline} size={22} className={focused ? 'text-brand-800' : 'text-stone-500'} />
       </View>
     );
@@ -52,7 +52,7 @@ export default function TabsLayout() {
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
           ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
         },
-        // Wide enough for the active pill (64px); the default box is 31x28
+        // Wide enough for the active pill (56px); the default box is 31x28
         tabBarIconStyle: { width: 64, height: TAB_BAR_CONTENT_HEIGHT - 2 * TAB_PADDING },
       }}
     >
@@ -69,9 +69,9 @@ export default function TabsLayout() {
         options={{
           title: 'Crea',
           tabBarAccessibilityLabel: 'Crea',
-          // Brand-colored square, like a "post" button
+          // Brand-colored round button, like a "post" button
           tabBarIcon: ({ focused }) => (
-            <View className={`h-10 w-14 items-center justify-center rounded-2xl ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
+            <View className={`h-12 w-12 items-center justify-center rounded-full ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
               <Ionicons name="add" size={26} className="text-brand-800" />
             </View>
           ),
@@ -88,7 +88,7 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: 'Profilo',
           // Your avatar, on the pill when active
           tabBarIcon: ({ focused }) => (
-            <View className={`h-8 w-16 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
+            <View className={`h-10 w-14 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
               {user ? <Avatar {...avatarOf(user)} size={26} /> : null}
             </View>
           ),
