@@ -19,6 +19,7 @@ import { Button } from '../../../components/Button';
 import { CarpoolSection } from '../../../components/CarpoolSection';
 import { GroupTheme } from '../../../components/GroupTheme';
 import { ShareEventToChat } from '../../../components/ShareEventToChat';
+import { GroupParticipation } from '../../../components/GroupParticipation';
 import { ConfirmButton } from '../../../components/ConfirmButton';
 import { EventPhotos } from '../../../components/EventPhotos';
 import { ExpensesSection } from '../../../components/ExpensesSection';
@@ -34,6 +35,7 @@ import { SmartParkCard } from '../../../components/SmartParkCard';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
 import { useAuth } from '../../../hooks/useAuth';
+import { useHiddenUsers } from '../../../hooks/useHiddenUsers';
 import * as api from '../../../lib/api';
 import { eventPhase } from '../../../lib/eventTiming';
 import { dayKeysBetween, firstName, formatEventDate, tripDatesLabel } from '../../../lib/format';
@@ -50,6 +52,7 @@ export default function EventScreen() {
   const [arrivalDismissed, setArrivalDismissed] = useState(false);
   const arrival = smartpark === 'arrivato' && !arrivalDismissed ? parseLatLon(auto) : null;
   const user = useAuth((state) => state.user)!;
+  const { hidden } = useHiddenUsers();
   const [version, setVersion] = useState(0); // bump to refetch after an action
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -58,7 +61,7 @@ export default function EventScreen() {
   const data = useAsync(async () => {
     const event = await api.getEventById(id);
     if (!event) return null;
-    const [access, group, members, attendees, thanks, carSpots, regulars] = await Promise.all([
+    const [access, group, members, attendees, thanks, carSpots, regulars, eventGroups, memberships] = await Promise.all([
       api.canAccessChat(event.group_id),
       api.getGroupById(event.group_id),
       api.getGroupMembers(event.group_id),
@@ -66,6 +69,8 @@ export default function EventScreen() {
       api.getEventThanks(id),
       api.getCarSpots(id),
       event.series_id ? api.getSeriesRegulars(event.series_id) : Promise.resolve([]),
+      api.getEventGroups(id),
+      api.getMemberships(user.id),
     ]);
     const withExpenses = access && (event.kind === 'trip' || Boolean(group?.expenses_enabled));
     const [organizer, photos, tripItems, expenses] = await Promise.all([
@@ -74,7 +79,7 @@ export default function EventScreen() {
       access && event.kind === 'trip' ? api.getTripItems(id) : Promise.resolve([]),
       withExpenses ? api.getExpenses(id) : Promise.resolve(null),
     ]);
-    return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses };
+    return { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses, eventGroups, memberships };
   }, [id, version], { refetchOnFocus: true }); // also when coming back from "Modifica"
 
   async function run(action: () => Promise<void>) {
@@ -105,7 +110,14 @@ export default function EventScreen() {
     );
   }
 
-  const { event, access, group, members, attendees, thanks, carSpots, regulars, organizer, photos, tripItems, expenses } = data.data;
+  const { event, access, group, thanks, carSpots, regulars, organizer, photos, tripItems, expenses, eventGroups, memberships } = data.data;
+  // People you blocked (or who blocked you) are left out of the lists
+  const members = data.data.members.filter((m) => !hidden.has(m.id));
+  const attendees = data.data.attendees.filter((a) => a.id === user.id || !hidden.has(a.id));
+  // A whole group can join (GroupParticipation): its members answer too
+  const myGroupIds = new Set(memberships.map((m) => m.group.id));
+  const viaMyGroup = eventGroups.some((g) => myGroupIds.has(g.group_id));
+  const myAdminGroups = memberships.filter((m) => m.member_role === 'admin' && m.group.id !== event.group_id).map((m) => m.group);
   const reload = () => setVersion((v) => v + 1);
   const people = [...members, ...attendees];
   const phase = eventPhase(event.date_time, event.ends_at);
@@ -116,7 +128,7 @@ export default function EventScreen() {
   const canManage = event.created_by === user.id || group?.admin_id === user.id;
   const canThank = access && phase !== 'upcoming'; // once the event has started
   // A venue's events are open: anyone can answer, see who's coming, add a photo (the chat stays for members)
-  const canJoin = access || Boolean(group?.is_business && group.visibility === 'public');
+  const canJoin = access || viaMyGroup || Boolean(group?.is_business && group.visibility === 'public');
   const isMyVenueEvent = user.account_type === 'business' && event.created_by === user.id;
   const thanked = (toUser: string) => thanks.some((t) => t.from_user === user.id && t.to_user === toUser);
   const thanksFor = (toUser: string) => thanks.filter((t) => t.to_user === toUser).length;
@@ -233,6 +245,15 @@ export default function EventScreen() {
                   </View>
                 )}
                 {error ? <Text className="text-center text-sm text-red-600">{error}</Text> : null}
+
+                <GroupParticipation
+                  joined={eventGroups}
+                  myAdminGroups={myAdminGroups}
+                  canJoinNow={event.visibility === 'public' && group?.visibility === 'public' && !event.cancelled_at && phase === 'upcoming'}
+                  busy={busy}
+                  onJoin={(groupId) => run(() => api.joinEventAsGroup(event.id, groupId))}
+                  onLeave={(groupId) => run(() => api.leaveEventAsGroup(event.id, groupId))}
+                />
 
                 {event.series && event.series_id ? (
                   <SeriesCard

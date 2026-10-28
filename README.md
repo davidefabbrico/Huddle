@@ -10,7 +10,7 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 
 ## Funzioni
 
-- **Stile**: tocco arcade come le mascotte, ma calmo. Angoli squadrati, schede piatte con un filo grigio; solo i
+- **Stile**: tocco arcade, ma calmo. Angoli squadrati, schede piatte con un filo grigio; solo i
   pulsanti principali (e il ➕) sono "da cabinato", con il contorno scuro più spesso sotto. Icone pixel nella barra e
   nel menu ([components/PixelIcon.tsx](components/PixelIcon.tsx)). Testi in Chakra Petch (lettere squadrate, a metà
   tra un font normale e il pixel: [components/Text.tsx](components/Text.tsx)), il logo "Huddle" in font pixel
@@ -19,17 +19,29 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
   I colori sono variabili CSS che cambiano con il tema, quindi anche i colori dei gruppi hanno la versione notte.
-- **Mascotte del gruppo**: l'admin sceglie tra 6 creature (volpe, gatto, panda, rana, pinguino, draghetto) in pixel
-  art vintage, animate come gli sprite dei vecchi videogiochi ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
-  cucciolo → giovane → leggenda) e compare solo quando si apre un gruppo o si organizza qualcosa. Si muove anche
-  con "Riduci movimento" attivo.
-- **Tamagotchi**: nella pagina del gruppo la mascotte ha due barre, Pancia e Gioco, che si svuotano in un giorno. Chi
-  è nel gruppo le dà la pappa 🍎 o ci gioca ⚽ (per tutti: si vede chi l'ha fatto per ultimo). Non muore mai: con le
-  barre vuote è solo un po' triste e smette di saltellare.
 - **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
   uno dei tuoi gruppi e lì compare come scheda da aprire.
-- **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
-  La sessione resta attiva anche chiudendo e riaprendo l'app.
+- **Registrazione in tre passi**, come nelle app moderne: (1) l'account (chi si iscrive, nome, email, password e
+  "Ho almeno 18 anni"), (2) "Cosa ti piace?": gli interessi, (3) "Qualcosa su di te": zona, anno di nascita, nuovo in
+  città, due righe (tutto facoltativo). Poi la home si apre sui gruppi **"Per te"** per i tuoi interessi
+  ([app/signup.tsx](app/signup.tsx), [app/(app)/welcome.tsx](app/(app)/welcome.tsx)). Chi si era iscritto prima salta il benvenuto.
+- **Solo maggiorenni**: senza "Ho almeno 18 anni" l'account non viene creato (lo controlla anche il database), e
+  l'anno di nascita, se c'è, dev'essere di chi ha almeno 18 anni; le fasce d'età dei gruppi partono da 18
+  ([lib/age.ts](lib/age.ts)).
+- **Account**: conferma email, login, password dimenticata (link via email). **Cambia password** chiede prima quella
+  attuale, poi la nuova. La sessione resta attiva anche chiudendo e riaprendo l'app.
+- **Interessi**: 16 categorie con un'icona pixel (Sport, Musica, Cinema e serie, Cibo e aperitivi, Natura e trekking,
+  Viaggi, Arte e cultura, Libri, Giochi da tavolo, Videogiochi, Tecnologia, Lingue, Benessere e yoga, Fotografia,
+  Feste e serate, Volontariato) più **"Altro…"** per scriverne uno a mano ([lib/interests.ts](lib/interests.ts),
+  [components/InterestPicker.tsx](components/InterestPicker.tsx)). Gli stessi per profilo, gruppi, eventi e ricerca.
+- **Bloccare e segnalare**: dal "⋯" accanto a un membro o tenendo premuto un messaggio in chat si **blocca** una
+  persona (non vi vedete più nei messaggi, nelle liste dei membri, nelle classifiche e tra i partecipanti) o la si
+  **segnala**. In fondo alla pagina di un gruppo lo si **nasconde** (sparisce da liste, ricerca, suggerimenti ed
+  eventi) o lo si segnala. Profilo → Account: le persone bloccate e i gruppi nascosti, per tornare indietro.
+  Le segnalazioni le legge chi gestisce Huddle (vedi "Moderazione").
+- **Partecipare come gruppo**: l'admin di un gruppo, su un evento pubblico di un altro gruppo (o di un locale), tocca
+  "Ci veniamo come gruppo". Ogni membro riceve una notifica e risponde "Ci sono" / "Non ci sono" per sé; l'evento
+  mostra "Partecipano come gruppo" con quanti ci sono e quanti devono ancora rispondere. L'admin può ritirare il gruppo.
 - **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
 - **Versione computer**: dal browser di un computer (finestra larga almeno 900px) la barra diventa un menu laterale
   fisso, gruppi ed eventi si dispongono a griglia, gruppo/evento/profilo su due colonne, login con pannello di presentazione.
@@ -54,11 +66,13 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   prossime date: le auto si organizzano una volta sola. Chi l'ha creato (o l'admin) può fermare la ricorrenza.
 - **Cerca** (lente in Gruppi ed Eventi, "Cerca" nel menu laterale su computer): eventi e gruppi per testo,
   **distanza** (dalla tua zona impostata nel profilo, o dalla posizione presa una volta sul sito, mai salvata),
-  **età** (la tua o una fascia: confrontata con la fascia d'età del gruppo) e **interessi** ([lib/search.ts](lib/search.ts)).
+  **età** (uno slider da–a, dai 18 ai 99, o "La mia": confrontata con la fascia d'età del gruppo) e **interessi**
+  ([lib/search.ts](lib/search.ts), slider in [components/RangeSlider.tsx](components/RangeSlider.tsx)).
 - **Fascia d'età dei gruppi**: l'admin indica per che età è il gruppo (es. 25–35, anche solo "da" o "a"), insieme a
   zona (con coordinate, per le distanze) e argomenti. L'anno di nascita delle persone resta privato (`user_settings`).
 - **Affidabilità**: dai punti nasce un livello (Da conoscere → Affidabile → Molto affidabile → Una garanzia,
-  [lib/reliability.ts](lib/reliability.ts)) visibile sul profilo, accanto ai membri e sui gruppi (media dei membri).
+  [lib/reliability.ts](lib/reliability.ts)), con le stelle in pixel art, visibile sul profilo, accanto ai membri e sui
+  gruppi (media dei membri).
 - **Locali e aziende**: alla registrazione si sceglie "Una persona" o "Un locale o un'azienda". Il locale ha una
   pagina (un gruppo speciale) dove pubblica i suoi eventi, a cui chiunque può dire "Ci sono" senza entrare nel gruppo.
   Punti diversi: evento organizzato +5, ogni persona che viene +2, grazie +2. Con **20 punti** può mandare un suo evento
@@ -98,7 +112,7 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Avatar**: foto profilo, avatar a pixel stile GitHub o iniziali.
 - **Eliminare l'account** (Profilo → Account): per sempre, con tutti i dati personali; i gruppi di cui eri admin passano
   al membro entrato per primo (quelli senza altri membri vengono eliminati).
-- **Icona app**: la volpe pixel su un cielo notturno da sala giochi. Salvando il sito nella schermata Home (iPhone:
+- **Icona app**: tre omini pixel abbracciati su un cielo notturno da sala giochi. Salvando il sito nella schermata Home (iPhone:
   Condividi → Aggiungi a Home) compare questa icona.
 
 ## Collegamento con SmartPark
@@ -145,7 +159,8 @@ lib/
   recommendations.ts         "Per te": punteggio e motivazione dei suggerimenti
   expenses.ts                spese condivise: saldi e "chi deve a chi"
   search.ts, reliability.ts  filtri di ricerca; livelli di affidabilità dai punti
-  mascot.ts, palette.ts      mascotte, clan, carte leggendarie; palette pastello (app e gruppi)
+  interests.ts, age.ts       interessi (categorie e "Altro"), regola dei 18 anni
+  legendCards.ts, palette.ts carte leggendarie; palette pastello (app e gruppi)
 supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
 
@@ -171,7 +186,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261030_cerca_eta_affidabilita_locali.sql` | ricerca (zona e fascia d'età dei gruppi), affidabilità, locali/aziende e promozioni, newsletter |
 | `20261031_ricorrenze_eventi_voti_account.sql` | periodo delle ricorrenze, eventi pubblici/privati, modifica e annullamento, voti nella scaletta, eliminazione account |
 | `20261101_mascotte_condivisione.sql` | mascotte e livello del gruppo, eventi condivisi nelle chat |
-| `20261102_mascotte_tamagotchi.sql` | tamagotchi della mascotte: pappa e gioco per tutto il gruppo |
+| `20261102_profilo_interessi_blocchi_gruppi.sql` | via mascotte e clan; interessi a categorie; solo 18+; benvenuto dopo la registrazione; blocchi, gruppi nascosti, segnalazioni e sospensioni; partecipare come gruppo |
 
 ### 2. Login ed email
 
@@ -219,7 +234,7 @@ npm run lint              # ESLint (config Expo)
 npm run build:web         # build di produzione in dist/ (come su GitHub Pages)
 ```
 
-L'icona nasce da [assets/icon.svg](assets/icon.svg) (la volpe pixel di [components/Mascot.tsx](components/Mascot.tsx));
+L'icona nasce da [assets/icon.svg](assets/icon.svg) (tre omini pixel abbracciati);
 i PNG in `assets/` (app) e `public/` (sito: apple-touch-icon, icone del manifest) ne sono l'esportazione, con i pixel
 di misura intera perché restino nitidi. `public/index.html` e `public/manifest.json` contengono il percorso
 `/Huddle/`: se rinomini la repo aggiornali insieme a `baseUrl`.
@@ -240,13 +255,19 @@ Dettagli tecnici:
   (es. `/Huddle/group/…` o `/Huddle/reset-password`), così i link diretti, i link delle email e il refresh funzionano.
 - `.nojekyll` evita che GitHub ignori la cartella `_expo/`.
 
+## Moderazione
+
+Le segnalazioni ("Segnala") arrivano nella tabella `reports` (Supabase → Table Editor): chi ha segnalato, la persona
+o il gruppo, il motivo. Quando l'hai gestita, scrivi la data in `handled_at`.
+
+- **Sospendere un gruppo**: Table Editor → `groups` → scrivi la data in `suspended_at`. Il gruppo sparisce per tutti
+  (anche per chi ne fa parte) finché non svuoti il campo.
+- **Sospendere una persona**: Authentication → Users → la persona → "Ban user" (scegli per quanto). Non può più
+  accedere finché il blocco non scade o non lo togli.
+
 ## Easter egg (spoiler)
 
-- **Clan**: ogni gruppo appartiene a un clan, fatto della sua mascotte e di un elemento (Fuoco, Acqua, Vento, Terra,
-  Fulmine) che nasce da cosa fa il gruppo. Si scopre toccando lo stemma accanto alla mascotte; lo stemma prende un
-  anello a ogni stadio.
-- **Carte leggendarie**: nascoste nella storia del gruppo (compaiono toccando lo stemma del clan), i momenti speciali (primo evento, prima vacanza, tutti presenti,
+- **Carte leggendarie**: nascoste nella storia del gruppo (compaiono toccando il riepilogo in cima), i momenti speciali (primo evento, prima vacanza, tutti presenti,
   un anno insieme…) diventano carte comuni, rare, epiche e leggendarie da collezionare.
 - **Traguardi segreti** nel profilo: non si vedono (né si contano) finché non si sbloccano; ogni nuovo traguardo arriva con i coriandoli.
-- **Segreti**: 7 tocchi sulla mascotte la fanno ballare; tenendo premuto il saluto "Ciao, …" (o il logo su computer)
-  partono i coriandoli; le mascotte mettono il cappello a Halloween, a Natale e al compleanno del gruppo.
+- **Segreti**: tenendo premuto il saluto "Ciao, …" (o il logo su computer) partono i coriandoli.

@@ -18,6 +18,3 @@ export const RELIABILITY: ReliabilityLevel[] = [
 export function reliabilityFor(points: number): ReliabilityLevel {
   return [...RELIABILITY].reverse().find((level) => points >= level.minPoints) ?? RELIABILITY[0];
 }
-
-// "★★☆"
-export const starsLabel = (stars: number) => '★'.repeat(stars) + '☆'.repeat(3 - stars);

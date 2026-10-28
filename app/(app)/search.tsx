@@ -10,21 +10,23 @@ import { Grid } from '../../components/Columns';
 import { EventCard } from '../../components/EventCard';
 import { GroupCard } from '../../components/GroupCard';
 import { Header } from '../../components/Header';
+import { InterestPicker } from '../../components/InterestPicker';
+import { RangeSlider } from '../../components/RangeSlider';
 import { Screen } from '../../components/Screen';
 import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
-import { interestOptions } from '../../lib/format';
 import { formatDistance, type LatLon } from '../../lib/geo';
 import {
-  AGE_BRACKETS,
   ageFromBirthYear,
+  ANY_AGE,
   DISTANCES_KM,
   filterEvents,
   filterGroups,
+  isAnyAge,
   kmFrom,
-  type AgeBracket,
+  type AgeRange,
 } from '../../lib/search';
 import { Text, TextInput } from '../../components/Text';
 
@@ -35,7 +37,7 @@ export default function SearchScreen() {
   const [tab, setTab] = useState<Tab>('events');
   const [text, setText] = useState('');
   const [maxKm, setMaxKm] = useState<number | null>(null);
-  const [age, setAge] = useState<AgeBracket | null>(null);
+  const [age, setAge] = useState<AgeRange>(ANY_AGE);
   const [interests, setInterests] = useState<string[]>([]);
   const [position, setPosition] = useState<LatLon | null>(null); // taken once, never stored
   const [locating, setLocating] = useState(false);
@@ -120,31 +122,29 @@ export default function SearchScreen() {
           {locateError ? <Text className="text-xs text-red-600">{locateError}</Text> : null}
 
           <FilterRow label="Età">
-            <Chip label="Tutte" selected={age === null} onPress={() => setAge(null)} />
-            {myAge ? (
-              <Chip
-                label={`La mia (${myAge})`}
-                selected={age?.label === 'mine'}
-                onPress={() => setAge({ label: 'mine', min: myAge, max: myAge })}
+            <View className="w-full gap-3">
+              <RangeSlider
+                label="Età"
+                min={ANY_AGE.min}
+                max={ANY_AGE.max}
+                low={age.min}
+                high={age.max}
+                onChange={(min, max) => setAge({ min, max })}
+                format={(low, high) => (isAnyAge({ min: low, max: high }) ? 'Tutte le età' : low === high ? `${low} anni` : `Da ${low} a ${high} anni`)}
               />
-            ) : null}
-            {AGE_BRACKETS.map((bracket) => (
-              <Chip key={bracket.label} label={bracket.label} selected={age?.label === bracket.label} onPress={() => setAge(bracket)} />
-            ))}
+              <View className="flex-row flex-wrap gap-2">
+                <Chip label="Tutte" selected={isAnyAge(age)} onPress={() => setAge(ANY_AGE)} />
+                {myAge ? (
+                  <Chip label={`La mia (${myAge})`} selected={age.min === myAge && age.max === myAge} onPress={() => setAge({ min: myAge, max: myAge })} />
+                ) : null}
+              </View>
+            </View>
           </FilterRow>
 
           <FilterRow label="Interessi">
-            {interestOptions.map((interest) => {
-              const selected = interests.includes(interest);
-              return (
-                <Chip
-                  key={interest}
-                  label={interest}
-                  selected={selected}
-                  onPress={() => setInterests(selected ? interests.filter((i) => i !== interest) : [...interests, interest])}
-                />
-              );
-            })}
+            <View className="w-full">
+              <InterestPicker selected={interests} onChange={setInterests} allowCustom={false} />
+            </View>
           </FilterRow>
         </View>
 

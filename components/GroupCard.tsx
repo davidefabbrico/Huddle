@@ -1,5 +1,5 @@
 // Group card for the home feed and the search: badges for members, newcomers, privacy, ages,
-// venue pages, reliability (from the members' points) and the distance when known
+// venue pages, reliability (from the members' points) and the distance when known; in "Per te" the reason
 
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,12 @@ import { GroupIcon, groupIconOf } from './GroupIcon';
 import { ReliabilityBadge } from './ReliabilityBadge';
 import { Text } from './Text';
 
-export function GroupCard({ group, reliability, distance }: { group: GroupSummary; reliability?: number; distance?: string }) {
+export function GroupCard({ group, reliability, distance, reason }: {
+  group: GroupSummary;
+  reliability?: number;
+  distance?: string;
+  reason?: string; // "ti piace: sport"
+}) {
   const isOpen = group.type === 'open_to_new';
   const ages = ageRangeLabel(group.age_min, group.age_max);
 
@@ -33,6 +38,8 @@ export function GroupCard({ group, reliability, distance }: { group: GroupSummar
             ) : null}
           </View>
         </View>
+
+        {reason ? <Text className="mt-2 text-sm font-medium text-brand-700">✨ {reason}</Text> : null}
 
         {group.description ? (
           <Text numberOfLines={2} className="mt-3 text-sm leading-5 text-stone-600">

@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
+import { InterestPicker } from '../../components/InterestPicker';
 import { PlaceField, type PlaceValue } from '../../components/PlaceField';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
@@ -20,12 +21,11 @@ import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
-import { GroupMascotCard } from '../../components/GroupMascotCard';
 import { GroupTheme } from '../../components/GroupTheme';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { VisibilityChoice } from '../../components/VisibilityChoice';
 import { isInPast } from '../../lib/eventTiming';
-import { dayKey, fromDayKey, interestOptions, isoWeekday, parseTime, tripDatesLabel, weekdayNames } from '../../lib/format';
+import { dayKey, fromDayKey, isoWeekday, parseTime, tripDatesLabel, weekdayNames } from '../../lib/format';
 import { isPdf, pickPoster } from '../../lib/pickers';
 import type { EventKind, EventVisibility, NewEventInput, PickedFile } from '../../lib/types';
 import { Text } from '../../components/Text';
@@ -71,8 +71,6 @@ export default function CreateEventScreen() {
   const groupIdToUse = selectedGroup ?? (groups.length === 1 ? groups[0].group.id : undefined);
   const chosenGroup = groups.find((m) => m.group.id === groupIdToUse)?.group;
   const groupIsPrivate = chosenGroup?.visibility === 'private';
-  // The group's mascot cheers while you organize (it shows only when you're doing something with a group)
-  const level = useAsync(() => (groupIdToUse ? api.getGroupLevel(groupIdToUse) : Promise.resolve(null)), [groupIdToUse]);
 
   // Range: the first tap is the first day, the second the last day (tap again to restart).
   // For a recurring event the first day also suggests the weekday.
@@ -179,10 +177,6 @@ export default function CreateEventScreen() {
               </Text>
             )}
 
-            {chosenGroup && level.data ? (
-              <GroupMascotCard group={chosenGroup} level={level.data} compact cheer={isTrip ? 'Si parte! Preparo la valigia 🧳' : 'Si organizza! Che bello 🎉'} />
-            ) : null}
-
             <View className="flex-row flex-wrap gap-2">
               <Chip label="📅 Evento" selected={!isTrip} onPress={() => setKind('event')} />
               <Chip label="🏖️ Vacanza" selected={isTrip} onPress={() => setKind('trip')} />
@@ -276,22 +270,8 @@ export default function CreateEventScreen() {
             <VisibilityChoice groupIsPrivate={groupIsPrivate} value={visibility} onChange={setVisibility} isTrip={isTrip} />
 
             <View className="gap-2">
-              <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {interestOptions.map((interest) => {
-                  const selected = tags.includes(interest);
-                  return (
-                    <Chip
-                      key={interest}
-                      label={interest}
-                      selected={selected}
-                      onPress={() =>
-                        setTags(selected ? tags.filter((t) => t !== interest) : tags.length < 3 ? [...tags, interest] : tags)
-                      }
-                    />
-                  );
-                })}
-              </View>
+              <Text className="text-sm font-medium text-stone-700">Di cosa si tratta?</Text>
+              <InterestPicker selected={tags} onChange={setTags} max={3} />
             </View>
 
             <View className="gap-2">

@@ -1,8 +1,6 @@
 // Data model types. They mirror the tables in supabase/schema.sql
 // (lib/api.ts maps the Supabase rows to these shapes).
 
-export type UserRole = 'solo' | 'group';
-export type UserIntent = 'friends' | 'group' | 'friends_and_dating';
 export type GroupType = 'closed' | 'open_to_new';
 export type GroupVisibility = 'public' | 'private'; // private: only members and invite links
 export type MemberRole = 'admin' | 'member';
@@ -25,7 +23,8 @@ export type NotificationType =
   | 'expense' // someone added an expense that includes you, or paid you back
   | 'promo' // a venue near your groups invites you to its event
   | 'digest' // weekly newsletter: events for you
-  | 'event_update'; // an event you're going to changed date or place, or was cancelled
+  | 'event_update' // an event you're going to changed date or place, or was cancelled
+  | 'group_event'; // your group takes part in an event: are you going?
 
 // ---- Tables ----
 
@@ -40,9 +39,8 @@ export interface User {
   // Avatar: a photo if avatar_url is set, else a pixel identicon if avatar_seed is set, else initials
   avatar_url: string | null;
   avatar_seed: string | null;
-  role: UserRole;
-  intent: UserIntent;
   account_type: AccountType;
+  onboarded_at: string | null; // null = the onboarding after signup is still to do
 }
 
 // Private settings, readable only by you (age and area are not on the public profile)
@@ -73,28 +71,9 @@ export interface Group {
   lon: number | null;
   age_min: number | null; // the ages it's for (either end may be open)
   age_max: number | null;
-  tags: string[]; // what they're into (from interestOptions)
+  tags: string[]; // what they're into (lib/interests.ts)
   is_business: boolean; // a venue's page: anyone can answer its events
-  mascot: MascotSpecies | null; // the group's mascot (components/Mascot.tsx), null = not chosen
-  created_at?: string; // its birthday (the mascot wears a party hat)
-}
-
-export type MascotSpecies = 'fox' | 'cat' | 'panda' | 'frog' | 'penguin' | 'dragon';
-
-// The group's level (group_level): drives the mascot's stage and the clan
-// The mascot's care (tamagotchi): when it last ate and played, and the first name of who gave it
-export interface MascotCare {
-  fed_at: string | null;
-  fed_by: string | null;
-  played_at: string | null;
-  played_by: string | null;
-}
-
-export interface GroupLevel {
-  xp: number; // people at past events + 2 per event
-  events: number;
-  trips: number;
-  attendances: number;
+  created_at?: string;
 }
 
 // What an invite link shows before joining (also for private groups)
@@ -128,7 +107,7 @@ export interface Event {
   // Optional poster ("locandina"): a PDF or an image
   poster_url: string | null;
   poster_mime: string | null;
-  tags: string[]; // what it's about (from interestOptions): drives "Per te"
+  tags: string[]; // what it's about (lib/interests.ts): drives "Per te"
   series_id: string | null; // occurrence of a recurring event
   kind: EventKind;
   ends_at: string | null; // holidays: the last day (ISO 8601)
@@ -374,18 +353,13 @@ export interface SignUpResult {
 // ---- Inputs ----
 
 // Data collected by the signup/onboarding screen
+// Just the account: the rest (interests, about you) comes in the onboarding (app/(app)/welcome.tsx)
 export interface SignUpInput {
   email: string;
   password: string;
   full_name: string;
-  role: UserRole;
-  intent: UserIntent;
-  is_relocated: boolean;
-  relocated_at?: string | null;
-  bio?: string;
-  interests?: string[];
-  account_type?: AccountType;
-  birth_year?: number | null;
+  account_type: AccountType;
+  adult: boolean; // "Ho almeno 18 anni": the database refuses the account without it
 }
 
 export interface NewGroupInput {
@@ -402,7 +376,6 @@ export interface NewGroupInput {
   age_min?: number | null;
   age_max?: number | null;
   tags?: string[];
-  mascot?: MascotSpecies | null;
   chat_url?: string | null;
   parking_code?: string | null;
 }
@@ -433,4 +406,23 @@ export interface PickedFile {
   uri: string;
   mimeType: string;
   name: string;
+}
+
+// A group taking part in an event (event_groups_summary): how many of its members are coming
+export interface EventGroupSummary {
+  group_id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  members: number;
+  going: number;
+  answered: number;
+}
+
+// A group you hid (my_hidden_groups), to show it again
+export interface HiddenGroup {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
 }

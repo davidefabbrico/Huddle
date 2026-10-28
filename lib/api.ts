@@ -19,21 +19,21 @@ import type {
   Event,
   EventAttendee,
   EventChanges,
+  EventGroupSummary,
   EventPhoto,
   EventWithGroup,
   Expense,
   ForYouSignals,
   Group,
   GroupHistory,
-  GroupLevel,
   GroupLinks,
   GroupSummary,
+  HiddenGroup,
   InvitePreview,
   JoinRequest,
   JoinRequestWithUser,
   JoinStatus,
   LeaderboardEntry,
-  MascotCare,
   Membership,
   MemberWithProfile,
   NewEventInput,
@@ -86,7 +86,7 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 // ---- Row mappers ----
 
 const EVENT_SELECT =
-  '*, groups(name, icon, color, type, age_min, age_max, is_business), event_series(id, weekdays, start_time, created_by, starts_on, ends_on)';
+  '*, groups!events_group_id_fkey(name, icon, color, type, age_min, age_max, is_business), event_series(id, weekdays, start_time, created_by, starts_on, ends_on)';
 const AUTHOR_SELECT = `*, users(id, full_name, is_relocated, avatar_url, avatar_seed), events(${EVENT_SELECT})`;
 
 function toEvent(row: Row): EventWithGroup {
@@ -183,13 +183,8 @@ export async function signUp(input: SignUpInput): Promise<SignUpResult> {
       emailRedirectTo: appUrl('/'),
       data: {
         full_name: input.full_name.trim(),
-        role: input.role,
-        intent: input.intent,
-        is_relocated: input.is_relocated,
-        relocated_at: input.is_relocated ? input.relocated_at : null,
-        interests: input.interests ?? [],
-        account_type: input.account_type ?? 'person',
-        birth_year: input.birth_year ?? null,
+        account_type: input.account_type,
+        adult: input.adult,
       },
     },
   });
@@ -220,6 +215,16 @@ export async function sendPasswordReset(email: string): Promise<void> {
 export async function updatePassword(password: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw toError(error);
+}
+
+// "Cambia password": the current password first. Checked by signing in with it again (same account,
+// the session is just renewed), then the new one is set.
+export async function changePassword(current: string, next: string): Promise<void> {
+  const email = await getCurrentEmail();
+  if (!email) throw new Error('Accedi di nuovo per cambiare la password');
+  const { error } = await supabase.auth.signInWithPassword({ email, password: current });
+  if (error) throw new Error('La password attuale non è giusta');
+  await updatePassword(next);
 }
 
 export async function getCurrentEmail(): Promise<string | null> {
@@ -322,7 +327,6 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         age_min: input.age_min ?? null,
         age_max: input.age_max ?? null,
         tags: input.tags ?? [],
-        mascot: input.mascot ?? null,
         icon: input.icon ?? null,
         color: input.color ?? null,
         admin_id: userId,
@@ -811,23 +815,69 @@ export async function sendNewsletterIfDue(): Promise<void> {
   await supabase.rpc('newsletter_digest');
 }
 
-// ---- The group's level (mascot, clan) ----
+// ---- Blocking, hiding, reporting ----
 
-export async function getGroupLevel(groupId: string): Promise<GroupLevel> {
-  return ((check(await supabase.rpc('group_level', { gid: groupId })) as GroupLevel | null) ?? { xp: 0, events: 0, trips: 0, attendances: 0 });
+// The people you don't see (you blocked them, or they blocked you): their messages, their names in lists
+export async function getHiddenUserIds(): Promise<Set<string>> {
+  return new Set(check(await supabase.rpc('hidden_users')) as string[]);
 }
 
-// ---- Taking care of the mascot (tamagotchi) ----
-
-const NO_CARE: MascotCare = { fed_at: null, fed_by: null, played_at: null, played_by: null };
-
-export async function getMascotCare(groupId: string): Promise<MascotCare> {
-  return (check(await supabase.rpc('mascot_status', { gid: groupId })) as MascotCare | null) ?? NO_CARE;
+// The people you blocked, to unblock them (Profilo -> Account)
+export async function getBlockedUsers(userId: string): Promise<Pick<User, 'id' | 'full_name' | 'avatar_url' | 'avatar_seed'>[]> {
+  const rows = check(await supabase.from('user_blocks').select('blocked_id').eq('blocker_id', userId)) as { blocked_id: string }[];
+  if (!rows.length) return [];
+  return check(
+    await supabase.from('users').select('id, full_name, avatar_url, avatar_seed').in('id', rows.map((r) => r.blocked_id)),
+  ) as Pick<User, 'id' | 'full_name' | 'avatar_url' | 'avatar_seed'>[];
 }
 
-// Members only: feeds the mascot or plays with it, for the whole group
-export async function careForMascot(groupId: string, what: 'feed' | 'play'): Promise<MascotCare> {
-  return (check(await supabase.rpc('care_for_mascot', { gid: groupId, what })) as MascotCare | null) ?? NO_CARE;
+export async function blockUser(userId: string, blockedId: string): Promise<void> {
+  check(await supabase.from('user_blocks').upsert({ blocker_id: userId, blocked_id: blockedId }));
+}
+
+export async function unblockUser(userId: string, blockedId: string): Promise<void> {
+  check(await supabase.from('user_blocks').delete().eq('blocker_id', userId).eq('blocked_id', blockedId));
+}
+
+// A hidden group disappears for you everywhere (lists, search, suggestions, events); not if you're in it
+export async function hideGroup(userId: string, groupId: string): Promise<void> {
+  check(await supabase.from('hidden_groups').upsert({ user_id: userId, group_id: groupId }));
+}
+
+export async function unhideGroup(userId: string, groupId: string): Promise<void> {
+  check(await supabase.from('hidden_groups').delete().eq('user_id', userId).eq('group_id', groupId));
+}
+
+export async function getHiddenGroups(): Promise<HiddenGroup[]> {
+  return check(await supabase.rpc('my_hidden_groups')) as HiddenGroup[];
+}
+
+// "Segnala": read by the app's owner, who can suspend the person or the group
+export async function report(target: { userId: string } | { groupId: string }, reason: string): Promise<void> {
+  const text = reason.trim();
+  if (!text) throw new Error('Scrivi in breve cosa non va');
+  check(
+    await supabase.from('reports').insert({
+      user_id: 'userId' in target ? target.userId : null,
+      group_id: 'groupId' in target ? target.groupId : null,
+      reason: text.slice(0, 500),
+    }),
+  );
+}
+
+// ---- A whole group joins an event ----
+
+export async function getEventGroups(eventId: string): Promise<EventGroupSummary[]> {
+  return check(await supabase.rpc('event_groups_summary', { eid: eventId })) as EventGroupSummary[];
+}
+
+// The group's admin: "Ci veniamo come gruppo" (every member is asked, and answers for themselves)
+export async function joinEventAsGroup(eventId: string, groupId: string): Promise<void> {
+  check(await supabase.rpc('join_event_as_group', { eid: eventId, gid: groupId }));
+}
+
+export async function leaveEventAsGroup(eventId: string, groupId: string): Promise<void> {
+  check(await supabase.rpc('leave_event_as_group', { eid: eventId, gid: groupId }));
 }
 
 // ---- The group's history ----

@@ -13,6 +13,9 @@ import { ConfirmButton } from '../../../components/ConfirmButton';
 import { Columns } from '../../../components/Columns';
 import { Confetti } from '../../../components/Confetti';
 import { InfoTip } from '../../../components/InfoTip';
+import { PixelStars } from '../../../components/ReliabilityBadge';
+import { BlockedAndHidden } from '../../../components/SafetyActions';
+import { InterestChips } from '../../../components/InterestPicker';
 import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
@@ -21,9 +24,9 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useThemePreference } from '../../../hooks/useThemeMode';
 import { computeAchievements, newAchievements, type Achievement } from '../../../lib/achievements';
 import * as api from '../../../lib/api';
-import { arrivalLabel, intentLabels, roleLabels } from '../../../lib/format';
+import { arrivalLabel } from '../../../lib/format';
 import { businessPointsRules, pointsRules, PROMOTION_COST } from '../../../lib/points';
-import { RELIABILITY, reliabilityFor, starsLabel } from '../../../lib/reliability';
+import { RELIABILITY, reliabilityFor } from '../../../lib/reliability';
 import { nextRank, rankFor, rankProgress, RANKS } from '../../../lib/ranks';
 import type { Membership } from '../../../lib/types';
 import { Text } from '../../../components/Text';
@@ -85,11 +88,7 @@ export default function ProfileScreen() {
                 <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
                 <View className="flex-row flex-wrap justify-center gap-2">
                   {user.is_relocated ? <RelocatedBadge /> : null}
-                  {isBusiness ? (
-                  <Badge label="Locale o azienda" tone="sky" icon="storefront" />
-                ) : (
-                  <Badge label={roleLabels[user.role]} tone="brand" icon={user.role === 'group' ? 'people' : 'person'} />
-                )}
+                  {isBusiness ? <Badge label="Locale o azienda" tone="sky" icon="storefront" /> : null}
                 </View>
                 {user.is_relocated && user.relocated_at ? (
                   <View className="flex-row items-center gap-1">
@@ -130,9 +129,10 @@ export default function ProfileScreen() {
                       }
                     />
                   </View>
-                  <Text className="text-xl font-bold text-ink">
-                    {starsLabel(reliability.stars)} {reliability.label}
-                  </Text>
+                  <View className="flex-row items-center gap-2">
+                    <PixelStars stars={reliability.stars} size={18} />
+                    <Text className="text-xl font-bold text-ink">{reliability.label}</Text>
+                  </View>
                   <Text className="text-sm text-stone-600">{reliability.description}</Text>
                 </View>
               ) : null}
@@ -157,23 +157,13 @@ export default function ProfileScreen() {
                 ))}
               </View>
 
-              {/* What you're looking for */}
-              <View className="gap-3 rounded-3xl border border-stone-200 bg-white p-4">
-                <Text className="text-sm font-semibold text-stone-500">COSA CERCO</Text>
-                <View className="flex-row">
-                  <Chip label={intentLabels[user.intent]} selected />
+              {/* Interests */}
+              {user.interests.length > 0 ? (
+                <View className="gap-3 rounded-3xl border border-stone-200 bg-white p-4">
+                  <Text className="text-sm font-semibold text-stone-500">INTERESSI</Text>
+                  <InterestChips keys={user.interests} />
                 </View>
-                {user.interests.length > 0 ? (
-                  <>
-                    <Text className="mt-1 text-sm font-semibold text-stone-500">INTERESSI</Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {user.interests.map((interest) => (
-                        <Chip key={interest} label={interest} />
-                      ))}
-                    </View>
-                  </>
-                ) : null}
-              </View>
+              ) : null}
             </>
           }
           side={
@@ -250,6 +240,7 @@ export default function ProfileScreen() {
                     <Chip key={value} label={label} selected={themePreference === value} onPress={() => setThemePreference(value)} />
                   ))}
                 </View>
+                <BlockedAndHidden me={user.id} />
                 <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
                 <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
               <ConfirmButton

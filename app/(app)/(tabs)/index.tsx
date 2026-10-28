@@ -1,5 +1,7 @@
 // Gruppi tab: the groups in town, filterable, plus the bell for Attività (notifications; in the side
-// menu on a computer). Cards in a grid on wide screens. Reloads when the tab gains focus.
+// menu on a computer). Until you're in a group it opens on "Per te": the groups for your interests
+// (where the welcome ends); then on "Tutti".
+// Cards in a grid on wide screens. Reloads when the tab gains focus.
 
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
@@ -19,11 +21,13 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useIsWide } from '../../../hooks/useLayout';
 import * as api from '../../../lib/api';
 import { firstName } from '../../../lib/format';
+import { recommendGroups } from '../../../lib/recommendations';
 import { Text } from '../../../components/Text';
 
-type Filter = 'all' | 'open' | 'mine';
+type Filter = 'forYou' | 'all' | 'open' | 'mine';
 
 const filters: { value: Filter; label: string }[] = [
+  { value: 'forYou', label: '✨ Per te' },
   { value: 'all', label: 'Tutti' },
   { value: 'open', label: 'Aperti' },
   { value: 'mine', label: 'I miei' },
@@ -31,7 +35,7 @@ const filters: { value: Filter; label: string }[] = [
 
 export default function GroupsScreen() {
   const user = useAuth((state) => state.user)!; // guaranteed by the route guard
-  const [filter, setFilter] = useState<Filter>('all');
+  const [chosen, setChosen] = useState<Filter | null>(null);
   const wide = useIsWide();
 
   const feed = useAsync(
@@ -48,11 +52,17 @@ export default function GroupsScreen() {
 
   const unread = useAsync(() => api.getUnreadNotificationCount(user.id), [user.id], { refetchOnFocus: true });
 
-  const visibleGroups = (feed.data?.groups ?? []).filter((group) => {
-    if (filter === 'open') return group.type === 'open_to_new';
-    if (filter === 'mine') return feed.data?.myGroupIds.has(group.id);
-    return true;
-  });
+  const filter: Filter = chosen ?? (feed.data && feed.data.myGroupIds.size === 0 ? 'forYou' : 'all');
+  const forYou = feed.data ? recommendGroups(feed.data.groups, user, feed.data.myGroupIds) : [];
+  const reasons = new Map(forYou.map((s) => [s.group.id, s.reason]));
+  const visibleGroups =
+    filter === 'forYou'
+      ? forYou.map((s) => s.group)
+      : (feed.data?.groups ?? []).filter((group) => {
+          if (filter === 'open') return group.type === 'open_to_new';
+          if (filter === 'mine') return feed.data?.myGroupIds.has(group.id);
+          return true;
+        });
 
   const [burst, setBurst] = useState(0); // easter egg: hold the greeting for confetti
 
@@ -74,7 +84,7 @@ export default function GroupsScreen() {
 
         <View className="flex-row flex-wrap gap-2">
           {filters.map((f) => (
-            <Chip key={f.value} label={f.label} selected={filter === f.value} onPress={() => setFilter(f.value)} />
+            <Chip key={f.value} label={f.label} selected={filter === f.value} onPress={() => setChosen(f.value)} />
           ))}
         </View>
 
@@ -85,18 +95,32 @@ export default function GroupsScreen() {
         ) : visibleGroups.length === 0 ? (
           <View className="mt-6 items-center gap-3">
             <Text className="text-center text-stone-500">
-              {filter === 'mine'
+              {filter === 'forYou'
+                ? user.interests.length
+                  ? 'Nessun gruppo nuovo con i tuoi interessi, per ora. Guarda “Tutti” o creane uno tu!'
+                  : 'Dicci cosa ti piace e ti mostriamo i gruppi giusti per te.'
+                : filter === 'mine'
                 ? 'Non fai ancora parte di nessun gruppo.'
                 : filter === 'open'
                   ? 'Nessun gruppo aperto a nuovi membri.'
                   : 'Ancora nessun gruppo. Crea quello dei tuoi amici e invitali!'}
             </Text>
-            {filter === 'all' ? <Button title="Crea un gruppo" icon="people" onPress={() => router.push('/create-group')} /> : null}
+            {filter === 'all' || filter === 'forYou' ? (
+              <Button title="Crea un gruppo" icon="people" onPress={() => router.push('/create-group')} />
+            ) : null}
+            {filter === 'forYou' && !user.interests.length ? (
+              <Button title="Scegli i tuoi interessi" icon="sparkles" variant="secondary" onPress={() => router.push('/edit-profile')} />
+            ) : null}
           </View>
         ) : (
           <Grid>
             {visibleGroups.map((group) => (
-              <GroupCard key={group.id} group={group} reliability={feed.data?.reliability[group.id]} />
+              <GroupCard
+                key={group.id}
+                group={group}
+                reliability={feed.data?.reliability[group.id]}
+                reason={filter === 'forYou' ? reasons.get(group.id) : undefined}
+              />
             ))}
           </Grid>
         )}

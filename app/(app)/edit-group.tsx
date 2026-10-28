@@ -42,7 +42,6 @@ export default function EditGroupScreen() {
             age_min: group.age_min,
             age_max: group.age_max,
             tags: group.tags,
-            mascot: group.mascot,
             icon: group.icon,
             color: group.color,
             chat_url: data.data.links.chat_url,

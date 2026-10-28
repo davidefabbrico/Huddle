@@ -13,9 +13,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
-import { GroupMascotCard } from '../../../../components/GroupMascotCard';
 import { GroupTheme, useBrand } from '../../../../components/GroupTheme';
 import { ReliabilityBadge } from '../../../../components/ReliabilityBadge';
+import { GroupSafetyLinks, PersonMenuButton } from '../../../../components/SafetyActions';
 import { Columns } from '../../../../components/Columns';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { EventCard } from '../../../../components/EventCard';
@@ -27,6 +27,7 @@ import { Screen } from '../../../../components/Screen';
 import { colors } from '../../../../components/theme';
 import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
+import { useHiddenUsers } from '../../../../hooks/useHiddenUsers';
 import { hasChatAccess, useJoinStore, type GroupAccess } from '../../../../hooks/useJoinStore';
 import * as api from '../../../../lib/api';
 import { ageRangeLabel } from '../../../../lib/search';
@@ -37,23 +38,23 @@ import { Text } from '../../../../components/Text';
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuth((state) => state.user)!;
+  const { hidden, reload: reloadHidden } = useHiddenUsers();
   const access = useJoinStore((state) => state.access[id] ?? 'loading');
   const loadAccess = useJoinStore((state) => state.load);
 
   const details = useAsync(
     async () => {
       const withAccess = hasChatAccess(access);
-      const [group, members, events, links, answers, leaderboard, level] = await Promise.all([
+      const [group, members, events, links, answers, leaderboard] = await Promise.all([
         api.getGroupById(id),
         api.getGroupMembers(id),
         api.getGroupEvents(id),
         api.getGroupLinks(id),
         api.getMyAnswers(user.id),
         withAccess ? api.getGroupLeaderboard(id) : Promise.resolve([]),
-        api.getGroupLevel(id),
       ]);
       const reliability = await api.getReliability(members.map((m) => m.id), [id]);
-      return { group, members, events, links, answers, leaderboard, reliability, level };
+      return { group, members, events, links, answers, leaderboard, reliability };
     },
     [id, user.id, access], // refetch after joining so the member list updates
     { refetchOnFocus: true }, // and after editing the group
@@ -96,7 +97,10 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const { members, events, links, answers, leaderboard, reliability, level } = details.data;
+  // People you blocked (or who blocked you) are left out of the lists
+  const members = details.data.members.filter((m) => !hidden.has(m.id));
+  const leaderboard = details.data.leaderboard.filter((entry) => !hidden.has(entry.user.id));
+  const { events, links, answers, reliability } = details.data;
   const ages = ageRangeLabel(group.age_min, group.age_max);
   const isMember = access === 'member';
 
@@ -132,8 +136,6 @@ export default function GroupDetailScreen() {
                 </View>
 
                 {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
-
-                <GroupMascotCard group={group} level={level} care={{ groupId: id, canCare: isMember }} />
 
                 <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 
@@ -203,6 +205,7 @@ export default function GroupDetailScreen() {
                             {member.bio}
                           </Text>
                         </View>
+                        {member.id === user.id ? null : <PersonMenuButton me={user.id} person={member} onBlocked={reloadHidden} />}
                       </View>
                     ))}
                   </View>
@@ -225,6 +228,10 @@ export default function GroupDetailScreen() {
                     }}
                   />
                 ) : null}
+
+                {group.admin_id === user.id ? null : (
+                  <GroupSafetyLinks me={user.id} group={group} isMember={isMember} onHidden={() => router.replace('/')} />
+                )}
               </>
             }
           />

@@ -67,7 +67,7 @@ export interface Neutrals {
   surface: string;
   surface2: string;
   ink: string;
-  line: string; // the arcade outline of the main buttons, the same plum as the mascots' outline
+  line: string; // the arcade outline of the main buttons, a dark plum
   stone: Record<50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900, string>;
 }
 

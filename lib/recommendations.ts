@@ -8,9 +8,9 @@
 // Every suggestion explains itself in one line. One slot is "Fuori dal solito": something your groups
 // like that doesn't match your interests. Signals are counts from the database, never names.
 
-import { interestOptions } from './format';
 import { distanceMeters } from './geo';
-import type { EventAttendee, EventWithGroup, ForYouSignals, User, UserSettings } from './types';
+import { categoriesIn, interestLabel } from './interests';
+import type { EventAttendee, EventWithGroup, ForYouSignals, Group, User, UserSettings } from './types';
 
 export const WEIGHTS = {
   interest: 3,
@@ -32,11 +32,13 @@ export interface Suggestion {
   outside: boolean; // "Fuori dal solito"
 }
 
-// The event's tags, plus the interests named in its title (for events without tags)
+// The event's tags, plus the categories named in its title (for events without tags)
 export function eventTopics(event: Pick<EventWithGroup, 'title' | 'tags'>): string[] {
-  const title = event.title.toLowerCase();
-  return [...new Set([...event.tags, ...interestOptions.filter((interest) => title.includes(interest))])];
+  return [...new Set([...event.tags, ...categoriesIn(event.title)])];
 }
+
+// An interest as a reason: "cinema e serie"
+const named = (key: string) => interestLabel(key).toLowerCase();
 
 const people = (n: number, what: string) => (n === 1 ? `ci va 1 persona ${what}` : `ci vanno ${n} persone ${what}`);
 
@@ -84,11 +86,11 @@ export function recommendEvents(
 
       // The reason: the strongest signals, in plain words (at most two)
       const reasons: [number, string][] = [];
-      if (liked) reasons.push([WEIGHTS.interest, `ti piace: ${liked}`]);
-      else if (wentBefore) reasons.push([WEIGHTS.interest * 0.6, `simile a eventi dove sei stato/a (${wentBefore})`]);
+      if (liked) reasons.push([WEIGHTS.interest, `ti piace: ${named(liked)}`]);
+      else if (wentBefore) reasons.push([WEIGHTS.interest * 0.6, `simile a eventi dove sei stato/a (${named(wentBefore)})`]);
       if (parts.mates > 0) reasons.push([WEIGHTS.mates * parts.mates + 0.1, people(c.mates_going, 'dei tuoi gruppi')]);
       if (parts.groupTaste > 0 && groupFavorite !== liked) {
-        reasons.push([WEIGHTS.groupTaste * parts.groupTaste, `${groupFavorite} piace ai tuoi gruppi`]);
+        reasons.push([WEIGHTS.groupTaste * parts.groupTaste, `${interestLabel(groupFavorite)} piace ai tuoi gruppi`]);
       }
       if (parts.similar > 0) reasons.push([WEIGHTS.similar * parts.similar, people(c.similar_going, 'con i tuoi interessi')]);
       if (openToMe) reasons.push([WEIGHTS.newcomer * 0.5, 'il gruppo accoglie persone nuove']);
@@ -150,8 +152,29 @@ export function weeklyPicks(
     const liked = event.tags.find((t) => me.interests.includes(t));
     if (!liked && (km == null || km > settings.search_radius_km)) continue;
     if (event.series_id) seenSeries.add(event.series_id);
-    picks.push({ event, why: km != null && km <= settings.search_radius_km ? `a ${km.toFixed(1).replace('.', ',')} km` : `ti piace: ${liked}` });
+    picks.push({ event, why: km != null && km <= settings.search_radius_km ? `a ${km.toFixed(1).replace('.', ',')} km` : `ti piace: ${named(liked!)}` });
     if (picks.length === 5) break;
   }
   return picks;
+}
+
+// "Per te" groups (home, right after the onboarding): the groups you're not in that are into what you
+// like, the ones sharing more of your interests first, then the ones open to new members
+export interface GroupSuggestion<G> {
+  group: G;
+  reason: string; // "ti piace: sport, musica"
+}
+
+export function recommendGroups<G extends Pick<Group, 'id' | 'tags' | 'type'>>(
+  groups: G[],
+  me: Pick<User, 'interests'>,
+  myGroupIds: Set<string>,
+): GroupSuggestion<G>[] {
+  const mine = new Set(me.interests);
+  return groups
+    .filter((group) => !myGroupIds.has(group.id))
+    .map((group) => ({ group, shared: group.tags.filter((tag) => mine.has(tag)) }))
+    .filter(({ shared }) => shared.length > 0)
+    .sort((a, b) => b.shared.length - a.shared.length || (a.group.type === 'open_to_new' ? -1 : 0) - (b.group.type === 'open_to_new' ? -1 : 0))
+    .map(({ group, shared }) => ({ group, reason: `ti piace: ${shared.map(named).join(', ')}` }));
 }

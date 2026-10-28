@@ -1,4 +1,4 @@
-// Edit your profile: photo or pixel avatar, name, bio, arrival in the city, what you're looking for, interests,
+// Edit your profile: photo or pixel avatar, name, bio, arrival in the city, interests,
 // and the private settings (birth year, your area, newsletter, venues' invitations)
 
 import { useState } from 'react';
@@ -7,8 +7,8 @@ import { router } from 'expo-router';
 import { ArrivalPicker } from '../../components/ArrivalPicker';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
-import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
+import { InterestPicker } from '../../components/InterestPicker';
 import { PrivateSettingsFields } from '../../components/PrivateSettingsFields';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
@@ -16,10 +16,10 @@ import { colors, SWITCH_OFF } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
-import { intentLabels, interestOptions } from '../../lib/format';
+import { birthYearError } from '../../lib/age';
 import { randomSeed } from '../../lib/identicon';
 import { pickProfilePhoto } from '../../lib/pickers';
-import type { PickedFile, UserIntent, UserSettings } from '../../lib/types';
+import type { PickedFile, UserSettings } from '../../lib/types';
 import { Text } from '../../components/Text';
 
 export default function EditProfileScreen() {
@@ -30,7 +30,6 @@ export default function EditProfileScreen() {
   const [bio, setBio] = useState(user.bio);
   const [isRelocated, setIsRelocated] = useState(user.is_relocated);
   const [relocatedAt, setRelocatedAt] = useState(user.relocated_at);
-  const [intent, setIntent] = useState<UserIntent>(user.intent);
   const [hideActivity, setHideActivity] = useState(user.hide_activity);
   const isBusiness = user.account_type === 'business';
   // Private settings: loaded, plus what you changed here
@@ -39,9 +38,7 @@ export default function EditProfileScreen() {
   const [birthYearText, setBirthYearText] = useState<string>();
   const settings = savedSettings.data ? { ...savedSettings.data, ...settingsChanges } : null;
   const birthYear = birthYearText ?? (savedSettings.data?.birth_year ? String(savedSettings.data.birth_year) : '');
-  // Keep interests that are not in the standard list selectable too
   const [interests, setInterests] = useState<string[]>(user.interests);
-  const allInterests = [...new Set([...interestOptions, ...user.interests])];
   // Avatar choice: a new photo to upload, the current photo, a pixel avatar (seed) or initials
   const [newPhoto, setNewPhoto] = useState<PickedFile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url);
@@ -49,15 +46,11 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 
-  const toggleInterest = (interest: string) =>
-    setInterests((prev) => (prev.includes(interest) ? prev.filter((i) => i !== interest) : [...prev, interest]));
-
   async function handleSave() {
     setError(undefined);
+    const yearError = birthYearError(birthYear);
+    if (yearError) return setError(yearError);
     const year = birthYear.trim() ? Number(birthYear) : null;
-    if (year !== null && !(Number.isInteger(year) && year >= 1900 && year <= new Date().getFullYear() - 14)) {
-      return setError('Scrivi l’anno di nascita per intero, es. 1994');
-    }
     setLoading(true);
     try {
       if (settings) await api.updateMySettings(user.id, { ...settingsChanges, birth_year: year });
@@ -69,7 +62,6 @@ export default function EditProfileScreen() {
         bio: bio.trim(),
         is_relocated: isRelocated,
         relocated_at: isRelocated ? relocatedAt : null,
-        intent,
         interests,
         hide_activity: hideActivity,
       });
@@ -153,29 +145,9 @@ export default function EditProfileScreen() {
             </View>
           )}
 
-          {isBusiness ? null : (
-            <View className="gap-3">
-              <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
-                  <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
-                ))}
-              </View>
-            </View>
-          )}
-
           <View className="gap-3">
             <Text className="text-lg font-semibold text-ink">I tuoi interessi</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {allInterests.map((interest) => (
-                <Chip
-                  key={interest}
-                  label={interest}
-                  selected={interests.includes(interest)}
-                  onPress={() => toggleInterest(interest)}
-                />
-              ))}
-            </View>
+            <InterestPicker selected={interests} onChange={setInterests} />
           </View>
 
           <View className="flex-row items-center justify-between gap-4 rounded-3xl border border-stone-200 bg-white p-4">

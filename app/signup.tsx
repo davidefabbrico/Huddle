@@ -1,28 +1,24 @@
-// Signup + onboarding: profile basics and the key choice
-// "Solo looking for groups" vs "Group looking for new members"
+// Signup, step 1 of the welcome: just the account (who signs up, name, email, password) and the 18+
+// declaration. Then the onboarding (app/(app)/welcome.tsx): interests and a bit about you, and the home
+// opens on the groups "Per te".
 
-import { useState, type ComponentProps } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { ArrivalPicker } from '../components/ArrivalPicker';
 import { passwordError } from '../components/NewPasswordForm';
 import { PasswordField } from '../components/PasswordField';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { AuthScreen } from '../components/AuthScreen';
+import { StepDots } from '../components/StepDots';
 import { TextField } from '../components/TextField';
-import { colors, SWITCH_OFF } from '../components/theme';
+import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
-import { dateMonthsAgo, intentLabels, interestOptions } from '../lib/format';
-import type { AccountType, UserIntent, UserRole } from '../lib/types';
+import { MIN_AGE } from '../lib/age';
+import type { AccountType } from '../lib/types';
 import { Text } from '../components/Text';
-
-const roleOptions: { value: UserRole; title: string; text: string; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
-  { value: 'solo', title: 'Cerco un gruppo', text: 'Vorrei entrare in una compagnia già formata.', icon: 'person' },
-  { value: 'group', title: 'Il mio gruppo cerca nuovi membri', text: 'Abbiamo spazio per qualcuno di nuovo.', icon: 'people' },
-];
 
 export default function SignupScreen() {
   const signUp = useAuth((state) => state.signUp);
@@ -32,45 +28,23 @@ export default function SignupScreen() {
   const [repeat, setRepeat] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('person');
   const isBusiness = accountType === 'business';
-  const [birthYear, setBirthYear] = useState('');
-  const [role, setRole] = useState<UserRole>('solo');
-  const [intent, setIntent] = useState<UserIntent>('friends');
-  const [isRelocated, setIsRelocated] = useState(false);
-  const [relocatedAt, setRelocatedAt] = useState<string | null>(dateMonthsAgo(0));
-  const [interests, setInterests] = useState<string[]>([]);
+  const [adult, setAdult] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [checkEmail, setCheckEmail] = useState(false); // account created, waiting for the email link
   const [resent, setResent] = useState(false);
 
-  const toggleInterest = (interest: string) =>
-    setInterests((prev) => (prev.includes(interest) ? prev.filter((i) => i !== interest) : [...prev, interest]));
-
-  // With a session the route guard in app/_layout.tsx moves us to the app;
+  // With a session the route guard in app/_layout.tsx moves us to the app (the onboarding);
   // with email confirmation on, we ask to open the link first.
   async function handleSignUp() {
     if (!fullName.trim() || !email.includes('@')) return setError('Inserisci nome e una email valida');
-    const year = birthYear.trim() ? Number(birthYear) : null;
-    if (year !== null && !(Number.isInteger(year) && year >= 1900 && year <= new Date().getFullYear() - 14)) {
-      return setError('Scrivi l’anno di nascita per intero, es. 1994 (servono almeno 14 anni)');
-    }
     const invalidPassword = passwordError(password, repeat);
     if (invalidPassword) return setError(invalidPassword);
+    if (!adult) return setError(`Huddle è per chi ha almeno ${MIN_AGE} anni: conferma per continuare`);
     setError(undefined);
     setLoading(true);
     try {
-      const result = await signUp({
-        full_name: fullName,
-        email,
-        password,
-        role: isBusiness ? 'group' : role,
-        intent,
-        is_relocated: !isBusiness && isRelocated,
-        relocated_at: relocatedAt,
-        interests,
-        account_type: accountType,
-        birth_year: isBusiness ? null : year,
-      });
+      const result = await signUp({ full_name: fullName, email, password, account_type: accountType, adult });
       if (result.needsEmailConfirmation) {
         setCheckEmail(true);
         setLoading(false);
@@ -119,9 +93,12 @@ export default function SignupScreen() {
     <AuthScreen>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-7 px-6 py-8" keyboardShouldPersistTaps="handled">
-          <View>
-            <Text className="text-3xl font-bold text-ink">Ti diamo il benvenuto</Text>
-            <Text className="mt-1 text-base text-stone-600">Due minuti e potrai conoscere il tuo prossimo gruppo.</Text>
+          <View className="gap-3">
+            <StepDots step={1} of={3} />
+            <View>
+              <Text className="text-3xl font-bold text-ink">Crea il tuo account</Text>
+              <Text className="mt-1 text-base text-stone-600">Poi ci dici cosa ti piace e ti mostriamo i gruppi giusti.</Text>
+            </View>
           </View>
 
           <View className="gap-3">
@@ -163,101 +140,27 @@ export default function SignupScreen() {
               autoComplete="new-password"
             />
             <PasswordField label="Ripeti la password" value={repeat} onChangeText={setRepeat} autoComplete="new-password" />
-            {isBusiness ? null : (
-              <View className="gap-1">
-                <TextField
-                  label="Anno di nascita (facoltativo)"
-                  value={birthYear}
-                  onChangeText={setBirthYear}
-                  placeholder="Es. 1994"
-                  keyboardType="number-pad"
-                  maxLength={4}
-                />
-                <Text className="text-xs text-stone-500">Resta privato: serve solo a trovarti gruppi della tua età.</Text>
-              </View>
-            )}
           </View>
 
-          {isBusiness ? null : (
-            <>
-              <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Come vuoi usare Huddle?</Text>
-                {roleOptions.map((option) => {
-                  const selected = role === option.value;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => setRole(option.value)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
-                    >
-                      <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-200' : 'bg-stone-100'}`}>
-                        <Ionicons name={option.icon} size={24} className={selected ? 'text-brand-800' : 'text-stone-500'} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-base font-semibold text-ink">{option.title}</Text>
-                        <Text className="text-sm text-stone-500">{option.text}</Text>
-                      </View>
-                      <Ionicons
-                        name={selected ? 'radio-button-on' : 'radio-button-off'}
-                        size={22}
-                        className={selected ? 'text-brand-600' : 'text-stone-500'}
-                      />
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <View className="gap-4 rounded-3xl border border-stone-200 bg-white p-4">
-                <View className="flex-row items-center justify-between gap-4">
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
-                    <Text className="text-sm text-stone-500">
-                      Se ti sei trasferito/a da poco: badge “Da poco in città” e suggerimenti dei gruppi che accolgono persone nuove.
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isRelocated}
-                    onValueChange={setIsRelocated}
-                    trackColor={{ true: colors.brand, false: SWITCH_OFF }}
-                    thumbColor={colors.white}
-                    // react-native-web only: otherwise the "on" thumb is teal
-                    {...({ activeThumbColor: colors.white } as object)}
-                  />
-                </View>
-                {isRelocated ? <ArrivalPicker value={relocatedAt} onChange={setRelocatedAt} /> : null}
-              </View>
-
-              <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
-                    <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
-                  ))}
-                </View>
-              </View>
-
-            </>
-          )}
-
-          <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">{isBusiness ? 'Che eventi organizzate?' : 'I tuoi interessi'}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {interestOptions.map((interest) => (
-                <Chip
-                  key={interest}
-                  label={interest}
-                  selected={interests.includes(interest)}
-                  onPress={() => toggleInterest(interest)}
-                />
-              ))}
+          {/* 18+: required (the database refuses the account without it) */}
+          <Pressable
+            onPress={() => setAdult(!adult)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: adult }}
+            aria-checked={adult}
+            className="flex-row items-center gap-3"
+          >
+            <View className={`h-6 w-6 items-center justify-center rounded border-2 ${adult ? 'border-brand-500 bg-brand-300' : 'border-stone-400 bg-white'}`}>
+              {adult ? <Ionicons name="checkmark" size={16} color={colors.ink} /> : null}
             </View>
-          </View>
+            <Text className="flex-1 text-base text-ink">
+              {isBusiness ? `Chi registra il locale ha almeno ${MIN_AGE} anni` : `Ho almeno ${MIN_AGE} anni`}
+            </Text>
+          </Pressable>
 
           <View className="gap-3">
             {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-            <Button title="Crea account" icon="sparkles" onPress={handleSignUp} loading={loading} />
+            <Button title="Continua" icon="arrow-forward" onPress={handleSignUp} loading={loading} />
             <View className="flex-row justify-center gap-1">
               <Text className="text-stone-600">Hai già un account?</Text>
               <Link href="/login" className="font-semibold text-brand-600">

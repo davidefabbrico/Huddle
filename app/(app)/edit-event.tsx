@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
-import { Chip } from '../../components/Chip';
 import { Header } from '../../components/Header';
+import { InterestPicker } from '../../components/InterestPicker';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { PlaceField, type PlaceValue } from '../../components/PlaceField';
 import { Screen } from '../../components/Screen';
@@ -18,7 +18,7 @@ import { VisibilityChoice } from '../../components/VisibilityChoice';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
-import { dayKey, fromDayKey, interestOptions, parseTime, tripDatesLabel } from '../../lib/format';
+import { dayKey, fromDayKey, parseTime, tripDatesLabel } from '../../lib/format';
 import type { EventVisibility, EventWithGroup, Group } from '../../lib/types';
 import { Text } from '../../components/Text';
 
@@ -143,20 +143,8 @@ function EditForm({ event, group }: { event: EventWithGroup; group: Group }) {
         />
 
         <View className="gap-2">
-          <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {interestOptions.map((interest) => {
-              const selected = tags.includes(interest);
-              return (
-                <Chip
-                  key={interest}
-                  label={interest}
-                  selected={selected}
-                  onPress={() => setTags(selected ? tags.filter((t) => t !== interest) : tags.length < 3 ? [...tags, interest] : tags)}
-                />
-              );
-            })}
-          </View>
+          <Text className="text-sm font-medium text-stone-700">Di cosa si tratta?</Text>
+          <InterestPicker selected={tags} onChange={setTags} max={3} />
         </View>
 
         <VisibilityChoice groupIsPrivate={group.visibility === 'private'} value={visibility} onChange={setVisibility} isTrip={isTrip} />

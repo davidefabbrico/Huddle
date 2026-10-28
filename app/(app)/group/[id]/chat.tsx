@@ -12,12 +12,14 @@ import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { GroupIcon } from '../../../../components/GroupIcon';
 import { GroupTheme } from '../../../../components/GroupTheme';
 import { PixelIcon } from '../../../../components/PixelIcon';
+import { PersonSheet } from '../../../../components/SafetyActions';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
 import { bottomPadding } from '../../../../components/safeArea';
 import { colors } from '../../../../components/theme';
 import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
+import { useHiddenUsers } from '../../../../hooks/useHiddenUsers';
 import { useChat } from '../../../../hooks/useChat';
 import * as api from '../../../../lib/api';
 import { formatEventDate, formatMessageTime, tripDatesLabel } from '../../../../lib/format';
@@ -40,7 +42,11 @@ export default function GroupChatScreen() {
   }, [id, user.id]);
 
   const allowed = info.data?.allowed ?? false;
-  const { messages, loading, send } = useChat(id, allowed);
+  const { messages: allMessages, loading, send } = useChat(id, allowed);
+  // People you blocked (or who blocked you) are left out; a long press on someone's message: block or report
+  const { hidden, reload: reloadHidden } = useHiddenUsers();
+  const messages = allMessages.filter((m) => !hidden.has(m.user_id));
+  const [about, setAbout] = useState<{ id: string; full_name: string } | null>(null);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList<ChatMessageWithAuthor>>(null);
 
@@ -113,7 +119,13 @@ export default function GroupChatScreen() {
               data={messages}
               keyExtractor={(m) => m.id}
               contentContainerClassName="gap-3 px-4 py-4"
-              renderItem={({ item }) => <MessageBubble message={item} isMine={item.user_id === user.id} />}
+              renderItem={({ item }) => (
+                <MessageBubble
+                  message={item}
+                  isMine={item.user_id === user.id}
+                  onLongPress={() => setAbout({ ...item.author, id: item.user_id })}
+                />
+              )}
               ListEmptyComponent={<Text className="text-center text-stone-500">Ancora nessun messaggio. Rompi il ghiaccio!</Text>}
             />
           )}
@@ -143,12 +155,15 @@ export default function GroupChatScreen() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+        {about ? (
+          <PersonSheet me={user.id} person={about} visible onClose={() => setAbout(null)} onBlocked={reloadHidden} />
+        ) : null}
       </Screen>
     </GroupTheme>
   );
 }
 
-function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; isMine: boolean }) {
+function MessageBubble({ message, isMine, onLongPress }: { message: ChatMessageWithAuthor; isMine: boolean; onLongPress: () => void }) {
   if (isMine) {
     return (
       <View className="max-w-[80%] self-end">
@@ -165,7 +180,7 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
   }
 
   return (
-    <View className="max-w-[85%] flex-row items-end gap-2 self-start">
+    <Pressable onLongPress={onLongPress} delayLongPress={500} className="max-w-[85%] flex-row items-end gap-2 self-start">
       <Avatar {...avatarOf(message.author)} size={32} />
       <View className="flex-shrink">
         <View className="mb-1 flex-row flex-wrap items-center gap-2">
@@ -181,7 +196,7 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
         )}
         <Text className="mt-1 text-xs text-stone-400">{formatMessageTime(message.created_at)}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

@@ -1,4 +1,5 @@
 // "Nuova password" + "Ripeti password", used by the reset link page and by "Cambia password"
+// (which also asks for the current one first: `askCurrent`)
 
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -14,19 +15,26 @@ export function passwordError(password: string, repeat: string): string | null {
   return null;
 }
 
-export function NewPasswordForm({ submitLabel, onSubmit }: { submitLabel: string; onSubmit: (password: string) => Promise<void> }) {
+export function NewPasswordForm({ submitLabel, askCurrent = false, onSubmit }: {
+  submitLabel: string;
+  askCurrent?: boolean;
+  onSubmit: (password: string, current: string) => Promise<void>;
+}) {
+  const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 
   async function handleSubmit() {
+    if (askCurrent && !current) return setError('Scrivi prima la password che usi adesso');
     const invalid = passwordError(password, repeat);
     if (invalid) return setError(invalid);
+    if (askCurrent && current === password) return setError('La nuova password è uguale a quella attuale');
     setError(undefined);
     setLoading(true);
     try {
-      await onSubmit(password);
+      await onSubmit(password, current);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Operazione non riuscita');
       setLoading(false);
@@ -35,6 +43,9 @@ export function NewPasswordForm({ submitLabel, onSubmit }: { submitLabel: string
 
   return (
     <View className="gap-4">
+      {askCurrent ? (
+        <PasswordField label="Password attuale" value={current} onChangeText={setCurrent} autoComplete="current-password" />
+      ) : null}
       <PasswordField
         label="Nuova password"
         value={password}

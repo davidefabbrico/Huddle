@@ -1,7 +1,5 @@
 // Small display helpers shared by screens and components (Italian locale)
 
-import type { UserIntent, UserRole } from './types';
-
 const LOCALE = 'it-IT';
 
 // "mar 28 ott · 19:30"
@@ -53,34 +51,6 @@ export function dayLabel(iso: string): string {
   const label = d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
-
-// First person, as shown on your own profile (same wording as signup)
-export const roleLabels: Record<UserRole, string> = {
-  solo: 'Cerco un gruppo',
-  group: 'Il mio gruppo cerca nuovi membri',
-};
-
-export const intentLabels: Record<UserIntent, string> = {
-  friends: 'Amicizie',
-  group: 'Un gruppo fisso',
-  friends_and_dating: 'Amicizie e incontri',
-};
-
-// Interests offered at signup and in "Modifica profilo"
-export const interestOptions = [
-  'running',
-  'aperitivo',
-  'giochi da tavolo',
-  'padel',
-  'hiking',
-  'libri',
-  'cucina',
-  'musica live',
-  'yoga',
-  'cinema',
-  'fotografia',
-  'lingue',
-];
 
 // ---- Calendar days and holidays ----
 

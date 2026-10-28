@@ -1,22 +1,19 @@
 // Search filters for events and groups: text, distance from your area, age, interests.
 // Everything runs on the lists already loaded (the town's groups and upcoming events).
 
+import { MAX_AGE, MIN_AGE } from './age';
 import { distanceMeters, type LatLon } from './geo';
 import { eventTopics } from './recommendations';
 import type { EventWithGroup, Group } from './types';
 
-export interface AgeBracket {
-  label: string;
+// The ages chosen with the slider (from–to); the whole range means "any age"
+export interface AgeRange {
   min: number;
   max: number;
 }
 
-export const AGE_BRACKETS: AgeBracket[] = [
-  { label: '18–25', min: 18, max: 25 },
-  { label: '26–35', min: 26, max: 35 },
-  { label: '36–50', min: 36, max: 50 },
-  { label: 'Over 50', min: 51, max: 99 },
-];
+export const ANY_AGE: AgeRange = { min: MIN_AGE, max: MAX_AGE };
+export const isAnyAge = (age: AgeRange) => age.min <= MIN_AGE && age.max >= MAX_AGE;
 
 export const DISTANCES_KM = [5, 10, 25, 50];
 
@@ -24,7 +21,7 @@ export interface SearchFilters {
   text: string;
   maxKm: number | null; // null = anywhere
   origin: LatLon | null; // your area (or your position, once)
-  age: AgeBracket | null; // groups whose age range overlaps it (groups without a range always match)
+  age: AgeRange; // groups whose age range overlaps it (groups without a range always match)
   interests: string[]; // any of them
 }
 
@@ -38,8 +35,8 @@ function matchesText(fields: (string | null | undefined)[], text: string): boole
   return words.every((word) => haystack.includes(word));
 }
 
-function ageOverlaps(min: number | null, max: number | null, age: AgeBracket | null): boolean {
-  if (!age) return true;
+function ageOverlaps(min: number | null, max: number | null, age: AgeRange): boolean {
+  if (isAnyAge(age)) return true;
   return (min ?? 0) <= age.max && (max ?? 200) >= age.min;
 }
 

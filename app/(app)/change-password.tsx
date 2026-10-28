@@ -1,4 +1,5 @@
-// "Cambia password" from the profile (already signed in)
+// "Cambia password" from the profile (already signed in): the current password first, then the new one.
+// (Forgot it? "Password dimenticata?" on the login page.)
 
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -24,8 +25,9 @@ export default function ChangePasswordScreen() {
         ) : (
           <NewPasswordForm
             submitLabel="Aggiorna password"
-            onSubmit={async (password) => {
-              await api.updatePassword(password);
+            askCurrent
+            onSubmit={async (password, current) => {
+              await api.changePassword(current, password);
               setDone(true);
               setTimeout(() => (router.canGoBack() ? router.back() : router.replace('/profile')), 1200);
             }}

@@ -19,7 +19,7 @@ create type public.event_kind  as enum ('event', 'trip');        -- "Evento" / "
 create type public.account_type as enum ('person', 'business');  -- "Persona" / "Locale o azienda"
 create type public.event_visibility as enum ('public', 'private'); -- private: only the group's members and guests
 create type public.notification_type as enum
-  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride', 'expense', 'promo', 'digest', 'event_update');
+  ('join_request', 'request_accepted', 'request_guest', 'request_rejected', 'new_event', 'rank_up', 'thanks', 'ride', 'expense', 'promo', 'digest', 'event_update', 'group_event');
 
 -- ---------- Tables ----------
 
@@ -39,6 +39,8 @@ create table public.users (
   intent        public.user_intent not null default 'friends',
   -- A venue/business publishes its events on its page (a group with is_business) and earns points differently
   account_type  public.account_type not null default 'person',
+  adult_confirmed_at timestamptz,  -- declared 18 or older at signup (Huddle is 18+)
+  onboarded_at  timestamptz,       -- the onboarding after signup (interests, about you) is done
   created_at    timestamptz not null default now()
 );
 
@@ -70,14 +72,14 @@ create table public.groups (
   -- Where they meet (from the "Zona" search): distance filter, venues' promotions in the area
   lat          double precision check (lat between -90 and 90),
   lon          double precision check (lon between -180 and 180),
-  -- The ages it's for (either end may be open), and what they're into (from the interests list)
-  age_min      smallint check (age_min between 14 and 99),
-  age_max      smallint check (age_max between 14 and 99),
+  -- The ages it's for (either end may be open; Huddle is 18+), and what they're into (lib/interests.ts)
+  age_min      smallint check (age_min between 18 and 99),
+  age_max      smallint check (age_max between 18 and 99),
   tags         text[] not null default '{}' check (cardinality(tags) <= 5),
   -- A venue's page: anyone can answer its events (set only at the venue's signup)
   is_business  boolean not null default false,
-  -- The group's mascot (components/Mascot.tsx): it grows with the group's level (group_level)
-  mascot       text check (mascot is null or mascot in ('fox', 'cat', 'panda', 'frog', 'penguin', 'dragon')),
+  -- Suspended by the app's owner (after a report): invisible to everyone
+  suspended_at timestamptz,
   created_at   timestamptz not null default now(),
   check (age_min <= age_max)
 );
@@ -257,6 +259,39 @@ create table public.expense_shares (
   primary key (expense_id, user_id)
 );
 
+-- ---------- Blocking, hiding, reporting (their policies and functions are further down) ----------
+
+-- You block someone: you don't see each other any more (messages, member lists, attendees)
+create table public.user_blocks (
+  blocker_id  uuid not null references public.users (id) on delete cascade,
+  blocked_id  uuid not null references public.users (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+-- You hide a group: it's gone from your lists, search, suggestions and events
+create table public.hidden_groups (
+  user_id     uuid not null references public.users (id) on delete cascade,
+  group_id    uuid not null references public.groups (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, group_id)
+);
+
+-- "Segnala": a person or a group, with a reason. Read and handled by the app's owner in the dashboard
+-- (Table Editor -> reports): set handled_at; suspend a group with groups.suspended_at, a person with
+-- Authentication -> Users -> Ban user.
+create table public.reports (
+  id           uuid primary key default gen_random_uuid(),
+  reporter_id  uuid not null default auth.uid() references public.users (id) on delete cascade,
+  user_id      uuid references public.users (id) on delete cascade,
+  group_id     uuid references public.groups (id) on delete cascade,
+  reason       text not null check (char_length(reason) between 1 and 500),
+  created_at   timestamptz not null default now(),
+  handled_at   timestamptz,
+  check (num_nonnulls(user_id, group_id) = 1)
+);
+
 -- Private settings: only you read them (your age and your area are not on the public profile)
 create table public.user_settings (
   user_id             uuid primary key references public.users (id) on delete cascade,
@@ -363,14 +398,23 @@ $$;
 -- the admin, the members and whoever asked to join (with the invite link)
 create or replace function public.can_see_group(gid uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select exists (
-      select 1 from public.groups g
-      where g.id = gid and (g.visibility = 'public' or g.admin_id = (select auth.uid()))
-    )
-    or public.is_group_member(gid)
-    or exists (
-      select 1 from public.join_requests r
-      where r.group_id = gid and r.user_id = (select auth.uid()) and r.status <> 'rejected'
+  select not exists (select 1 from public.groups g where g.id = gid and g.suspended_at is not null)
+    and (
+      public.is_group_member(gid)
+      or (
+        -- a group you hid is gone for you (unless you're in it)
+        not exists (select 1 from public.hidden_groups h where h.group_id = gid and h.user_id = (select auth.uid()))
+        and (
+          exists (
+            select 1 from public.groups g
+            where g.id = gid and (g.visibility = 'public' or g.admin_id = (select auth.uid()))
+          )
+          or exists (
+            select 1 from public.join_requests r
+            where r.group_id = gid and r.user_id = (select auth.uid()) and r.status <> 'rejected'
+          )
+        )
+      )
     );
 $$;
 
@@ -431,15 +475,22 @@ $$;
 
 -- Create the public profile (and the private settings) when someone signs up. A venue/business
 -- also gets its page: a public group where it publishes its events.
--- The app passes full_name/role/intent/is_relocated/relocated_at/interests/account_type/birth_year in signUp's options.data.
+-- A new account needs the 18+ declaration (the app's checkbox) and, if given, a birth year of 18+.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
   name text := coalesce(nullif(meta ->> 'full_name', ''), split_part(new.email, '@', 1), 'Utente');
   kind public.account_type := coalesce((meta ->> 'account_type')::public.account_type, 'person');
+  year smallint := case when kind = 'person' then nullif(meta ->> 'birth_year', '')::smallint end;
 begin
-  insert into public.users (id, full_name, is_relocated, relocated_at, interests, role, intent, account_type)
+  if coalesce((meta ->> 'adult')::boolean, false) is not true then
+    raise exception 'Per usare Huddle devi avere almeno 18 anni';
+  end if;
+  if year > extract(year from now())::int - 18 then
+    raise exception 'Per usare Huddle devi avere almeno 18 anni';
+  end if;
+  insert into public.users (id, full_name, is_relocated, relocated_at, interests, account_type, adult_confirmed_at)
   values (
     new.id,
     name,
@@ -447,12 +498,10 @@ begin
     nullif(meta ->> 'relocated_at', '')::date,
     coalesce(array(select jsonb_array_elements_text(
       case when jsonb_typeof(meta -> 'interests') = 'array' then meta -> 'interests' else '[]'::jsonb end)), '{}'),
-    coalesce((meta ->> 'role')::public.user_role, 'solo'),
-    coalesce((meta ->> 'intent')::public.user_intent, 'friends'),
-    kind
+    kind,
+    now()
   );
-  insert into public.user_settings (user_id, birth_year)
-  values (new.id, case when kind = 'person' then nullif(meta ->> 'birth_year', '')::smallint end);
+  insert into public.user_settings (user_id, birth_year) values (new.id, year);
   if kind = 'business' then
     insert into public.groups (name, description, admin_id, is_business, icon, color)
     values (name, 'Gli eventi di ' || name, new.id, true, '🎉', 'amber');
@@ -460,6 +509,23 @@ begin
   return new;
 end;
 $$;
+
+-- A birth year that's set or changed must be of someone 18 or older
+create or replace function public.check_adult_birth_year()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.birth_year is not null and (tg_op = 'INSERT' or new.birth_year is distinct from old.birth_year)
+     and new.birth_year > extract(year from now())::int - 18 then
+    raise exception 'Huddle è per chi ha almeno 18 anni';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists check_adult_birth_year on public.user_settings;
+create trigger check_adult_birth_year
+  before insert or update of birth_year on public.user_settings
+  for each row execute function public.check_adult_birth_year();
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -1435,97 +1501,140 @@ grant execute on function public.set_series_end(uuid, date), public.delete_my_ac
 
 -- ---------- Mascot level, events shared in chats ----------
 
--- The group's level, for the mascot and the clan: experience = people at past events (+ 2 per event).
--- For whoever sees the group (counts only). Keep the stages in sync with lib/mascot.ts.
-create or replace function public.group_level(gid uuid)
+-- ---------- Blocking, hiding, reporting (suspending: groups.suspended_at, Auth ban) ----------
+
+alter table public.user_blocks enable row level security;
+alter table public.hidden_groups enable row level security;
+alter table public.reports enable row level security;
+
+create policy "user_blocks: own" on public.user_blocks
+  for all to authenticated using (blocker_id = (select auth.uid())) with check (blocker_id = (select auth.uid()));
+create policy "hidden_groups: own" on public.hidden_groups
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "reports: send" on public.reports
+  for insert to authenticated with check (reporter_id = (select auth.uid()));
+create policy "reports: read own" on public.reports
+  for select to authenticated using (reporter_id = (select auth.uid()));
+
+-- The groups you hid, to show them again (Profilo -> Account): they're invisible to you otherwise
+create or replace function public.my_hidden_groups()
 returns json language sql stable security definer set search_path = '' as $$
-  select json_build_object(
-    'events', count(distinct e.id),
-    'trips', count(distinct e.id) filter (where e.kind = 'trip'),
-    'attendances', count(a.user_id),
-    'xp', count(a.user_id) + 2 * count(distinct e.id)
-  )
-  from public.events e
-  left join public.event_attendees a on a.event_id = e.id and (a.status = 'going' or a.checked_in)
-  where e.group_id = gid and e.date_time <= now() and e.cancelled_at is null and public.can_see_group(gid);
+  select coalesce(json_agg(json_build_object('id', g.id, 'name', g.name, 'icon', g.icon, 'color', g.color) order by h.created_at), '[]'::json)
+  from public.hidden_groups h join public.groups g on g.id = h.group_id
+  where h.user_id = (select auth.uid());
 $$;
 
--- A shared event must be one the sender sees, and either from this group or public (public event of a
--- public group): a private event can't leak into another group's chat
-create or replace function public.check_shared_event()
-returns trigger language plpgsql security definer set search_path = '' as $$
-begin
-  if new.event_id is not null and not exists (
-    select 1 from public.events e join public.groups g on g.id = e.group_id
-    where e.id = new.event_id and public.can_see_event(e.id)
-      and (e.group_id = new.group_id or (e.visibility = 'public' and g.visibility = 'public'))
-  ) then
-    raise exception 'Questo evento non si può condividere qui';
-  end if;
-  return new;
-end;
+-- The people you don't see: the ones you blocked and the ones who blocked you (without saying which)
+create or replace function public.hidden_users()
+returns setof uuid language sql stable security definer set search_path = '' as $$
+  select blocked_id from public.user_blocks where blocker_id = (select auth.uid())
+  union
+  select blocker_id from public.user_blocks where blocked_id = (select auth.uid());
 $$;
 
-create trigger before_chat_message
-  before insert on public.chat_messages
-  for each row execute function public.check_shared_event();
+-- ---------- A whole group joins an event ----------
 
-revoke execute on function public.group_level(uuid) from public, anon;
-grant execute on function public.group_level(uuid) to authenticated;
-
--- ---------- Taking care of the mascot (a tiny tamagotchi) ----------
-
--- When the mascot last ate and played, and who gave it: one row per group. The bars (lib/mascot.ts)
--- empty in a day from these times, so nothing has to run on the server. It never dies: empty bars only
--- make it sad.
-create table if not exists public.mascot_care (
-  group_id   uuid primary key references public.groups (id) on delete cascade,
-  fed_at     timestamptz,
-  fed_by     uuid references public.users (id) on delete set null,
-  played_at  timestamptz,
-  played_by  uuid references public.users (id) on delete set null
+-- The group's admin says "Ci veniamo come gruppo" to a public event of another group (or a venue):
+-- every member is asked, and answers for themselves
+create table public.event_groups (
+  event_id    uuid not null references public.events (id) on delete cascade,
+  group_id    uuid not null references public.groups (id) on delete cascade,
+  joined_by   uuid references public.users (id) on delete set null,
+  created_at  timestamptz not null default now(),
+  primary key (event_id, group_id)
 );
 
--- No policies: read through mascot_status(), written through care_for_mascot(), no direct access
-alter table public.mascot_care enable row level security;
+alter table public.event_groups enable row level security;
+create policy "event_groups: read" on public.event_groups
+  for select to authenticated using (public.can_see_event(event_id));
 
--- The mascot's care for whoever sees the group: times and the first name of who gave it
-create or replace function public.mascot_status(gid uuid)
-returns json language sql stable security definer set search_path = '' as $$
-  select json_build_object(
-    'fed_at', c.fed_at,
-    'fed_by', split_part(f.full_name, ' ', 1),
-    'played_at', c.played_at,
-    'played_by', split_part(p.full_name, ' ', 1)
-  )
-  from public.mascot_care c
-  left join public.users f on f.id = c.fed_by
-  left join public.users p on p.id = c.played_by
-  where c.group_id = gid and public.can_see_group(gid);
+-- Who can answer an event (and add a photo): the people of the organizing group (or anyone, for a
+-- venue's events) and the members of the groups that joined it
+create or replace function public.can_answer_event(eid uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.events e
+    where e.id = eid and (
+      public.can_join_event(e.group_id)
+      or exists (select 1 from public.event_groups eg where eg.event_id = e.id and public.is_group_member(eg.group_id))
+    )
+  );
 $$;
 
--- A member feeds the mascot or plays with it ('feed' | 'play'); returns the new status
-create or replace function public.care_for_mascot(gid uuid, what text)
-returns json language plpgsql security definer set search_path = '' as $$
+create or replace function public.join_event_as_group(eid uuid, gid uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  ev record;
+  group_name text;
 begin
-  if not public.is_group_member(gid) then
-    raise exception 'Solo chi è nel gruppo può prendersi cura della mascotte';
+  if not public.is_group_admin(gid) then
+    raise exception 'Solo l’admin può far partecipare il gruppo';
   end if;
-  if what not in ('feed', 'play') then
-    raise exception 'Azione sconosciuta: %', what;
+  select e.title, e.group_id, e.visibility, e.cancelled_at, coalesce(e.ends_at, e.date_time) as ends, g.visibility as group_visibility
+    into ev
+    from public.events e join public.groups g on g.id = e.group_id
+    where e.id = eid;
+  if not found or not public.can_see_event(eid) then
+    raise exception 'Evento non trovato';
   end if;
-  insert into public.mascot_care (group_id) values (gid) on conflict (group_id) do nothing;
-  if what = 'feed' then
-    update public.mascot_care set fed_at = now(), fed_by = (select auth.uid()) where group_id = gid;
-  else
-    update public.mascot_care set played_at = now(), played_by = (select auth.uid()) where group_id = gid;
+  if ev.group_id = gid then
+    raise exception 'È già un evento del tuo gruppo';
   end if;
-  return public.mascot_status(gid);
+  if ev.visibility <> 'public' or ev.group_visibility <> 'public' then
+    raise exception 'Si partecipa come gruppo solo agli eventi pubblici';
+  end if;
+  if ev.cancelled_at is not null or ev.ends < now() then
+    raise exception 'L’evento è passato o annullato';
+  end if;
+  insert into public.event_groups (event_id, group_id, joined_by) values (eid, gid, (select auth.uid()))
+    on conflict do nothing;
+  if found then
+    select name into group_name from public.groups where id = gid;
+    insert into public.notifications (user_id, type, title, body, group_id, event_id)
+    select m.user_id, 'group_event', group_name || ' partecipa a «' || ev.title || '»', 'Ci sei? Rispondi sull’evento.', gid, eid
+    from public.group_members m
+    where m.group_id = gid and m.user_id <> (select auth.uid());
+  end if;
 end;
 $$;
 
-revoke execute on function public.mascot_status(uuid), public.care_for_mascot(uuid, text) from public, anon;
-grant execute on function public.mascot_status(uuid), public.care_for_mascot(uuid, text) to authenticated;
+create or replace function public.leave_event_as_group(eid uuid, gid uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_group_admin(gid) then
+    raise exception 'Solo l’admin può ritirare il gruppo';
+  end if;
+  delete from public.event_groups where event_id = eid and group_id = gid;
+end;
+$$;
+
+-- The groups taking part in an event, with how many of their members are coming (counts only)
+create or replace function public.event_groups_summary(eid uuid)
+returns json language sql stable security definer set search_path = '' as $$
+  select coalesce(json_agg(json_build_object(
+    'group_id', g.id,
+    'name', g.name,
+    'icon', g.icon,
+    'color', g.color,
+    'members', (select count(*) from public.group_members m where m.group_id = g.id),
+    'going', (select count(*) from public.group_members m join public.event_attendees a on a.user_id = m.user_id
+              where m.group_id = g.id and a.event_id = eid and a.status = 'going'),
+    'answered', (select count(*) from public.group_members m join public.event_attendees a on a.user_id = m.user_id
+                 where m.group_id = g.id and a.event_id = eid)
+  ) order by eg.created_at), '[]'::json)
+  from public.event_groups eg
+  join public.groups g on g.id = eg.group_id
+  where eg.event_id = eid and public.can_see_event(eid);
+$$;
+
+revoke execute on function
+  public.hidden_users(), public.my_hidden_groups(), public.can_answer_event(uuid), public.join_event_as_group(uuid, uuid),
+  public.leave_event_as_group(uuid, uuid), public.event_groups_summary(uuid)
+  from public, anon;
+grant execute on function
+  public.hidden_users(), public.my_hidden_groups(), public.can_answer_event(uuid), public.join_event_as_group(uuid, uuid),
+  public.leave_event_as_group(uuid, uuid), public.event_groups_summary(uuid)
+  to authenticated;
 
 -- ---------- Invite links (/invite/<code>) ----------
 -- Private groups are invisible to non-members, so the invite link goes through these functions.
@@ -1613,7 +1722,9 @@ create policy "point_spends: read own" on public.point_spends
 -- groups: readable by signed-in users; only the admin can create/edit/delete
 create policy "groups: read" on public.groups
   -- admin_id is read from the row itself: right after "create group" the helper function can't see it yet
-  for select to authenticated using (visibility = 'public' or admin_id = (select auth.uid()) or public.can_see_group(id));
+  for select to authenticated using (
+    suspended_at is null and (admin_id = (select auth.uid()) or public.can_see_group(id))
+  );
 create policy "groups: create as admin" on public.groups
   for insert to authenticated with check (admin_id = (select auth.uid()));
 create policy "groups: admin update" on public.groups
@@ -1651,19 +1762,16 @@ create policy "events: organizer or admin delete" on public.events
   for delete to authenticated
   using (created_by = (select auth.uid()) or public.is_group_admin(group_id));
 
--- event_attendees: visible to people with access to the group (anyone, for a venue's events); you answer for yourself.
+-- event_attendees: visible to people with access to the group (anyone, for a venue's events) and to the members of
+-- the groups that joined the event (can_answer_event); you answer for yourself.
 -- checked_in = true is accepted only inside the check-in window (the trigger keeps it from being undone).
 create policy "event_attendees: read" on public.event_attendees
-  for select to authenticated using (
-    exists (select 1 from public.events e where e.id = event_id and public.can_join_event(e.group_id))
-  );
+  for select to authenticated using (public.can_answer_event(event_id));
 create policy "event_attendees: answer self" on public.event_attendees
   for insert to authenticated with check (
     user_id = (select auth.uid())
-    and exists (
-      select 1 from public.events e
-      where e.id = event_id and e.cancelled_at is null and public.can_join_event(e.group_id)
-    )
+    and exists (select 1 from public.events e where e.id = event_id and e.cancelled_at is null)
+    and public.can_answer_event(event_id)
     and (not checked_in or public.is_checkin_open(event_id))
   );
 create policy "event_attendees: change own answer" on public.event_attendees
@@ -1766,10 +1874,8 @@ create policy "event_photos: read" on public.event_photos
 create policy "event_photos: add own" on public.event_photos
   for insert to authenticated with check (
     user_id = (select auth.uid())
-    and exists (
-      select 1 from public.events e
-      where e.id = event_id and public.can_join_event(e.group_id) and e.date_time - interval '1 hour' <= now()
-    )
+    and public.can_answer_event(event_id)
+    and exists (select 1 from public.events e where e.id = event_id and e.date_time - interval '1 hour' <= now())
   );
 create policy "event_photos: replace own" on public.event_photos
   for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
@@ -1922,7 +2028,7 @@ create policy "event-photos: see own" on storage.objects
 create policy "event-photos: upload own" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'event-photos' and split_part(name, '/', 2) = (select auth.uid())::text and exists (
-    select 1 from public.events e where e.id::text = split_part(name, '/', 1) and public.can_join_event(e.group_id)));
+    select 1 from public.events e where e.id::text = split_part(name, '/', 1) and public.can_answer_event(e.id)));
 create policy "event-photos: replace own" on storage.objects
   for update to authenticated
   using (bucket_id = 'event-photos' and split_part(name, '/', 2) = (select auth.uid())::text);

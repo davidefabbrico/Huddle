@@ -1,19 +1,17 @@
 // Group fields, shared by "Nuovo gruppo" and "Modifica gruppo"
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, View } from 'react-native';
+import { MAX_AGE, MIN_AGE } from '../lib/age';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
-import { interestOptions } from '../lib/format';
-import { mascotOf, SPECIES } from '../lib/mascot';
-import { GROUP_PALETTES } from '../lib/palette';
 import { GROUP_COLOR_KEYS, groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
 import type { NewGroupInput } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { InterestPicker } from './InterestPicker';
 import { GroupIconPicker } from './GroupIconPicker';
 import { InfoTip } from './InfoTip';
-import { MascotPreview } from './Mascot';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors, SWITCH_OFF } from './theme';
@@ -42,8 +40,6 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
     ...initial,
     visibility: initial.visibility ?? 'public',
     expenses_enabled: initial.expenses_enabled ?? false,
-    // a mascot is always picked: the group's, or (new group) the fox
-    mascot: initial.mascot ?? (initial.name ? mascotOf(initial) : 'fox'),
     chat_url: initial.chat_url ?? '',
     parking_code: initial.parking_code ?? '',
   });
@@ -94,24 +90,6 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
       <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
         <GroupIconPicker name={values.name} icon={shownLook.icon} color={shownLook.color} onChange={setLook} />
 
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-stone-700">La mascotte</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
-            {SPECIES.map((species) => (
-              <Pressable
-                key={species.key}
-                onPress={() => set({ mascot: species.key })}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: values.mascot === species.key }}
-                accessibilityLabel={species.name}
-                className="items-center gap-1"
-              >
-                <MascotPreview species={species.key} accent={GROUP_PALETTES[shownLook.color][400]} selected={values.mascot === species.key} />
-                <Text className={`text-xs ${values.mascot === species.key ? 'font-semibold text-brand-700' : 'text-stone-500'}`}>{species.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
         <TextField label="Nome del gruppo" value={values.name} onChangeText={(name) => set({ name })} placeholder="Es. Calcetto del lunedì" />
         <TextField
           label="Descrizione"
@@ -146,20 +124,8 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
         </View>
 
         <View className="gap-2">
-          <Text className="text-sm font-medium text-stone-700">Di cosa vi occupate? (fino a 5)</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {interestOptions.map((interest) => {
-              const selected = tags.includes(interest);
-              return (
-                <Chip
-                  key={interest}
-                  label={interest}
-                  selected={selected}
-                  onPress={() => set({ tags: selected ? tags.filter((t) => t !== interest) : tags.length < 5 ? [...tags, interest] : tags })}
-                />
-              );
-            })}
-          </View>
+          <Text className="text-sm font-medium text-stone-700">Di cosa vi occupate?</Text>
+          <InterestPicker selected={tags} onChange={(next) => set({ tags: next })} max={5} />
         </View>
 
         <View className="gap-2">
@@ -230,10 +196,10 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   );
 }
 
-// Ages: whole numbers from 14 to 99, "from" not above "to" (either may be empty)
+// Ages: whole numbers from 18 (Huddle is 18+) to 99, "from" not above "to" (either may be empty)
 function ageError(min: string, max: string): string | null {
   const values = [min, max].filter((v) => v.trim()).map(Number);
-  if (values.some((v) => !Number.isInteger(v) || v < 14 || v > 99)) return 'L’età va da 14 a 99 anni';
+  if (values.some((v) => !Number.isInteger(v) || v < MIN_AGE || v > MAX_AGE)) return `L’età va da ${MIN_AGE} a ${MAX_AGE} anni`;
   if (min.trim() && max.trim() && Number(min) > Number(max)) return 'L’età “da” non può superare quella “a”';
   return null;
 }
