@@ -167,22 +167,25 @@ function NewExpenseForm({ myId, participants, busy, onCancel, onSave }: {
 
   return (
     <View className="gap-3 rounded-3xl bg-white p-4">
-      <View className="flex-row gap-2">
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Per cosa? Es. Pizza"
-          placeholderTextColor="#A8A29E"
-          maxLength={100}
-          className="h-11 flex-[2] rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink"
-        />
+      {/* One field per row: side by side, a web input can't shrink below ~20 characters and overflows */}
+      <TextInput
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Per cosa? Es. Pizza"
+        placeholderTextColor="#A8A29E"
+        maxLength={100}
+        className="h-11 w-full rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink outline-none"
+      />
+      <View className="flex-row items-center gap-2">
+        <Text className="text-lg font-semibold text-stone-600">€</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
-          placeholder="€ 0,00"
+          placeholder="0,00"
           placeholderTextColor="#A8A29E"
           keyboardType="decimal-pad"
-          className="h-11 flex-1 rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink"
+          accessibilityLabel="Importo in euro"
+          className="h-11 w-32 rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink outline-none"
         />
       </View>
       <Text className="text-sm font-medium text-stone-700">Ha pagato</Text>

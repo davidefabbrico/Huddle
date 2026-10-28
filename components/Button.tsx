@@ -4,8 +4,7 @@
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand } from './GroupTheme';
-import { colors } from './theme';
+import { useBrand, useNeutrals } from './GroupTheme';
 
 type Variant = 'primary' | 'secondary' | 'muted';
 type Size = 'md' | 'sm';
@@ -34,8 +33,9 @@ interface Props {
 
 export function Button({ title, onPress, variant = 'primary', icon, loading, disabled, size = 'md' }: Props) {
   const brand = useBrand();
+  const neutrals = useNeutrals();
   const small = size === 'sm';
-  const iconColor = variant === 'primary' ? brand[800] : variant === 'secondary' ? brand[700] : colors.muted;
+  const iconColor = variant === 'primary' ? brand[800] : variant === 'secondary' ? brand[700] : neutrals.stone[700];
   return (
     <Pressable
       onPress={onPress}

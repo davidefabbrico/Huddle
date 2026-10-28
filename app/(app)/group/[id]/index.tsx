@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { Badge, RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
-import { GroupMascotCard } from '../../../../components/GroupMascotCard';
+import { GroupMascot } from '../../../../components/GroupMascot';
 import { GroupTheme, useBrand } from '../../../../components/GroupTheme';
 import { ReliabilityBadge } from '../../../../components/ReliabilityBadge';
 import { Columns } from '../../../../components/Columns';
@@ -107,12 +107,12 @@ export default function GroupDetailScreen() {
           <Columns
             main={
               <>
-                <View className="flex-row items-center gap-4">
+                <View className="z-20 flex-row items-center gap-4">
                   <GroupIcon {...groupIconOf(group)} size={64} />
                   <View className="flex-1 gap-1.5">
                     {group.location ? (
                       <View className="flex-row items-center gap-1">
-                        <Ionicons name="location-outline" size={14} color={colors.muted} />
+                        <Ionicons name="location-outline" size={14} className="text-stone-500" />
                         <Text className="text-sm text-stone-500">{group.location}</Text>
                       </View>
                     ) : null}
@@ -128,11 +128,11 @@ export default function GroupDetailScreen() {
                       <ReliabilityBadge points={reliability.groups[group.id]} />
                     </View>
                   </View>
+                  {/* the mascot: a small decoration, tap it for its stage and the clan */}
+                  <GroupMascot group={group} level={level} />
                 </View>
 
                 {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
-
-                <GroupMascotCard group={group} level={level} />
 
                 <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 
@@ -444,13 +444,13 @@ function ParkingGroupButton({ code }: { code: string }) {
       className="flex-row items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 active:bg-sky-100"
     >
       <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
-        <Text className="text-lg font-extrabold text-white">P</Text>
+        <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
       </View>
       <View className="flex-1">
         <Text className="font-semibold text-ink">Parcheggi del gruppo su SmartPark</Text>
         <Text className="text-xs text-stone-500">Codice {code} · scoprite insieme dove si trova posto</Text>
       </View>
-      <Ionicons name="open-outline" size={18} color={colors.muted} />
+      <Ionicons name="open-outline" size={18} className="text-stone-500" />
     </Pressable>
   );
 }

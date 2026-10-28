@@ -6,7 +6,6 @@ import { Image, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsWide } from '../hooks/useLayout';
 import { Screen } from './Screen';
-import { colors } from './theme';
 
 const highlights: { icon: ComponentProps<typeof Ionicons>['name']; text: string }[] = [
   { icon: 'people', text: 'Entra in gruppi che esistono già, o porta qui il tuo' },
@@ -21,7 +20,7 @@ export function AuthScreen({ children }: { children: ReactNode }) {
 
   return (
     <View className="flex-1 flex-row bg-surface">
-      <View className="flex-1 justify-center gap-8 bg-brand-100 px-16">
+      <View className="flex-1 justify-center gap-8 bg-brand-200 px-16">
         <View className="flex-row items-center gap-4">
           <Image source={require('../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 20 }} accessibilityIgnoresInvertColors />
           <Text className="text-5xl font-bold text-brand-800">Huddle</Text>
@@ -33,7 +32,7 @@ export function AuthScreen({ children }: { children: ReactNode }) {
           {highlights.map((item) => (
             <View key={item.icon} className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white/70">
-                <Ionicons name={item.icon} size={20} color={colors.brandDark} />
+                <Ionicons name={item.icon} size={20} className="text-brand-600" />
               </View>
               <Text className="flex-1 text-base text-brand-800">{item.text}</Text>
             </View>

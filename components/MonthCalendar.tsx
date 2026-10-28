@@ -4,7 +4,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { dayKey, monthLabel } from '../lib/format';
-import { colors } from './theme';
 
 interface Props {
   month: Date; // any day of the month to show
@@ -35,11 +34,11 @@ export function MonthCalendar({ month, onMonthChange, marks = {}, selected, rang
     <View className="gap-2 rounded-3xl bg-white p-3">
       <View className="flex-row items-center justify-between">
         <Pressable onPress={() => shift(-1)} accessibilityRole="button" accessibilityLabel="Mese precedente" hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100">
-          <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          <Ionicons name="chevron-back" size={20} className="text-ink" />
         </Pressable>
         <Text className="text-base font-semibold capitalize text-ink">{monthLabel(first)}</Text>
         <Pressable onPress={() => shift(1)} accessibilityRole="button" accessibilityLabel="Mese successivo" hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100">
-          <Ionicons name="chevron-forward" size={20} color={colors.ink} />
+          <Ionicons name="chevron-forward" size={20} className="text-ink" />
         </Pressable>
       </View>
       <View className="flex-row">

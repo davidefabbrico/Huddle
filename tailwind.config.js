@@ -4,7 +4,7 @@ module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}', './lib/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
   // 'class' (not the default 'media'): NativeWind 4.2.7 throws on web with 'media'.
-  // The app is light-only for now (app.json userInterfaceStyle).
+  // The dark theme doesn't use dark: classes: the colors are CSS variables (components/AppTheme.tsx).
   darkMode: 'class',
   theme: {
     extend: {
@@ -16,9 +16,15 @@ module.exports = {
         brand: Object.fromEntries(
           [50, 100, 200, 300, 400, 500, 600, 700, 800].map((tone) => [tone, `rgb(var(--brand-${tone}) / <alpha-value>)`]),
         ),
-        ink: '#1F2430',
-        // Material 3 surface: the page background (white cards sit on it)
-        surface: '#F6F3F1',
+        // Neutrals from CSS variables too (lib/palette.ts NEUTRALS): they flip in the dark theme.
+        // "white" is the cards' color (dark grey at night), "surface" the page, "surface2" the bars.
+        white: 'rgb(var(--white) / <alpha-value>)',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        surface2: 'rgb(var(--surface2) / <alpha-value>)',
+        stone: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((tone) => [tone, `rgb(var(--stone-${tone}) / <alpha-value>)`]),
+        ),
       },
     },
   },

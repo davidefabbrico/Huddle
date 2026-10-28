@@ -9,7 +9,6 @@ import { eventPhase } from '../lib/eventTiming';
 import { dateTile, formatEventDate, tripDatesLabel, weekdaysLabel } from '../lib/format';
 import type { EventAttendee, EventWithGroup } from '../lib/types';
 import { Badge } from './Badge';
-import { colors } from './theme';
 
 interface Props {
   event: EventWithGroup;
@@ -51,14 +50,14 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
             </Text>
           ) : null}
           <View className="mt-0.5 flex-row items-center gap-1">
-            <Ionicons name="time-outline" size={13} color={colors.muted} />
+            <Ionicons name="time-outline" size={13} className="text-stone-500" />
             <Text className="text-sm text-stone-500">
               {event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
             </Text>
           </View>
           {event.location ? (
             <View className="flex-row items-center gap-1">
-              <Ionicons name="location-outline" size={13} color={colors.muted} />
+              <Ionicons name="location-outline" size={13} className="text-stone-500" />
               <Text numberOfLines={1} className="flex-1 text-sm text-stone-500">
                 {event.location}
               </Text>

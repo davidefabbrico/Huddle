@@ -11,7 +11,6 @@ import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 import { Avatar, avatarOf } from './Avatar';
 import { Confetti } from './Confetti';
-import { colors } from './theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type Section = 'search' | 'groups' | 'events' | 'create' | 'chats' | 'activity' | 'profile';
@@ -45,7 +44,7 @@ export function SideNav() {
   const unread = useAsync(() => (user ? api.getUnreadNotificationCount(user.id) : Promise.resolve(0)), [user?.id, pathname]);
 
   return (
-    <View className="w-64 gap-1 bg-[#EFEAE6] px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
+    <View className="w-64 gap-1 bg-surface2 px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
       <Pressable
         onPress={() => router.navigate('/')}
         onLongPress={() => setBurst((b) => b + 1)} // easter egg: confetti
@@ -74,8 +73,8 @@ export function SideNav() {
         accessibilityRole="link"
         className={`mt-4 h-14 flex-row items-center justify-center gap-2 rounded-2xl ${active === 'create' ? 'bg-brand-300' : 'bg-brand-200 active:bg-brand-300'}`}
       >
-        <Ionicons name="add" size={24} color={colors.ink} />
-        <Text className="text-base font-semibold text-ink">Crea</Text>
+        <Ionicons name="add" size={24} className="text-brand-800" />
+        <Text className="text-base font-semibold text-brand-800">Crea</Text>
       </Pressable>
 
       <View className="flex-1" />
@@ -109,11 +108,11 @@ function NavItem({ label, icon, active, badge, onPress }: { label: string; icon:
       accessibilityLabel={badge > 0 ? `${label}, ${badge} non lette` : label}
       className={`h-14 flex-row items-center gap-4 rounded-full px-4 ${active ? 'bg-brand-100' : 'active:bg-stone-100'}`}
     >
-      <Ionicons name={icon} size={24} color={active ? colors.ink : colors.muted} />
+      <Ionicons name={icon} size={24} className={active ? 'text-ink' : 'text-stone-500'} />
       <Text className={`flex-1 text-base ${active ? 'font-bold text-ink' : 'text-stone-600'}`}>{label}</Text>
       {badge > 0 ? (
         <View className="h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1">
-          <Text className="text-xs font-bold text-white">{badge > 9 ? '9+' : badge}</Text>
+          <Text className="text-xs font-bold text-[#FFFFFF]">{badge > 9 ? '9+' : badge}</Text>
         </View>
       ) : null}
     </Pressable>

@@ -4,7 +4,6 @@ import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useIsWide } from '../hooks/useLayout';
-import { colors } from './theme';
 
 export function SearchButton() {
   const wide = useIsWide();
@@ -16,7 +15,7 @@ export function SearchButton() {
         accessibilityLabel="Cerca"
         className="h-11 w-11 items-center justify-center rounded-full bg-white active:bg-stone-200"
       >
-        <Ionicons name="search" size={22} color={colors.ink} />
+        <Ionicons name="search" size={22} className="text-ink" />
       </Pressable>
     </Link>
   );

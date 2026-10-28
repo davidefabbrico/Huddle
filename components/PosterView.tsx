@@ -3,7 +3,6 @@
 import { Image, Linking, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { isPdf } from '../lib/pickers';
-import { colors } from './theme';
 
 export function PosterView({ url, mime }: { url: string; mime: string | null }) {
   const open = () => Linking.openURL(url);
@@ -22,7 +21,7 @@ export function PosterView({ url, mime }: { url: string; mime: string | null }) 
           <Text className="font-semibold text-ink">Locandina (PDF)</Text>
           <Text className="text-sm text-stone-500">Tocca per aprirla</Text>
         </View>
-        <Ionicons name="open-outline" size={20} color={colors.muted} />
+        <Ionicons name="open-outline" size={20} className="text-stone-500" />
       </Pressable>
     );
   }

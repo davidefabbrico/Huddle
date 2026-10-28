@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { colors } from './theme';
 
 interface Props {
   title: string;
@@ -24,7 +23,7 @@ export function Header({ title, subtitle, right }: Props) {
         hitSlop={8}
         className="h-12 w-12 items-center justify-center rounded-full active:bg-stone-200"
       >
-        <Ionicons name="arrow-back" size={22} color={colors.ink} />
+        <Ionicons name="arrow-back" size={22} className="text-ink" />
       </Pressable>
       <View className="flex-1">
         <Text numberOfLines={1} className="text-lg font-medium text-ink">

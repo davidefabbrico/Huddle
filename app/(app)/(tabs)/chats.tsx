@@ -30,7 +30,7 @@ export default function ChatsScreen() {
         ) : chats.data?.length === 0 ? (
           <View className="flex-1 items-center justify-center gap-4 px-6">
             <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-100">
-              <Ionicons name="chatbubbles-outline" size={30} color={colors.brandDark} />
+              <Ionicons name="chatbubbles-outline" size={30} className="text-brand-600" />
             </View>
             <Text className="text-center text-lg font-semibold text-ink">Ancora nessuna chat</Text>
             <Text className="text-center text-stone-500">

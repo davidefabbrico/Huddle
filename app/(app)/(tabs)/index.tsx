@@ -114,10 +114,10 @@ function BellButton({ unread }: { unread: number }) {
         accessibilityLabel={unread > 0 ? `Attività, ${unread} non lette` : 'Attività'}
         className="h-11 w-11 items-center justify-center rounded-full bg-white active:bg-stone-200"
       >
-        <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={24} color={colors.ink} />
+        <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={24} className="text-ink" />
         {unread > 0 ? (
           <View className="absolute -right-0.5 -top-0.5 h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1">
-            <Text className="text-xs font-bold text-white">{unread > 9 ? '9+' : unread}</Text>
+            <Text className="text-xs font-bold text-[#FFFFFF]">{unread > 9 ? '9+' : unread}</Text>
           </View>
         ) : null}
       </Pressable>

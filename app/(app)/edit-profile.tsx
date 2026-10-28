@@ -12,7 +12,7 @@ import { Header } from '../../components/Header';
 import { PrivateSettingsFields } from '../../components/PrivateSettingsFields';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
-import { colors } from '../../components/theme';
+import { colors, SWITCH_OFF } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
@@ -141,7 +141,7 @@ export default function EditProfileScreen() {
                 <Switch
                   value={isRelocated}
                   onValueChange={setIsRelocated}
-                  trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+                  trackColor={{ true: colors.brand, false: SWITCH_OFF }}
                   thumbColor={colors.white}
                   // react-native-web only: otherwise the "on" thumb is teal
                   {...({ activeThumbColor: colors.white } as object)}
@@ -187,7 +187,7 @@ export default function EditProfileScreen() {
             <Switch
               value={hideActivity}
               onValueChange={setHideActivity}
-              trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+              trackColor={{ true: colors.brand, false: SWITCH_OFF }}
               thumbColor={colors.white}
               {...({ activeThumbColor: colors.white } as object)}
             />

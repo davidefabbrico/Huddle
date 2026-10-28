@@ -16,7 +16,7 @@ import { InfoTip } from './InfoTip';
 import { MascotPreview } from './Mascot';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
-import { colors } from './theme';
+import { colors, SWITCH_OFF } from './theme';
 
 interface Props {
   initial?: NewGroupInput;
@@ -135,10 +135,10 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
             <InfoTip text="Chi cerca gruppi per età vi trova. Lasciate vuoto se va bene a tutti." />
           </View>
           <View className="flex-row items-center gap-3">
-            <View className="flex-1">
+            <View className="min-w-0 flex-1">
               <TextField label="Da (anni)" value={ageMin} onChangeText={setAgeMin} placeholder="Es. 25" keyboardType="number-pad" maxLength={2} />
             </View>
-            <View className="flex-1">
+            <View className="min-w-0 flex-1">
               <TextField label="A (anni)" value={ageMax} onChangeText={setAgeMax} placeholder="Es. 40" keyboardType="number-pad" maxLength={2} />
             </View>
           </View>
@@ -188,7 +188,7 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
           <Switch
             value={values.expenses_enabled ?? false}
             onValueChange={(expenses_enabled) => set({ expenses_enabled })}
-            trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+            trackColor={{ true: colors.brand, false: SWITCH_OFF }}
             thumbColor={colors.white}
             // react-native-web only: otherwise the "on" thumb is teal
             {...({ activeThumbColor: colors.white } as object)}

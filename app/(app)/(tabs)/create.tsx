@@ -81,7 +81,7 @@ export default function CreateScreen() {
                         ) : (
                           <Text className="text-sm text-stone-400">nessuna</Text>
                         )}
-                        <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                        <Ionicons name="chevron-forward" size={18} className="text-stone-500" />
                       </Pressable>
                     </Link>
                   ))}
@@ -107,13 +107,13 @@ function ActionCard({ href, icon, title, text }: ActionCardProps) {
     <Link href={href} asChild>
       <Pressable className="flex-row items-center gap-4 rounded-3xl bg-white p-4 active:bg-stone-100">
         <View className="h-12 w-12 items-center justify-center rounded-2xl bg-brand-100">
-          <Ionicons name={icon} size={24} color={colors.brandDark} />
+          <Ionicons name={icon} size={24} className="text-brand-600" />
         </View>
         <View className="flex-1">
           <Text className="text-base font-semibold text-ink">{title}</Text>
           <Text className="text-sm text-stone-500">{text}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+        <Ionicons name="chevron-forward" size={20} className="text-stone-500" />
       </Pressable>
     </Link>
   );

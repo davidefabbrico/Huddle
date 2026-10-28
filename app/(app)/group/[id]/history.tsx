@@ -5,7 +5,7 @@
 
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ClanEmblem } from '../../../../components/GroupMascotCard';
+import { ClanEmblem } from '../../../../components/GroupMascot';
 import { GroupTheme } from '../../../../components/GroupTheme';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
@@ -119,10 +119,10 @@ export default function GroupHistoryScreen() {
       <Screen width="page">
         <Header title="La nostra storia" subtitle={group.name} />
         <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2 wide:px-8">
-          <View className="flex-row items-center gap-4 rounded-3xl bg-brand-100 p-4">
+          <View className="flex-row items-center gap-4 rounded-3xl bg-brand-200 p-4">
             <ClanEmblem element={clan.element} rings={stageFor(level.xp).level} size={56} />
             <View className="flex-1 gap-0.5">
-              <Text className="text-xs text-brand-700">{clan.name} · dal {formatDate(history.created_at)}</Text>
+              <Text className="text-xs text-brand-800">{clan.name} · dal {formatDate(history.created_at)}</Text>
               <Text className="text-lg font-semibold text-brand-800">{stats.join(' · ')}</Text>
             </View>
           </View>

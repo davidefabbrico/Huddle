@@ -1,5 +1,5 @@
 // The group's mascot, drawn in vector (react-native-svg) and animated (reanimated): it pops in,
-// breathes, floats and blinks; a tap makes it bounce with a little heart. Seven quick taps: it dances
+// breathes, floats, blinks and now and then hops; a tap makes it bounce with a little heart. Seven quick taps: it dances
 // (easter egg, onSecret). Stages: 0 egg, 1 cub, 2 young (with a scarf in the group's color),
 // 3 legend (crown and sparkles). Seasonal hats from lib/mascot.ts.
 
@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -34,6 +35,10 @@ const LOOKS: Record<MascotSpecies, Look> = {
   dragon: { body: '#C3B1F7', light: '#F1ECFF', dark: '#7E66C9', inner: '#F7D58A' },
 };
 
+// The mascot moves even with "Riduci movimento" on (iPhone/Android accessibility): its motions are
+// small and slow, and without them it's just a picture. Confetti still respects the setting.
+const MOVE = ReduceMotion.Never;
+
 const INK = '#2B2B33';
 const BLUSH = '#FF9DB0';
 const GOLD = '#F7C948';
@@ -46,9 +51,10 @@ interface Props {
   size?: number;
   animated?: boolean; // false: a still picture (pickers)
   onSecret?: () => void; // seven quick taps
+  onTap?: () => void; // every tap (after its bounce)
 }
 
-export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, onSecret }: Props) {
+export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, onSecret, onTap }: Props) {
   const look = LOOKS[species];
   const [blink, setBlink] = useState(false);
   const [hearts, setHearts] = useState<number[]>([]);
@@ -57,36 +63,49 @@ export function Mascot({ species, stage, accent, hat = null, size = 120, animate
   const scale = useSharedValue(animated ? 0.3 : 1);
   const breath = useSharedValue(1);
   const float = useSharedValue(0);
+  const hop = useSharedValue(0);
   const tilt = useSharedValue(0);
 
   useEffect(() => {
     if (!animated) return;
-    scale.set(withSpring(1, { damping: 9, stiffness: 140 }));
-    breath.set(withRepeat(withSequence(withTiming(1.04, { duration: 1300 }), withTiming(1, { duration: 1300 })), -1));
-    float.set(withRepeat(
-      withSequence(withTiming(-4, { duration: 1700, easing: Easing.inOut(Easing.quad) }), withTiming(0, { duration: 1700, easing: Easing.inOut(Easing.quad) })),
-      -1,
-    ));
-    // blink every few seconds
-    let timeout: ReturnType<typeof setTimeout>;
-    const schedule = () => {
-      timeout = setTimeout(() => {
+    scale.set(withSpring(1, { damping: 9, stiffness: 140, reduceMotion: MOVE }));
+    breath.set(
+      withRepeat(withSequence(MOVE, withTiming(1.05, { duration: 1200, reduceMotion: MOVE }), withTiming(1, { duration: 1200, reduceMotion: MOVE })), -1, false, undefined, MOVE),
+    );
+    const smooth = { duration: 1600, easing: Easing.inOut(Easing.quad), reduceMotion: MOVE };
+    float.set(withRepeat(withSequence(MOVE, withTiming(-4, smooth), withTiming(0, smooth)), -1, false, undefined, MOVE));
+    // every few seconds it blinks, and now and then it does a little hop
+    let blinkTimer: ReturnType<typeof setTimeout>;
+    let hopTimer: ReturnType<typeof setTimeout>;
+    const scheduleBlink = () => {
+      blinkTimer = setTimeout(() => {
         setBlink(true);
         setTimeout(() => setBlink(false), 140);
-        schedule();
+        scheduleBlink();
       }, 2500 + Math.random() * 2500);
     };
-    schedule();
-    return () => clearTimeout(timeout);
-  }, [animated, scale, breath, float]);
+    const scheduleHop = () => {
+      hopTimer = setTimeout(() => {
+        hop.set(withSequence(MOVE, withTiming(-7, { duration: 160, reduceMotion: MOVE }), withSpring(0, { damping: 5, reduceMotion: MOVE })));
+        scheduleHop();
+      }, 4000 + Math.random() * 3000);
+    };
+    scheduleBlink();
+    scheduleHop();
+    return () => {
+      clearTimeout(blinkTimer);
+      clearTimeout(hopTimer);
+    };
+  }, [animated, scale, breath, float, hop]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: float.value }, { scale: scale.value * breath.value }, { rotate: `${tilt.value}deg` }],
+    transform: [{ translateY: float.value + hop.value }, { scale: scale.value * breath.value }, { rotate: `${tilt.value}deg` }],
   }));
 
   function tap() {
     if (!animated) return;
-    scale.set(withSequence(withTiming(1.18, { duration: 120 }), withSpring(1, { damping: 6 })));
+    scale.set(withSequence(MOVE, withTiming(1.18, { duration: 120, reduceMotion: MOVE }), withSpring(1, { damping: 6, reduceMotion: MOVE })));
+    onTap?.();
     const id = Date.now();
     setHearts((h) => [...h, id]);
     setTimeout(() => setHearts((h) => h.filter((x) => x !== id)), 1100);
@@ -95,9 +114,7 @@ export function Mascot({ species, stage, accent, hat = null, size = 120, animate
     if (taps.current.length >= 7) {
       taps.current = [];
       // the dance
-      tilt.set(withSequence(
-        ...[-14, 14, -14, 14, -10, 10, 0].map((deg) => withTiming(deg, { duration: 160 })),
-      ));
+      tilt.set(withSequence(MOVE, ...[-14, 14, -14, 14, -10, 10, 0].map((deg) => withTiming(deg, { duration: 160, reduceMotion: MOVE }))));
       onSecret?.();
     }
   }
@@ -122,8 +139,8 @@ function FloatingHeart({ size }: { size: number }) {
   const y = useSharedValue(0);
   const opacity = useSharedValue(1);
   useEffect(() => {
-    y.set(withTiming(-size * 0.5, { duration: 1000 }));
-    opacity.set(withTiming(0, { duration: 1000 }));
+    y.set(withTiming(-size * 0.5, { duration: 1000, reduceMotion: MOVE }));
+    opacity.set(withTiming(0, { duration: 1000, reduceMotion: MOVE }));
   }, [y, opacity, size]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }], opacity: opacity.value }));
   return (

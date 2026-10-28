@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from './theme';
 
 interface Props extends TextInputProps {
   label: string;
@@ -30,7 +29,7 @@ export function PasswordField({ label, ...inputProps }: Props) {
           hitSlop={8}
           className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100"
         >
-          <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.muted} />
+          <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={20} className="text-stone-500" />
         </Pressable>
       </View>
     </View>

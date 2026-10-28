@@ -9,7 +9,6 @@ import type { GroupSummary } from '../lib/types';
 import { Badge } from './Badge';
 import { GroupIcon, groupIconOf } from './GroupIcon';
 import { ReliabilityBadge } from './ReliabilityBadge';
-import { colors } from './theme';
 
 export function GroupCard({ group, reliability, distance }: { group: GroupSummary; reliability?: number; distance?: string }) {
   const isOpen = group.type === 'open_to_new';
@@ -24,7 +23,7 @@ export function GroupCard({ group, reliability, distance }: { group: GroupSummar
             <Text className="text-base font-semibold text-ink">{group.name}</Text>
             {group.location ? (
               <View className="mt-0.5 flex-row items-center gap-1">
-                <Ionicons name="location-outline" size={13} color={colors.muted} />
+                <Ionicons name="location-outline" size={13} className="text-stone-500" />
                 <Text className="text-sm text-stone-500">
                   {group.location}
                   {distance ? ` · ${distance}` : ''}

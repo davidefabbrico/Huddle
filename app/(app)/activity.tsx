@@ -14,19 +14,19 @@ import * as api from '../../lib/api';
 import { timeAgo } from '../../lib/format';
 import type { Notification, NotificationType } from '../../lib/types';
 
-const typeStyle: Record<NotificationType, { icon: ComponentProps<typeof Ionicons>['name']; box: string; color: string }> = {
-  join_request: { icon: 'person-add', box: 'bg-brand-100', color: colors.brandDark },
-  request_accepted: { icon: 'checkmark-circle', box: 'bg-emerald-100', color: colors.green },
-  request_guest: { icon: 'walk', box: 'bg-sky-100', color: colors.sky },
-  request_rejected: { icon: 'close-circle', box: 'bg-stone-200', color: colors.muted },
-  new_event: { icon: 'calendar', box: 'bg-brand-100', color: colors.brandDark },
-  rank_up: { icon: 'trophy', box: 'bg-amber-100', color: '#B45309' },
-  thanks: { icon: 'heart', box: 'bg-amber-100', color: '#B45309' },
-  ride: { icon: 'car', box: 'bg-sky-100', color: colors.sky },
-  expense: { icon: 'wallet', box: 'bg-emerald-100', color: colors.green },
-  promo: { icon: 'megaphone', box: 'bg-violet-100', color: '#6D28D9' },
-  digest: { icon: 'newspaper', box: 'bg-brand-100', color: colors.brandDark },
-  event_update: { icon: 'alert-circle', box: 'bg-amber-100', color: '#B45309' },
+const typeStyle: Record<NotificationType, { icon: ComponentProps<typeof Ionicons>['name']; box: string; iconClass: string }> = {
+  join_request: { icon: 'person-add', box: 'bg-brand-100', iconClass: 'text-brand-600' },
+  request_accepted: { icon: 'checkmark-circle', box: 'bg-emerald-100', iconClass: 'text-emerald-700' },
+  request_guest: { icon: 'walk', box: 'bg-sky-100', iconClass: 'text-sky-700' },
+  request_rejected: { icon: 'close-circle', box: 'bg-stone-200', iconClass: 'text-stone-500' },
+  new_event: { icon: 'calendar', box: 'bg-brand-100', iconClass: 'text-brand-600' },
+  rank_up: { icon: 'trophy', box: 'bg-amber-100', iconClass: 'text-amber-700' },
+  thanks: { icon: 'heart', box: 'bg-amber-100', iconClass: 'text-amber-700' },
+  ride: { icon: 'car', box: 'bg-sky-100', iconClass: 'text-sky-700' },
+  expense: { icon: 'wallet', box: 'bg-emerald-100', iconClass: 'text-emerald-700' },
+  promo: { icon: 'megaphone', box: 'bg-violet-100', iconClass: 'text-violet-700' },
+  digest: { icon: 'newspaper', box: 'bg-brand-100', iconClass: 'text-brand-600' },
+  event_update: { icon: 'alert-circle', box: 'bg-amber-100', iconClass: 'text-amber-700' },
 };
 
 // Where tapping a notification takes you
@@ -56,7 +56,7 @@ export default function ActivityScreen() {
         <ActivityIndicator color={colors.brand} className="mt-10" />
       ) : notifications.data.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-3 px-8">
-          <Ionicons name="notifications-outline" size={40} color={colors.muted} />
+          <Ionicons name="notifications-outline" size={40} className="text-stone-500" />
           <Text className="text-center text-lg font-semibold text-ink">Nessuna novità</Text>
           <Text className="text-center text-stone-500">
             Qui trovi nuovi eventi nei tuoi gruppi, richieste accettate, i grazie ricevuti e i gradi che conquisti.
@@ -76,7 +76,7 @@ export default function ActivityScreen() {
                   className={`flex-row items-center gap-3 p-4 active:bg-stone-100 ${index > 0 ? 'border-t border-stone-100' : ''} ${n.read_at ? '' : 'bg-brand-50'}`}
                 >
                   <View className={`h-11 w-11 items-center justify-center rounded-full ${style.box}`}>
-                    <Ionicons name={style.icon} size={22} color={style.color} />
+                    <Ionicons name={style.icon} size={22} className={style.iconClass} />
                   </View>
                   <View className="flex-1">
                     <Text className="font-semibold text-ink">{n.title}</Text>

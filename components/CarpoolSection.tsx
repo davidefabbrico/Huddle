@@ -199,10 +199,10 @@ function DepartureForm({ area, time, busy, onSave }: {
   return (
     <View className="gap-2">
       <View className="flex-row gap-2">
-        <View className="flex-[2]">
+        <View className="min-w-0 flex-[2]">
           <TextField label="Parto dalla zona" value={areaText} onChangeText={setAreaText} placeholder="Es. Piazza Dante" maxLength={60} />
         </View>
-        <View className="flex-1">
+        <View className="min-w-0 flex-1">
           <TextField label="Alle" value={timeText} onChangeText={setTimeText} placeholder="18:30" keyboardType="numbers-and-punctuation" />
         </View>
       </View>

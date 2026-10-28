@@ -8,7 +8,7 @@ import { Chip } from './Chip';
 import { InfoTip } from './InfoTip';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
-import { colors } from './theme';
+import { colors, SWITCH_OFF } from './theme';
 
 interface Props {
   settings: UserSettings;
@@ -72,7 +72,7 @@ function Toggle({ title, text, value, onChange }: { title: string; text: string;
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+        trackColor={{ true: colors.brand, false: SWITCH_OFF }}
         thumbColor={colors.white}
         // react-native-web only: otherwise the "on" thumb is teal
         {...({ activeThumbColor: colors.white } as object)}

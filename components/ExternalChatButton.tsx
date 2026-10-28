@@ -32,7 +32,7 @@ export function ExternalChatButton({ url, compact = false }: { url: string; comp
       style={{ backgroundColor: app.color }}
     >
       <Ionicons name={app.icon} size={20} color="#FFFFFF" />
-      <Text className="text-base font-semibold text-white">Apri il gruppo su {app.name}</Text>
+      <Text className="text-base font-semibold text-[#FFFFFF]">Apri il gruppo su {app.name}</Text>
     </Pressable>
   );
 }

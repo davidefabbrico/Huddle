@@ -4,13 +4,16 @@
 // A link opened while signed out (invite, group, event) is reopened after signing in.
 
 import '../global.css';
+import '../components/iconColors';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { router, Stack, usePathname, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AppTheme } from '../components/GroupTheme';
 import { SetupNeeded } from '../components/SetupNeeded';
 import { colors } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
+import { useThemeMode } from '../hooks/useThemeMode';
 import { rememberOpenedLink, takeRememberedLink } from '../lib/deepLink';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -23,6 +26,7 @@ export default function RootLayout() {
   const initialized = useAuth((state) => state.initialized);
   const recovering = useAuth((state) => state.recovering);
   const pathname = usePathname();
+  const mode = useThemeMode();
 
   useEffect(() => {
     if (isSupabaseConfigured) return useAuth.getState().init();
@@ -39,19 +43,28 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, isSignedIn, recovering, onAuthScreen]);
 
-  if (!isSupabaseConfigured) return <SetupNeeded />;
-
-  if (!initialized) {
+  if (!isSupabaseConfigured) {
     return (
-      <View className="flex-1 items-center justify-center bg-surface">
-        <ActivityIndicator color={colors.brand} />
-      </View>
+      <AppTheme>
+        <SetupNeeded />
+      </AppTheme>
     );
   }
 
+  if (!initialized) {
+    return (
+      <AppTheme>
+        <View className="flex-1 items-center justify-center bg-surface">
+          <ActivityIndicator color={colors.brand} />
+        </View>
+      </AppTheme>
+    );
+  }
+
+  // Light or dark theme (CSS variables): see components/GroupTheme.tsx
   return (
-    <>
-      <StatusBar style="dark" />
+    <AppTheme>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={recovering}>
           <Stack.Screen name="reset-password" />
@@ -65,6 +78,6 @@ export default function RootLayout() {
           <Stack.Screen name="forgot-password" />
         </Stack.Protected>
       </Stack>
-    </>
+    </AppTheme>
   );
 }

@@ -1,16 +1,35 @@
-// Inside a group (its page, chat, events, history, organizing for it) the app takes the group's
-// pastel color: the "brand" CSS variables are redefined for this subtree (nativewind vars), and
-// useBrand() gives the same palette to icons and spinners that need a value.
+// Themes, via CSS variables (nativewind vars), so classes like bg-white, text-ink, text-stone-500 and
+// bg-brand-200 follow them without dark: variants:
+//   AppTheme (at the root): light or dark neutrals + the app's pastel palette
+//   GroupTheme (inside a group: its page, chat, events, history, organizing for it): the group's palette
+// useBrand() / useNeutrals() give the same colors to whatever needs a value (icons, spinners, bars).
 
 import { createContext, useContext, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { vars } from 'nativewind';
+import { useThemeMode } from '../hooks/useThemeMode';
 import { groupLook } from '../lib/groupIcons';
-import { APP_PALETTE, GROUP_PALETTES, paletteVars, type Palette } from '../lib/palette';
+import { APP_PALETTE, GROUP_PALETTES, NEUTRALS, paletteFor, paletteVars, themeVars, type Palette, type ThemeMode } from '../lib/palette';
 
-const BrandContext = createContext<Palette>(APP_PALETTE);
+const ThemeContext = createContext<{ mode: ThemeMode; palette: Palette }>({ mode: 'light', palette: APP_PALETTE });
 
-export const useBrand = () => useContext(BrandContext);
+export const useThemeModeContext = () => useContext(ThemeContext).mode;
+export const useBrand = () => {
+  const { mode, palette } = useContext(ThemeContext);
+  return paletteFor(palette, mode);
+};
+export const useNeutrals = () => NEUTRALS[useContext(ThemeContext).mode];
+
+export function AppTheme({ children }: { children: ReactNode }) {
+  const mode = useThemeMode();
+  return (
+    <ThemeContext.Provider value={{ mode, palette: APP_PALETTE }}>
+      <View className="flex-1 bg-surface" style={vars(themeVars(mode, APP_PALETTE))}>
+        {children}
+      </View>
+    </ThemeContext.Provider>
+  );
+}
 
 export function GroupTheme({
   group,
@@ -19,12 +38,13 @@ export function GroupTheme({
   group: { name: string; icon?: string | null; color?: string | null } | null | undefined;
   children: ReactNode;
 }) {
+  const { mode } = useContext(ThemeContext);
   const palette = group ? GROUP_PALETTES[groupLook(group).color] : APP_PALETTE;
   return (
-    <BrandContext.Provider value={palette}>
-      <View className="flex-1" style={vars(paletteVars(palette))}>
+    <ThemeContext.Provider value={{ mode, palette }}>
+      <View className="flex-1" style={vars(paletteVars(paletteFor(palette, mode)))}>
         {children}
       </View>
-    </BrandContext.Provider>
+    </ThemeContext.Provider>
   );
 }

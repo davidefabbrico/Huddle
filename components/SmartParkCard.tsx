@@ -13,7 +13,6 @@ import { geocodeFirst } from '../lib/geocode';
 import { parkingUrl } from '../lib/smartpark';
 import type { AttendeeWithProfile, EventWithGroup } from '../lib/types';
 import { Button } from './Button';
-import { colors } from './theme';
 
 interface Props {
   event: EventWithGroup;
@@ -48,7 +47,7 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
         <View className="gap-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
           <View className="flex-row items-start gap-3">
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
-              <Text className="text-lg font-extrabold text-white">P</Text>
+              <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">
               <Text className="font-semibold text-ink">SmartPark: hai parcheggiato</Text>
@@ -57,7 +56,7 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
               </Text>
             </View>
             <Pressable onPress={onDismissArrival} accessibilityRole="button" accessibilityLabel="Chiudi" hitSlop={8}>
-              <Ionicons name="close" size={20} color={colors.muted} />
+              <Ionicons name="close" size={20} className="text-stone-500" />
             </Pressable>
           </View>
           {phase === 'live' && !me?.checked_in ? (
@@ -91,13 +90,13 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
             className="flex-row items-center gap-3 rounded-2xl bg-white p-3 active:bg-stone-100"
           >
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
-              <Text className="text-lg font-extrabold text-white">P</Text>
+              <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">
               <Text className="font-semibold text-ink">{opening ? 'Cerco il luogo…' : 'Trova parcheggio'}</Text>
               <Text className="text-xs text-stone-500">Con SmartPark, per l’ora dell’evento</Text>
             </View>
-            <Ionicons name="open-outline" size={18} color={colors.muted} />
+            <Ionicons name="open-outline" size={18} className="text-stone-500" />
           </Pressable>
           {error ? <Text className="text-xs text-red-600">{error}</Text> : null}
         </View>

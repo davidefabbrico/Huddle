@@ -12,7 +12,7 @@ import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
-import { colors } from '../components/theme';
+import { colors, SWITCH_OFF } from '../components/theme';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 import { dateMonthsAgo, intentLabels, interestOptions } from '../lib/format';
@@ -192,7 +192,7 @@ export default function SignupScreen() {
                       className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
                     >
                       <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-200' : 'bg-stone-100'}`}>
-                        <Ionicons name={option.icon} size={24} color={selected ? colors.white : colors.muted} />
+                        <Ionicons name={option.icon} size={24} className={selected ? 'text-brand-800' : 'text-stone-500'} />
                       </View>
                       <View className="flex-1">
                         <Text className="text-base font-semibold text-ink">{option.title}</Text>
@@ -201,7 +201,7 @@ export default function SignupScreen() {
                       <Ionicons
                         name={selected ? 'radio-button-on' : 'radio-button-off'}
                         size={22}
-                        color={selected ? colors.brand : colors.muted}
+                        className={selected ? 'text-brand-600' : 'text-stone-500'}
                       />
                     </Pressable>
                   );
@@ -219,7 +219,7 @@ export default function SignupScreen() {
                   <Switch
                     value={isRelocated}
                     onValueChange={setIsRelocated}
-                    trackColor={{ true: colors.brand, false: '#D6D3D1' }}
+                    trackColor={{ true: colors.brand, false: SWITCH_OFF }}
                     thumbColor={colors.white}
                     // react-native-web only: otherwise the "on" thumb is teal
                     {...({ activeThumbColor: colors.white } as object)}

@@ -18,6 +18,7 @@ import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
 import { useAuth } from '../../../hooks/useAuth';
+import { useThemePreference } from '../../../hooks/useThemeMode';
 import { computeAchievements, newAchievements, type Achievement } from '../../../lib/achievements';
 import * as api from '../../../lib/api';
 import { arrivalLabel, intentLabels, roleLabels } from '../../../lib/format';
@@ -53,6 +54,8 @@ export default function ProfileScreen() {
 
   const fresh = stats.data?.fresh ?? [];
   const [showRules, setShowRules] = useState(false);
+  const themePreference = useThemePreference((state) => state.preference);
+  const setThemePreference = useThemePreference((state) => state.setPreference);
 
   return (
     <Screen width="wide">
@@ -88,7 +91,7 @@ export default function ProfileScreen() {
                 </View>
                 {user.is_relocated && user.relocated_at ? (
                   <View className="flex-row items-center gap-1">
-                    <Ionicons name="calendar-outline" size={14} color={colors.muted} />
+                    <Ionicons name="calendar-outline" size={14} className="text-stone-500" />
                     <Text className="text-sm text-stone-500">{arrivalLabel(user.relocated_at)}</Text>
                   </View>
                 ) : null}
@@ -136,7 +139,7 @@ export default function ProfileScreen() {
               <View className="gap-2 rounded-3xl bg-white p-4">
                 <Pressable onPress={() => setShowRules(!showRules)} accessibilityRole="button" className="flex-row items-center justify-between">
                   <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
-                  <Ionicons name={showRules ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+                  <Ionicons name={showRules ? 'chevron-up' : 'chevron-down'} size={18} className="text-stone-500" />
                 </Pressable>
                 {!showRules ? null : isBusiness ? (
                   <Text className="text-sm text-stone-500">
@@ -233,6 +236,18 @@ export default function ProfileScreen() {
               <View className="gap-3 rounded-3xl bg-white p-4">
                 <Text className="text-sm font-semibold text-stone-500">ACCOUNT</Text>
                 {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
+                <View className="flex-row flex-wrap items-center gap-2">
+                  <Text className="mr-1 text-base text-stone-700">Tema</Text>
+                  {(
+                    [
+                      ['light', '☀️ Chiaro'],
+                      ['dark', '🌙 Notte'],
+                      ['system', '📱 Automatico'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Chip key={value} label={label} selected={themePreference === value} onPress={() => setThemePreference(value)} />
+                  ))}
+                </View>
                 <Button title="Cambia password" icon="key-outline" variant="secondary" onPress={() => router.push('/change-password')} />
                 <Button title="Esci" icon="log-out-outline" variant="muted" onPress={signOut} />
               <ConfirmButton
@@ -255,7 +270,7 @@ function Stat({ value, label, highlight = false }: { value: string; label: strin
   return (
     <View className={`flex-1 items-center justify-center gap-1 rounded-3xl px-2 py-4 ${highlight ? 'bg-brand-200' : 'bg-white'}`}>
       <Text className={`text-2xl font-bold ${highlight ? 'text-brand-800' : 'text-ink'}`}>{value}</Text>
-      <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-brand-700' : 'text-stone-500'}`}>
+      <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-brand-800' : 'text-stone-500'}`}>
         {label}
       </Text>
     </View>

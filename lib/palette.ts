@@ -1,4 +1,5 @@
-// Pastel tonal palettes, Material 3 style: the app's own (peach) and one per group color.
+// Pastel tonal palettes, Material 3 style: the app's own (peach) and one per group color, plus the
+// neutrals (page, cards, text, greys) for the light and the dark ("notte") theme.
 // Inside a group (GroupTheme) the "brand" colors become the group's: every bg-brand-*, text-brand-*
 // and border-brand-* class follows, because tailwind.config.js reads them from CSS variables.
 //   50–200: surfaces and containers (pastel)   300: filled buttons   400–500: accents
@@ -54,4 +55,74 @@ const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 
 // { '--brand-50': '255 246 241', … } for nativewind's vars()
 export function paletteVars(palette: Palette): Record<string, string> {
   return Object.fromEntries(TONES.map((tone) => [`--brand-${tone}`, rgb(palette[tone])]));
+}
+
+export type ThemeMode = 'light' | 'dark';
+
+// Neutrals: "white" is the cards' color, "surface" the page, "surface2" the bars (bottom bar, side menu).
+// The stone greys flip in the dark theme, so text-stone-500 stays readable on both.
+export interface Neutrals {
+  white: string;
+  surface: string;
+  surface2: string;
+  ink: string;
+  stone: Record<50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900, string>;
+}
+
+export const NEUTRALS: Record<ThemeMode, Neutrals> = {
+  light: {
+    white: '#FFFFFF',
+    surface: '#F8F8F9', // almost white, no brown
+    surface2: '#EEEFF2',
+    ink: '#1F2430',
+    stone: {
+      50: '#FAFAF9', 100: '#F5F5F4', 200: '#E7E5E4', 300: '#D6D3D1', 400: '#A8A29E',
+      500: '#78716C', 600: '#57534E', 700: '#44403C', 800: '#292524', 900: '#1C1917',
+    },
+  },
+  dark: {
+    white: '#1E2026',
+    surface: '#121316',
+    surface2: '#1A1C21',
+    ink: '#ECEDEF',
+    stone: {
+      50: '#1C1D21', 100: '#24262B', 200: '#2E3036', 300: '#3F424A', 400: '#6B6F78',
+      500: '#9A9EA6', 600: '#B9BCC3', 700: '#D3D5DA', 800: '#E6E7EA', 900: '#F2F3F5',
+    },
+  },
+};
+
+// "#RRGGBB" a share of the way from `from` to `to`
+function mix(from: string, to: string, share: number): string {
+  const a = [1, 3, 5].map((i) => parseInt(from.slice(i, i + 2), 16));
+  const b = [1, 3, 5].map((i) => parseInt(to.slice(i, i + 2), 16));
+  return `#${a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// The same palette for the dark theme. Sections (50–100) become dark surfaces barely tinted; filled
+// things (200–300: buttons, selected chips, pills, my chat bubbles) stay pastel, with dark text (800),
+// like the other pastel labels; accents and text on dark (600–700) become light pastel. So every pair
+// used in the app (bg-brand-200 + text-brand-800, bg-brand-50 + text-brand-700…) stays readable,
+// and the peach never turns brown.
+export function darkPalette(palette: Palette): Palette {
+  const base = NEUTRALS.dark.white;
+  return {
+    50: mix(base, palette[400], 0.08), 100: mix(base, palette[400], 0.14), 200: palette[200], 300: palette[300],
+    400: palette[300], 500: palette[400], 600: palette[300], 700: palette[200], 800: palette[800],
+  };
+}
+
+export const paletteFor = (palette: Palette, mode: ThemeMode) => (mode === 'dark' ? darkPalette(palette) : palette);
+
+// All the CSS variables of a theme: neutrals + the brand palette
+export function themeVars(mode: ThemeMode, palette: Palette): Record<string, string> {
+  const n = NEUTRALS[mode];
+  return {
+    '--white': rgb(n.white),
+    '--surface': rgb(n.surface),
+    '--surface2': rgb(n.surface2),
+    '--ink': rgb(n.ink),
+    ...Object.fromEntries(Object.entries(n.stone).map(([tone, hex]) => [`--stone-${tone}`, rgb(hex)])),
+    ...paletteVars(paletteFor(palette, mode)),
+  };
 }

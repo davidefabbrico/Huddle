@@ -77,7 +77,7 @@ export function PlaceField({
               accessibilityRole="button"
               className={`flex-row items-center gap-2 px-3 py-2.5 active:bg-stone-100 ${index > 0 ? 'border-t border-stone-100' : ''}`}
             >
-              <Ionicons name="location-outline" size={16} color={colors.muted} />
+              <Ionicons name="location-outline" size={16} className="text-stone-500" />
               <Text numberOfLines={2} className="flex-1 text-sm text-ink">
                 {place.full}
               </Text>

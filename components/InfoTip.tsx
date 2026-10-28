@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from './theme';
 
 export function InfoTip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -15,7 +14,7 @@ export function InfoTip({ text }: { text: string }) {
         accessibilityLabel={open ? 'Nascondi la spiegazione' : 'Spiegazione'}
         hitSlop={10}
       >
-        <Ionicons name={open ? 'information-circle' : 'information-circle-outline'} size={18} color={colors.muted} />
+        <Ionicons name={open ? 'information-circle' : 'information-circle-outline'} size={18} className="text-stone-500" />
       </Pressable>
       {open ? (
         <View className="absolute right-0 top-6 z-10 w-64 rounded-2xl bg-ink px-3 py-2">

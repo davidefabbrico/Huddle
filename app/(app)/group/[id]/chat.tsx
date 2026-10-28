@@ -71,7 +71,7 @@ export default function GroupChatScreen() {
         <Header title={title} />
         <View className="flex-1 items-center justify-center gap-4 px-8">
           <View className="h-16 w-16 items-center justify-center rounded-full bg-stone-200">
-            <Ionicons name="lock-closed" size={28} color={colors.muted} />
+            <Ionicons name="lock-closed" size={28} className="text-stone-500" />
           </View>
           <Text className="text-center text-lg font-semibold text-ink">La chat è riservata al gruppo</Text>
           <Text className="text-center text-stone-500">Chiedi di unirti: appena ti accettano potrai scrivere qui.</Text>
@@ -137,7 +137,7 @@ export default function GroupChatScreen() {
               accessibilityLabel="Invia"
               className={`h-11 w-11 items-center justify-center rounded-full ${draft.trim() ? 'bg-brand-300 active:bg-brand-400' : 'bg-stone-200'}`}
             >
-              <Ionicons name="send" size={18} color={draft.trim() ? colors.ink : colors.muted} />
+              <Ionicons name="send" size={18} className={draft.trim() ? 'text-ink' : 'text-stone-500'} />
             </Pressable>
           </View>
         </KeyboardAvoidingView>

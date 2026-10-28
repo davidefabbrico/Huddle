@@ -170,7 +170,7 @@ export default function EventScreen() {
                     <Pressable className="mt-1 flex-row items-center gap-3 rounded-2xl bg-brand-50 p-3 active:bg-brand-100">
                       <GroupIcon name={event.group_name} icon={event.group_icon} color={event.group_color} size={36} />
                       <Text className="flex-1 font-semibold text-ink">{event.group_name}</Text>
-                      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                      <Ionicons name="chevron-forward" size={18} className="text-stone-500" />
                     </Pressable>
                   </Link>
                   {event.visibility === 'public' && group?.visibility === 'public' && !event.cancelled_at && phase !== 'ended' ? (
@@ -435,7 +435,7 @@ export default function EventScreen() {
 function InfoRow({ icon, text }: { icon: 'time-outline' | 'location-outline'; text: string }) {
   return (
     <View className="flex-row items-center gap-2">
-      <Ionicons name={icon} size={18} color={colors.muted} />
+      <Ionicons name={icon} size={18} className="text-stone-500" />
       <Text className="flex-1 text-base text-stone-700">{text}</Text>
     </View>
   );

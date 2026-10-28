@@ -8,8 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, avatarOf } from '../../../components/Avatar';
+import { useNeutrals } from '../../../components/GroupTheme';
 import { barWithSafeArea } from '../../../components/safeArea';
-import { colors } from '../../../components/theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { useIsWide } from '../../../hooks/useLayout';
 
@@ -26,7 +26,7 @@ function tabIcon(outline: IconName, filled: IconName) {
   return function TabIcon({ focused }: { focused: boolean }) {
     return (
       <View className={`h-8 w-16 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
-        <Ionicons name={focused ? filled : outline} size={22} color={focused ? colors.ink : colors.muted} />
+        <Ionicons name={focused ? filled : outline} size={22} className={focused ? 'text-brand-800' : 'text-stone-500'} />
       </View>
     );
   };
@@ -36,6 +36,7 @@ export default function TabsLayout() {
   const user = useAuth((state) => state.user);
   const insets = useSafeAreaInsets();
   const wide = useIsWide();
+  const neutrals = useNeutrals();
 
   return (
     <Tabs
@@ -44,7 +45,7 @@ export default function TabsLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           display: wide ? 'none' : 'flex',
-          backgroundColor: '#EFEAE6', // Material 3 surface container
+          backgroundColor: neutrals.surface2, // Material 3 surface container (light or dark theme)
           borderTopWidth: 0,
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
           ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
@@ -69,7 +70,7 @@ export default function TabsLayout() {
           // Brand-colored square, like a "post" button
           tabBarIcon: ({ focused }) => (
             <View className={`h-10 w-14 items-center justify-center rounded-2xl ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
-              <Ionicons name="add" size={26} color={colors.ink} />
+              <Ionicons name="add" size={26} className="text-brand-800" />
             </View>
           ),
         }}

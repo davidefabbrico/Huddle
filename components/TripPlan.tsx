@@ -10,7 +10,6 @@ import { shortDayLabel } from '../lib/format';
 import type { TripItem } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
-import { colors } from './theme';
 
 interface Props {
   eventId: string;
@@ -160,7 +159,7 @@ function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onR
         accessibilityLabel={item.title}
         hitSlop={6}
       >
-        <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={item.done ? colors.green : colors.muted} />
+        <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} className={item.done ? 'text-emerald-600' : 'text-stone-500'} />
       </Pressable>
       <Text className="text-base">{item.kind === 'see' ? '📍' : '✅'}</Text>
       {editing ? (
@@ -191,7 +190,7 @@ function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onR
       </Pressable>
       {canEdit ? (
         <Pressable onPress={busy ? undefined : onDelete} accessibilityRole="button" accessibilityLabel={`Togli ${item.title}`} hitSlop={6}>
-          <Ionicons name="close" size={20} color={colors.muted} />
+          <Ionicons name="close" size={20} className="text-stone-500" />
         </Pressable>
       ) : null}
     </View>

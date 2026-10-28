@@ -20,7 +20,7 @@ import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
-import { GroupMascotCard } from '../../components/GroupMascotCard';
+import { GroupMascot } from '../../components/GroupMascot';
 import { GroupTheme } from '../../components/GroupTheme';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { VisibilityChoice } from '../../components/VisibilityChoice';
@@ -158,29 +158,33 @@ export default function CreateEventScreen() {
         <Header title={isTrip ? 'Nuova vacanza' : 'Nuovo evento'} />
         <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
-            {groups.length > 1 ? (
-              <View className="gap-2">
-                <Text className="text-sm font-medium text-stone-700">Gruppo</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {groups.map(({ group }) => (
-                    <Chip
-                      key={group.id}
-                      label={group.name}
-                      selected={groupIdToUse === group.id}
-                      onPress={() => setSelectedGroup(group.id)}
-                    />
-                  ))}
-                </View>
+            {/* which group, with its mascot cheering on the side (a small decoration) */}
+            <View className="z-20 flex-row items-start gap-3">
+              <View className="flex-1">
+                {groups.length > 1 ? (
+                  <View className="gap-2">
+                    <Text className="text-sm font-medium text-stone-700">Gruppo</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {groups.map(({ group }) => (
+                        <Chip
+                          key={group.id}
+                          label={group.name}
+                          selected={groupIdToUse === group.id}
+                          onPress={() => setSelectedGroup(group.id)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text className="text-base text-stone-600">
+                    Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
+                  </Text>
+                )}
               </View>
-            ) : (
-              <Text className="text-base text-stone-600">
-                Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
-              </Text>
-            )}
-
-            {chosenGroup && level.data ? (
-              <GroupMascotCard group={chosenGroup} level={level.data} compact cheer={isTrip ? 'Si parte! Preparo la valigia 🧳' : 'Si organizza! Che bello 🎉'} />
-            ) : null}
+              {chosenGroup && level.data ? (
+                <GroupMascot group={chosenGroup} level={level.data} size={48} cheer={isTrip ? 'Si parte! 🧳' : 'Si organizza! 🎉'} />
+              ) : null}
+            </View>
 
             <View className="flex-row flex-wrap gap-2">
               <Chip label="📅 Evento" selected={!isTrip} onPress={() => setKind('event')} />
@@ -297,7 +301,7 @@ export default function CreateEventScreen() {
               <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
               {poster ? (
                 <View className="flex-row items-center gap-3 rounded-2xl bg-white p-3">
-                  <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} color={colors.brandDark} />
+                  <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} className="text-brand-600" />
                   <Text numberOfLines={1} className="flex-1 text-ink">
                     {poster.name}
                   </Text>

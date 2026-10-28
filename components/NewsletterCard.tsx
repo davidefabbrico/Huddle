@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { formatEventDate, tripDatesLabel } from '../lib/format';
 import type { WeeklyPick } from '../lib/recommendations';
-import { colors } from './theme';
 
 export function NewsletterCard({ picks, hasArea }: { picks: WeeklyPick[]; hasArea: boolean }) {
   return (
@@ -28,7 +27,7 @@ export function NewsletterCard({ picks, hasArea }: { picks: WeeklyPick[]; hasAre
                   {event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)} · {why}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              <Ionicons name="chevron-forward" size={18} className="text-stone-500" />
             </Pressable>
           </Link>
         ))
