@@ -2,12 +2,13 @@
 // event to the members of the groups within the chosen distance of the event (once per event).
 
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useAsync } from '../hooks/useAsync';
 import * as api from '../lib/api';
 import { PROMOTION_COST } from '../lib/points';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { Text } from './Text';
 
 const RADII_KM = [5, 10, 25];
 
@@ -34,8 +35,8 @@ export function PromoteCard({ eventId, hasPlace }: { eventId: string; hasPlace: 
   }
 
   return (
-    <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-violet-50 p-4">
-      <Text className="text-base font-pixel text-violet-950">📣 Fallo sapere ai gruppi della zona</Text>
+    <View className="gap-3 rounded-3xl bg-violet-50 p-4">
+      <Text className="text-base font-semibold text-violet-950">📣 Fallo sapere ai gruppi della zona</Text>
       {result ? (
         <Text className="text-sm text-violet-900">
           Fatto! Invito mandato a {result.people === 1 ? '1 persona' : `${result.people} persone`} di{' '}

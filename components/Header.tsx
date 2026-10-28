@@ -1,9 +1,10 @@
 // Material 3 small top app bar: back arrow, title, optional actions. Falls back to Home when there is no history (e.g. a web deep link).
 
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { PixelIcon } from './PixelIcon';
 import { router } from 'expo-router';
+import { Text } from './Text';
 
 interface Props {
   title: string;
@@ -26,7 +27,7 @@ export function Header({ title, subtitle, right }: Props) {
         <PixelIcon name="back" size={22} className="text-ink" />
       </Pressable>
       <View className="flex-1">
-        <Text numberOfLines={1} className="text-lg font-pixel text-ink">
+        <Text numberOfLines={1} className="text-lg font-semibold text-ink">
           {title}
         </Text>
         {subtitle ? <Text numberOfLines={1} className="text-xs text-stone-500">{subtitle}</Text> : null}

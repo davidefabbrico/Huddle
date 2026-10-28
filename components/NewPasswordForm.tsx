@@ -1,9 +1,10 @@
 // "Nuova password" + "Ripeti password", used by the reset link page and by "Cambia password"
 
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Button } from './Button';
 import { PasswordField } from './PasswordField';
+import { Text } from './Text';
 
 export const MIN_PASSWORD_LENGTH = 6; // Supabase default; raise it in Auth settings and here together
 

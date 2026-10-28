@@ -5,6 +5,8 @@
 //   group does (its topics, or its icon). Emblem, name and motto; the emblem gets rings as it levels up.
 //   Seasonal hats: Halloween, Christmas, the group's birthday.
 //   Legendary cards: the group's special moments, as collectible cards in its history.
+//   Care (a tiny tamagotchi): the group feeds the mascot and plays with it; two bars that empty in a day.
+//   It never dies: with empty bars it's only a bit sad.
 
 import { GROUP_ICON_CATEGORIES } from './groupIcons';
 import type { GroupHistory, GroupLevel, MascotSpecies } from './types';
@@ -40,6 +42,24 @@ const hash = (text: string) => [...text].reduce((h, ch) => (h * 31 + ch.charCode
 // Without a choice, a species from the group's name (stable)
 export function mascotOf(group: { name: string; mascot?: MascotSpecies | null }): MascotSpecies {
   return group.mascot ?? SPECIES[hash(group.name) % SPECIES.length].key;
+}
+
+// ---- Care (tamagotchi) ----
+
+const CARE_HOURS = 24; // a full bar is empty a day later
+
+// How full a bar is (0–1), from when the mascot last ate or played
+export function careLevel(at: string | null, now = Date.now()): number {
+  if (!at) return 0;
+  return Math.max(0, Math.min(1, 1 - (now - new Date(at).getTime()) / (CARE_HOURS * 3600_000)));
+}
+
+// What the mascot says about how it's doing (null = it's fine: the usual greeting)
+export function careWish(food: number, fun: number): string | null {
+  if (food < 0.25 && fun < 0.25) return 'Ho fame e mi annoio… 🥺';
+  if (food < 0.25) return 'Ho un po’ di fame… 🍎';
+  if (fun < 0.25) return 'Giochiamo un po’? ⚽';
+  return null;
 }
 
 // ---- Clan ----

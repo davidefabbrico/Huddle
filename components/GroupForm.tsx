@@ -1,7 +1,7 @@
 // Group fields, shared by "Nuovo gruppo" and "Modifica gruppo"
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
 import { interestOptions } from '../lib/format';
 import { mascotOf, SPECIES } from '../lib/mascot';
@@ -17,6 +17,7 @@ import { MascotPreview } from './Mascot';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors, SWITCH_OFF } from './theme';
+import { Text } from './Text';
 
 interface Props {
   initial?: NewGroupInput;
@@ -106,7 +107,7 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
                 className="items-center gap-1"
               >
                 <MascotPreview species={species.key} accent={GROUP_PALETTES[shownLook.color][400]} selected={values.mascot === species.key} />
-                <Text className={`text-xs ${values.mascot === species.key ? 'font-pixel text-brand-700' : 'text-stone-500'}`}>{species.name}</Text>
+                <Text className={`text-xs ${values.mascot === species.key ? 'font-semibold text-brand-700' : 'text-stone-500'}`}>{species.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -180,9 +181,9 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
           </View>
         </View>
 
-        <View className="flex-row items-center justify-between gap-4 rounded-2xl border-2 border-line bg-white px-4 py-3">
+        <View className="flex-row items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3">
           <View className="flex-1 flex-row items-center gap-2">
-            <Text className="font-pixel text-ink">💶 Spese condivise</Text>
+            <Text className="font-semibold text-ink">💶 Spese condivise</Text>
             <InfoTip text="Negli eventi si segna chi ha pagato cosa e a fine evento si vede chi deve quanto (come Splitwise). Nelle vacanze ci sono sempre." />
           </View>
           <Switch

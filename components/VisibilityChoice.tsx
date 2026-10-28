@@ -1,10 +1,11 @@
 // "Chi lo vede?" for events and holidays: everyone who sees the group, or only its members and guests.
 // In a private group events are always private.
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import type { EventVisibility } from '../lib/types';
 import { Chip } from './Chip';
 import { InfoTip } from './InfoTip';
+import { Text } from './Text';
 
 interface Props {
   value: EventVisibility;

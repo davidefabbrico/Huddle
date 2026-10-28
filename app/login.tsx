@@ -1,7 +1,7 @@
 // Login screen: email + password, "password dimenticata", and resend of the confirmation email
 
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Link } from 'expo-router';
 import { Button } from '../components/Button';
 import { PasswordField } from '../components/PasswordField';
@@ -9,6 +9,7 @@ import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
+import { Text } from '../components/Text';
 
 export default function LoginScreen() {
   const signIn = useAuth((state) => state.signIn);
@@ -51,7 +52,7 @@ export default function LoginScreen() {
           {/* On a computer the brand panel of AuthScreen already shows logo and name */}
           <View className="items-center wide:hidden">
             <Image source={require('../assets/icon.png')} style={{ width: 84, height: 84, borderRadius: 6 }} accessibilityIgnoresInvertColors />
-            <Text className="mt-4 text-4xl font-pixel-bold text-ink">Huddle</Text>
+            <Text className="mt-4 font-pixel text-4xl text-ink">Huddle</Text>
             <Text className="mt-2 max-w-xs text-center text-base text-stone-600">
               Organizza eventi con i tuoi gruppi e scopri chi c’è.
             </Text>
@@ -75,7 +76,7 @@ export default function LoginScreen() {
               autoComplete="current-password"
               onSubmitEditing={handleSignIn}
             />
-            <Link href="/forgot-password" className="self-end text-sm font-pixel text-brand-600">
+            <Link href="/forgot-password" className="self-end text-sm font-semibold text-brand-600">
               Password dimenticata?
             </Link>
             {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
@@ -93,7 +94,7 @@ export default function LoginScreen() {
 
           <View className="flex-row justify-center gap-1">
             <Text className="text-stone-600">Non hai un account?</Text>
-            <Link href="/signup" className="font-pixel text-brand-600">
+            <Link href="/signup" className="font-semibold text-brand-600">
               Registrati
             </Link>
           </View>

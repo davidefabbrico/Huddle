@@ -2,7 +2,7 @@
 // and a list: the next ones, or the chosen day's. Calendar and list side by side on a computer.
 
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useIsWide } from '../hooks/useLayout';
 import { CHECKIN_CLOSES_AFTER_MS } from '../lib/eventTiming';
 import { dayKeysBetween, shortDayLabel } from '../lib/format';
@@ -10,6 +10,7 @@ import type { EventWithGroup } from '../lib/types';
 import { Button } from './Button';
 import { EventCard } from './EventCard';
 import { MonthCalendar } from './MonthCalendar';
+import { Text } from './Text';
 
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -31,7 +32,7 @@ export function AgendaView({ events }: { events: EventWithGroup[] }) {
   const list = (
     <View className="gap-3">
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-lg font-pixel text-ink">{selected ? capitalized(shortDayLabel(selected)) : 'I prossimi'}</Text>
+        <Text className="text-lg font-semibold text-ink">{selected ? capitalized(shortDayLabel(selected)) : 'I prossimi'}</Text>
         {selected ? <Button title="Tutti i prossimi" size="sm" variant="muted" onPress={() => setSelected(null)} /> : null}
       </View>
       {shown.length === 0 ? (

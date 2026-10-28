@@ -1,8 +1,9 @@
 // "Quando sei arrivato/a in città?" chips. Stores an approximate date (users.relocated_at).
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { arrivalOptionIndex, arrivalOptions, dateMonthsAgo } from '../lib/format';
 import { Chip } from './Chip';
+import { Text } from './Text';
 
 interface Props {
   value: string | null;

@@ -2,7 +2,7 @@
 // Signed out -> login/signup/forgot-password; signed in -> the (app) group;
 // opened the reset-password email link -> only reset-password until a new password is set.
 // A link opened while signed out (invite, group, event) is reopened after signing in.
-// The pixel font (Huddle Pixel, assets/fonts: titles, buttons, numbers) loads before anything is shown.
+// The fonts (assets/fonts: Chakra Petch for the text, Huddle Pixel for the logo) load before anything is shown.
 
 import '../global.css';
 import '../components/iconColors';
@@ -31,7 +31,10 @@ export default function RootLayout() {
   const mode = useThemeMode();
   // If the font can't load (offline on the first visit), the app still opens with the system font
   const [fontsLoaded, fontError] = useFonts({
-    'HuddlePixel-SemiBold': require('../assets/fonts/HuddlePixel-SemiBold.ttf'),
+    'ChakraPetch-Regular': require('../assets/fonts/ChakraPetch-Regular.ttf'),
+    'ChakraPetch-Medium': require('../assets/fonts/ChakraPetch-Medium.ttf'),
+    'ChakraPetch-SemiBold': require('../assets/fonts/ChakraPetch-SemiBold.ttf'),
+    'ChakraPetch-Bold': require('../assets/fonts/ChakraPetch-Bold.ttf'),
     'HuddlePixel-Bold': require('../assets/fonts/HuddlePixel-Bold.ttf'),
   });
   const fontsReady = fontsLoaded || fontError !== null;

@@ -1,9 +1,10 @@
 // "Apri il gruppo su WhatsApp" (or Telegram, Signal, Discord…), in the app's brand color.
 // `compact` renders just the round icon, for headers.
 
-import { Linking, Pressable, Text } from 'react-native';
+import { Linking, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { detectChatApp } from '../lib/chatLinks';
+import { Text } from './Text';
 
 export function ExternalChatButton({ url, compact = false }: { url: string; compact?: boolean }) {
   const app = detectChatApp(url);
@@ -32,7 +33,7 @@ export function ExternalChatButton({ url, compact = false }: { url: string; comp
       style={{ backgroundColor: app.color }}
     >
       <Ionicons name={app.icon} size={20} color="#FFFFFF" />
-      <Text className="text-base font-pixel text-[#FFFFFF]">Apri il gruppo su {app.name}</Text>
+      <Text className="text-base font-semibold text-[#FFFFFF]">Apri il gruppo su {app.name}</Text>
     </Pressable>
   );
 }

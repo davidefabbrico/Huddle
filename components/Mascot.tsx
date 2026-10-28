@@ -1,6 +1,8 @@
 // The group's mascot, as vintage pixel art (react-native-svg) and animated (reanimated): it pops in,
 // bobs up and down one pixel like an old game sprite, blinks and now and then hops; a tap makes it
-// bounce with a pixel heart. Seven quick taps: it dances (easter egg, onSecret).
+// bounce with a pixel heart. Seven quick taps: it dances (easter egg, onSecret). Fed or played with
+// (the group's tamagotchi, components/GroupMascotCard.tsx) it hops with a pixel apple or ball; when sad it
+// stops hopping.
 // Stages: 0 egg, 1 cub (smaller), 2 young (with a scarf in the group's color), 3 legend (crown and
 // sparkles). Seasonal hats from lib/mascot.ts.
 //
@@ -209,6 +211,10 @@ const OVERLAYS: Record<NonNullable<Hat> | 'crown', { rows: string[]; colors: Rec
 
 const HEART = ['.RR.RR.', 'RRRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'];
 
+// The treats of the tamagotchi, with the outline like the mascot
+const APPLE = ['....G..', '...GG..', '.RRGRR.', 'RRRRRRR', 'RWRRRRR', 'RRRRRRR', '.RRRRR.', '..R.R..'];
+const BALL = ['..WWW..', '.WWKWW.', 'WWKKKWW', 'WWWKWWW', 'WKWWWKW', '.WWWWW.', '..WWW..'];
+
 // The canvas: the 16x16 sprite at (3, 4), room above for hats and around for sparkles and the outline
 const COLS = 22;
 const ROWS = 22;
@@ -316,6 +322,11 @@ function Pixels({ pixels }: { pixels: Pixel[] }) {
   );
 }
 
+export interface Treat {
+  id: number; // a new id = a new treat
+  kind: 'feed' | 'play';
+}
+
 interface Props {
   species: MascotSpecies;
   stage: 0 | 1 | 2 | 3;
@@ -323,10 +334,12 @@ interface Props {
   hat?: Hat;
   size?: number;
   animated?: boolean; // false: a still picture (pickers)
+  sad?: boolean; // hungry or bored: no hops
+  treat?: Treat | null; // just fed or played with
   onSecret?: () => void; // seven quick taps
 }
 
-export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, onSecret }: Props) {
+export function Mascot({ species, stage, accent, hat = null, size = 120, animated = true, sad = false, treat = null, onSecret }: Props) {
   const [blink, setBlink] = useState(false);
   const [hearts, setHearts] = useState<number[]>([]);
   const taps = useRef<number[]>([]);
@@ -361,12 +374,21 @@ export function Mascot({ species, stage, accent, hat = null, size = 120, animate
       }, 4000 + Math.random() * 3000);
     };
     scheduleBlink();
-    scheduleHop();
+    if (!sad) scheduleHop();
     return () => {
       clearTimeout(blinkTimer);
       clearTimeout(hopTimer);
     };
-  }, [animated, scale, bob, hop, px]);
+  }, [animated, sad, scale, bob, hop, px]);
+
+  // A treat: two happy hops
+  const treatId = treat?.id;
+  useEffect(() => {
+    if (!animated || !treatId) return;
+    const up = withTiming(-4 * px, { duration: 140, reduceMotion: MOVE });
+    const down = withTiming(0, { duration: 140, reduceMotion: MOVE });
+    hop.set(withSequence(MOVE, up, down, up, withSpring(0, { damping: 6, reduceMotion: MOVE })));
+  }, [animated, treatId, hop, px]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: bob.value + hop.value }, { scale: scale.value }, { rotate: `${tilt.value}deg` }],
@@ -403,15 +425,46 @@ export function Mascot({ species, stage, accent, hat = null, size = 120, animate
         </Svg>
       </Animated.View>
       {hearts.map((id) => (
-        <FloatingHeart key={id} size={size} />
+        <FloatingPixels key={id} size={size} sprite={HEART_SPRITE} />
       ))}
+      {treat ? <FloatingPixels key={treat.id} size={size} sprite={treat.kind === 'feed' ? APPLE_SPRITE : BALL_SPRITE} /> : null}
     </Pressable>
   );
 }
 
-const HEART_PIXELS = toRuns(HEART.map((row) => [...row].map((ch) => (ch === 'R' ? '#E0607A' : null))));
+interface SmallSprite {
+  pixels: Pixel[];
+  w: number;
+  h: number;
+}
 
-function FloatingHeart({ size }: { size: number }) {
+// A little sprite from its grid, with the dark outline around it (or not, for the heart)
+function smallSprite(rows: string[], colors: Record<string, string>, outline = true): SmallSprite {
+  const m = outline ? 1 : 0;
+  const h = rows.length + 2 * m;
+  const w = rows[0].length + 2 * m;
+  const grid: (string | null)[][] = Array.from({ length: h }, (_, r) =>
+    Array.from({ length: w }, (_, c) => {
+      const ch = rows[r - m]?.[c - m];
+      return ch && ch !== '.' ? colors[ch] : null;
+    }),
+  );
+  if (outline) {
+    const filled = grid.map((row) => row.map((cell) => cell !== null));
+    for (let r = 0; r < h; r++) {
+      for (let c = 0; c < w; c++) {
+        if (!filled[r][c] && [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].some(([y, x]) => filled[y]?.[x])) grid[r][c] = OUTLINE;
+      }
+    }
+  }
+  return { pixels: toRuns(grid), w, h };
+}
+
+const HEART_SPRITE = smallSprite(HEART, { R: '#E0607A' }, false);
+const APPLE_SPRITE = smallSprite(APPLE, { R: '#E25C5C', W: '#FFB3A8', G: '#6BAE5A' });
+const BALL_SPRITE = smallSprite(BALL, { W: '#FFFDF6', K: INK });
+
+function FloatingPixels({ size, sprite }: { size: number; sprite: SmallSprite }) {
   const y = useSharedValue(0);
   const opacity = useSharedValue(1);
   useEffect(() => {
@@ -420,11 +473,12 @@ function FloatingHeart({ size }: { size: number }) {
     opacity.set(withTiming(0, { duration: 1000, reduceMotion: MOVE }));
   }, [y, opacity, size]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }], opacity: opacity.value }));
-  const width = size * 0.2;
+  // same pixel size as the mascot's
+  const px = size / COLS;
   return (
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: size * 0.12, left: size * 0.66 }, style]}>
-      <Svg width={width} height={(width * 6) / 7} viewBox="0 0 7 6">
-        <Pixels pixels={HEART_PIXELS} />
+      <Svg width={sprite.w * px} height={sprite.h * px} viewBox={`0 0 ${sprite.w} ${sprite.h}`}>
+        <Pixels pixels={sprite.pixels} />
       </Svg>
     </Animated.View>
   );
@@ -433,7 +487,7 @@ function FloatingHeart({ size }: { size: number }) {
 // A still preview of each species, for the picker in the group form
 export function MascotPreview({ species, accent, selected }: { species: MascotSpecies; accent: string; selected: boolean }) {
   return (
-    <View className={`items-center rounded-2xl border-2 border-line p-1 ${selected ? 'bg-brand-200' : 'bg-white'}`}>
+    <View className={`items-center rounded-2xl p-1 ${selected ? 'bg-brand-200' : 'bg-white'}`}>
       <Mascot species={species} stage={2} accent={accent} size={64} animated={false} />
     </View>
   );

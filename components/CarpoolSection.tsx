@@ -3,7 +3,7 @@
 // the accepted passengers where the car is parked (shared from SmartPark, visible only to them).
 
 import { useState } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { firstName, parseTime, shortTime } from '../lib/format';
 import { mapsUrl } from '../lib/geo';
@@ -15,6 +15,7 @@ import { Chip } from './Chip';
 import { TextField } from './TextField';
 import { InfoTip } from './InfoTip';
 import { colors } from './theme';
+import { Text } from './Text';
 
 interface Props {
   isTrip?: boolean; // holiday: nobody drives to the Maldives
@@ -49,7 +50,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-base font-pixel text-ink">{isTrip ? 'Come si parte?' : 'Come ci arrivi?'}</Text>
+        <Text className="text-base font-semibold text-ink">{isTrip ? 'Come si parte?' : 'Come ci arrivi?'}</Text>
         <InfoTip
           text={`Si condividono solo la zona e l’orario di partenza, mai la posizione. Chi dà un passaggio guadagna ${POINTS.passenger} punti per ogni passeggero.`}
         />
@@ -71,7 +72,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
               <View className="flex-row items-center gap-3">
                 <Text className="flex-1 text-sm text-stone-600">Posti liberi per gli amici</Text>
                 <Button title="−" size="sm" variant="secondary" disabled={busy || me.seats <= 0} onPress={() => onTransport('car', me.seats - 1)} />
-                <Text className="w-6 text-center text-base font-pixel-bold text-ink">{me.seats}</Text>
+                <Text className="w-6 text-center text-base font-bold text-ink">{me.seats}</Text>
                 <Button title="+" size="sm" variant="secondary" disabled={busy || me.seats >= MAX_SEATS} onPress={() => onTransport('car', me.seats + 1)} />
               </View>
               <DepartureForm
@@ -89,8 +90,8 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
 
       {/* Driver: requests waiting for you */}
       {canChoose && myRequests.length > 0 ? (
-        <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-sky-50 p-3">
-          <Text className="text-sm font-pixel text-sky-900">Ti chiedono un passaggio</Text>
+        <View className="gap-2 rounded-3xl bg-sky-50 p-3">
+          <Text className="text-sm font-semibold text-sky-900">Ti chiedono un passaggio</Text>
           {myRequests.map((passenger) => (
             <View key={passenger.id} className="flex-row items-center gap-3">
               <Avatar {...avatarOf(passenger)} size={32} />
@@ -103,7 +104,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
       ) : null}
 
       {drivers.length > 0 ? (
-        <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
+        <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
           {drivers.map((driver, index) => {
             const passengers = passengersOf(driver.id);
             const free = driver.seats - passengers.length;
@@ -113,7 +114,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
                 <View className="flex-row items-center gap-3">
                   <Avatar {...avatarOf(driver)} size={36} />
                   <View className="flex-1">
-                    <Text className="font-pixel text-ink">
+                    <Text className="font-semibold text-ink">
                       🚗 {driver.id === myId ? 'Tu' : driver.full_name}
                     </Text>
                     {driver.depart_area || driver.depart_time ? (
@@ -166,7 +167,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
           className="flex-row items-center gap-2 rounded-2xl bg-emerald-50 p-3 active:bg-emerald-100"
         >
           <Ionicons name="car" size={18} color={colors.green} />
-          <Text className="flex-1 text-sm font-pixel text-emerald-800">
+          <Text className="flex-1 text-sm font-semibold text-emerald-800">
             L’auto di {firstName(myDriver.full_name)} è qui: apri in Mappe
           </Text>
           <Ionicons name="open-outline" size={16} color={colors.green} />

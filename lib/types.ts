@@ -82,6 +82,14 @@ export interface Group {
 export type MascotSpecies = 'fox' | 'cat' | 'panda' | 'frog' | 'penguin' | 'dragon';
 
 // The group's level (group_level): drives the mascot's stage and the clan
+// The mascot's care (tamagotchi): when it last ate and played, and the first name of who gave it
+export interface MascotCare {
+  fed_at: string | null;
+  fed_by: string | null;
+  played_at: string | null;
+  played_by: string | null;
+}
+
 export interface GroupLevel {
   xp: number; // people at past events + 2 per event
   events: number;

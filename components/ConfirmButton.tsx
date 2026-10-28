@@ -1,9 +1,10 @@
 // Two-step button for actions that can't be undone: the first tap shows the warning and "Conferma"
 
 import { useState, type ComponentProps } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
+import { Text } from './Text';
 
 interface Props {
   title: string;

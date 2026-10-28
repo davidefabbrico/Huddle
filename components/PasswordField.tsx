@@ -1,8 +1,9 @@
 // Password input with a show/hide toggle
 
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Text, TextInput } from './Text';
 
 interface Props extends TextInputProps {
   label: string;
@@ -13,7 +14,7 @@ export function PasswordField({ label, ...inputProps }: Props) {
   return (
     <View className="gap-1.5">
       <Text className="text-sm font-medium text-stone-700">{label}</Text>
-      <View className="h-12 flex-row items-center rounded-2xl border-2 border-line bg-white pl-4 pr-2">
+      <View className="h-12 flex-row items-center rounded-2xl border border-stone-300 bg-white pl-4 pr-2">
         <TextInput
           placeholderTextColor="#A8A29E"
           secureTextEntry={!visible}

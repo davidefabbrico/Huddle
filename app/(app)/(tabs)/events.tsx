@@ -3,7 +3,7 @@
 // Cards in a grid on wide screens.
 
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { AgendaView } from '../../../components/AgendaView';
 import { Chip } from '../../../components/Chip';
 import { Grid } from '../../../components/Columns';
@@ -19,6 +19,7 @@ import * as api from '../../../lib/api';
 import { dayLabel } from '../../../lib/format';
 import { recommendEvents, weeklyPicks } from '../../../lib/recommendations';
 import type { EventWithGroup } from '../../../lib/types';
+import { Text } from '../../../components/Text';
 
 type Filter = 'forYou' | 'going' | 'all' | 'mine';
 
@@ -72,7 +73,7 @@ export default function EventsScreen() {
     <Screen width="wide">
       <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-3 wide:px-8 wide:pt-8">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-2xl font-pixel text-ink">Eventi</Text>
+          <Text className="flex-1 text-2xl font-semibold text-ink">Eventi</Text>
           <SearchButton />
         </View>
 
@@ -119,7 +120,7 @@ export default function EventsScreen() {
         ) : (
           days.map((day) => (
             <View key={day.label} className="gap-3">
-              <Text className="text-sm font-pixel uppercase tracking-wide text-stone-500">{day.label}</Text>
+              <Text className="text-sm font-semibold uppercase tracking-wide text-stone-500">{day.label}</Text>
               <Grid>
                 {day.events.map((event) => (
                   <EventCard key={event.id} event={event} showGroup answer={data.data?.answers[event.id]} />

@@ -1,13 +1,14 @@
 // Opened from the "reset password" email link: choose a new password.
 // Supabase signs the user in from the link; without that session the link is expired or already used.
 
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button } from '../components/Button';
 import { NewPasswordForm } from '../components/NewPasswordForm';
 import { AuthScreen } from '../components/AuthScreen';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
+import { Text } from '../components/Text';
 
 export default function ResetPasswordScreen() {
   const hasSession = useAuth((state) => state.user !== null);
@@ -18,7 +19,7 @@ export default function ResetPasswordScreen() {
     <AuthScreen>
       <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10" keyboardShouldPersistTaps="handled">
         <View className="gap-1">
-          <Text className="text-3xl font-pixel-bold text-ink">Nuova password</Text>
+          <Text className="text-3xl font-bold text-ink">Nuova password</Text>
           <Text className="text-base text-stone-600">Scegli la password che userai da ora in poi.</Text>
         </View>
 

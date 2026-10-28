@@ -1,8 +1,9 @@
 // A small ⓘ next to a label: tap it to read the explanation (screens stay clean, the help is one tap away)
 
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from './Text';
 
 export function InfoTip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);

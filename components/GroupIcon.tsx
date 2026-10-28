@@ -1,8 +1,9 @@
 // Group "photo": the group's emoji on its colored tile (rounded like an app icon).
 // Without a chosen icon, a suggestion from the group's name (lib/groupIcons.ts).
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { GROUP_COLORS, groupLook } from '../lib/groupIcons';
+import { Text } from './Text';
 
 interface Props {
   name: string;

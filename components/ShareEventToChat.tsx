@@ -2,11 +2,12 @@
 // as a card (the database refuses events that aren't public, so private ones can't leak).
 
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import * as api from '../lib/api';
 import type { ChatPreview, EventWithGroup } from '../lib/types';
 import { Button } from './Button';
 import { GroupIcon, groupIconOf } from './GroupIcon';
+import { Text } from './Text';
 
 export function ShareEventToChat({ event, myId }: { event: EventWithGroup; myId: string }) {
   const [chats, setChats] = useState<ChatPreview[] | null>(null);
@@ -36,7 +37,7 @@ export function ShareEventToChat({ event, myId }: { event: EventWithGroup; myId:
 
   return (
     <View className="gap-2 rounded-2xl bg-brand-50 p-3">
-      <Text className="text-sm font-pixel text-ink">In quale chat?</Text>
+      <Text className="text-sm font-semibold text-ink">In quale chat?</Text>
       {chats.length === 0 ? <Text className="text-sm text-stone-500">Non hai ancora chat di gruppo.</Text> : null}
       {chats.map((chat) => {
         const sent = sentTo.includes(chat.group.id);
@@ -51,7 +52,7 @@ export function ShareEventToChat({ event, myId }: { event: EventWithGroup; myId:
             <Text numberOfLines={1} className="flex-1 text-ink">
               {chat.group.name}
             </Text>
-            <Text className={`text-sm font-pixel ${sent ? 'text-emerald-700' : 'text-brand-700'}`}>{sent ? 'Inviato ✓' : 'Invia'}</Text>
+            <Text className={`text-sm font-semibold ${sent ? 'text-emerald-700' : 'text-brand-700'}`}>{sent ? 'Inviato ✓' : 'Invia'}</Text>
           </Pressable>
         );
       })}

@@ -1,7 +1,7 @@
 // "Password dimenticata": sends an email with a link to choose a new password (/reset-password)
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
@@ -9,6 +9,7 @@ import { AuthScreen } from '../components/AuthScreen';
 import { TextField } from '../components/TextField';
 import { colors } from '../components/theme';
 import * as api from '../lib/api';
+import { Text } from '../components/Text';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -36,9 +37,9 @@ export default function ForgotPasswordScreen() {
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-5 px-6 py-8" keyboardShouldPersistTaps="handled">
           {sent ? (
-            <View className="items-center gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-6">
+            <View className="items-center gap-3 rounded-3xl border border-stone-200 bg-white p-6">
               <Ionicons name="mail-open-outline" size={40} color={colors.brand} />
-              <Text className="text-center text-lg font-pixel text-ink">Controlla la posta</Text>
+              <Text className="text-center text-lg font-semibold text-ink">Controlla la posta</Text>
               <Text className="text-center text-stone-600">
                 Se esiste un account per {email.trim()}, ti abbiamo mandato un link per scegliere una nuova password.
                 Guarda anche nello spam.

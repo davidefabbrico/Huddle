@@ -2,10 +2,11 @@
 // and the emoji grid by category. Only values from lib/groupIcons.ts can be chosen.
 
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { GROUP_COLORS, GROUP_COLOR_KEYS, GROUP_ICON_CATEGORIES, type GroupColor } from '../lib/groupIcons';
 import { Chip } from './Chip';
 import { GroupIcon } from './GroupIcon';
+import { Text } from './Text';
 
 interface Props {
   name: string;
@@ -30,11 +31,11 @@ export function GroupIconPicker({ name, icon, color, onChange }: Props) {
         className="items-center gap-2"
       >
         <GroupIcon name={name || 'Gruppo'} icon={icon} color={color} size={88} />
-        <Text className="text-sm font-pixel text-brand-600">{open ? 'Fatto' : 'Cambia icona'}</Text>
+        <Text className="text-sm font-semibold text-brand-600">{open ? 'Fatto' : 'Cambia icona'}</Text>
       </Pressable>
 
       {open ? (
-        <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
+        <View className="gap-3 rounded-3xl border border-stone-200 bg-white p-3">
           <View className="flex-row flex-wrap justify-center gap-2.5">
             {GROUP_COLOR_KEYS.map((key) => (
               <Pressable

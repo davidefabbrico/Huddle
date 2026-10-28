@@ -1,10 +1,11 @@
 // User avatar: photo if `url` is set, else a GitHub-style pixel avatar if `seed` is set,
 // else initials on a stable pastel color.
 
-import { Image, Text, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { initials } from '../lib/format';
 import { identicon } from '../lib/identicon';
 import type { User } from '../lib/types';
+import { Text } from './Text';
 
 const palette = ['bg-orange-200', 'bg-sky-200', 'bg-emerald-200', 'bg-violet-200', 'bg-rose-200', 'bg-amber-200'];
 
@@ -39,7 +40,7 @@ export function Avatar({ name, url, seed, size = 40 }: Props) {
 
   return (
     <View className={`items-center justify-center rounded-full ${colorFor(name)}`} style={box}>
-      <Text className="font-pixel text-ink" style={{ fontSize: size * 0.38 }}>
+      <Text className="font-semibold text-ink" style={{ fontSize: size * 0.38 }}>
         {initials(name)}
       </Text>
     </View>

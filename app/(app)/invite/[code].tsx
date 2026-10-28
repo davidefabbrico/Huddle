@@ -2,7 +2,7 @@
 // The admin still approves the request. Opened while signed out, it comes back here after login.
 
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
@@ -12,6 +12,7 @@ import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
 import * as api from '../../../lib/api';
+import { Text } from '../../../components/Text';
 
 export default function InviteScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -43,7 +44,7 @@ export default function InviteScreen() {
         <ActivityIndicator color={colors.brand} className="mt-10" />
       ) : !group ? (
         <View className="flex-1 items-center justify-center gap-4 px-8">
-          <Text className="text-center text-lg font-pixel text-ink">Link non valido o scaduto</Text>
+          <Text className="text-center text-lg font-semibold text-ink">Link non valido o scaduto</Text>
           <Text className="text-center text-stone-500">
             Chiedi a chi ti ha invitato un link nuovo: l’admin del gruppo può averlo cambiato.
           </Text>
@@ -54,7 +55,7 @@ export default function InviteScreen() {
           <View className="items-center gap-2">
             <GroupIcon name={group.name} icon={group.icon} color={group.color} size={96} />
             <Text className="text-center text-sm text-stone-500">Hai un invito per</Text>
-            <Text className="text-center text-2xl font-pixel-bold text-ink">{group.name}</Text>
+            <Text className="text-center text-2xl font-bold text-ink">{group.name}</Text>
             <View className="flex-row flex-wrap justify-center gap-2">
               {group.visibility === 'private' ? <Badge label="Gruppo privato" icon="lock-closed" tone="brand" /> : null}
               <Badge label={group.member_count === 1 ? '1 membro' : `${group.member_count} membri`} icon="people" />

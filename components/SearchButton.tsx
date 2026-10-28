@@ -13,7 +13,7 @@ export function SearchButton() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Cerca"
-        className="h-11 w-11 items-center justify-center rounded-full border-2 border-b-4 border-line bg-white active:border-b-2 active:bg-stone-200"
+        className="h-11 w-11 items-center justify-center rounded-full border border-stone-200 bg-white active:bg-stone-200"
       >
         <PixelIcon name="search" size={20} className="text-ink" />
       </Pressable>

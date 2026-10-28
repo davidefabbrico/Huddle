@@ -20,12 +20,10 @@ module.exports = {
       full: '4px',
     },
     extend: {
-      // Pixel font (Huddle Pixel = Pixelify Sans without ligatures, assets/fonts, loaded in app/_layout.tsx)
-      // for titles, buttons, labels and numbers:
-      // the old font-semibold/font-bold. Long texts keep the system font, easier to read.
+      // Pixel font for the "Huddle" logo (Huddle Pixel = Pixelify Sans without ligatures, assets/fonts).
+      // The rest of the text is Chakra Petch, set by components/Text.tsx.
       fontFamily: {
-        pixel: ['HuddlePixel-SemiBold'],
-        'pixel-bold': ['HuddlePixel-Bold'],
+        pixel: ['HuddlePixel-Bold'],
       },
       // `wide:` = computer layout (side menu, more columns). Keep in sync with WIDE_MIN_WIDTH in hooks/useLayout.ts
       screens: { wide: '900px' },

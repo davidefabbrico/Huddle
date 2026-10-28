@@ -1,9 +1,9 @@
 // Side menu on wide screens (computer browser): takes the place of the bottom tab bar and stays
 // visible on every page (group, event, chat…). Same sections, plus Attività with the unread count.
-// Arcade look: pixel icons and font, the active section outlined like a selected menu entry.
+// Pixel icons, the active section on a pastel tile; "Crea" is an arcade button.
 
 import { useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { router, usePathname, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from '../hooks/useAsync';
@@ -12,6 +12,7 @@ import * as api from '../lib/api';
 import { Avatar, avatarOf } from './Avatar';
 import { Confetti } from './Confetti';
 import { PixelIcon, type PixelIconName } from './PixelIcon';
+import { Text } from './Text';
 
 type Section = 'search' | 'groups' | 'events' | 'create' | 'chats' | 'activity' | 'profile';
 
@@ -44,7 +45,7 @@ export function SideNav() {
   const unread = useAsync(() => (user ? api.getUnreadNotificationCount(user.id) : Promise.resolve(0)), [user?.id, pathname]);
 
   return (
-    <View className="w-64 gap-1 border-r-2 border-line bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
+    <View className="w-64 gap-1 border-r border-stone-200 bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
       <Pressable
         onPress={() => router.navigate('/')}
         onLongPress={() => setBurst((b) => b + 1)} // easter egg: confetti
@@ -54,7 +55,7 @@ export function SideNav() {
         className="mb-6 flex-row items-center gap-3 px-3"
       >
         <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 4 }} accessibilityIgnoresInvertColors />
-        <Text className="text-2xl font-pixel-bold text-ink">Huddle</Text>
+        <Text className="font-pixel text-2xl text-ink">Huddle</Text>
       </Pressable>
 
       {items.map((item) => (
@@ -74,7 +75,7 @@ export function SideNav() {
         className={`mt-4 h-14 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-b-4 border-line ${active === 'create' ? 'bg-brand-300' : 'bg-brand-200 active:border-b-2 active:bg-brand-300'}`}
       >
         <PixelIcon name="plus" size={18} className="text-brand-800" />
-        <Text className="text-base font-pixel text-brand-800">Crea</Text>
+        <Text className="text-base font-semibold text-brand-800">Crea</Text>
       </Pressable>
 
       <View className="flex-1" />
@@ -84,11 +85,11 @@ export function SideNav() {
           onPress={() => router.navigate('/profile')}
           accessibilityRole="link"
           accessibilityLabel="Profilo"
-          className={`flex-row items-center gap-3 rounded-full border-2 px-3 py-2 ${active === 'profile' ? 'border-line bg-brand-200' : 'border-transparent active:bg-stone-100'}`}
+          className={`flex-row items-center gap-3 rounded-full px-3 py-2 ${active === 'profile' ? 'bg-brand-200' : 'active:bg-stone-100'}`}
         >
           <Avatar {...avatarOf(user)} size={36} />
           <View className="flex-1">
-            <Text numberOfLines={1} className="font-pixel text-ink">
+            <Text numberOfLines={1} className="font-semibold text-ink">
               {user.full_name}
             </Text>
             <Text className="text-xs text-stone-500">Profilo</Text>
@@ -106,13 +107,13 @@ function NavItem({ label, icon, active, badge, onPress }: { label: string; icon:
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={badge > 0 ? `${label}, ${badge} non lette` : label}
-      className={`h-14 flex-row items-center gap-4 rounded-full border-2 px-4 ${active ? 'border-line bg-brand-200' : 'border-transparent active:bg-stone-100'}`}
+      className={`h-14 flex-row items-center gap-4 rounded-full px-4 ${active ? 'bg-brand-200' : 'active:bg-stone-100'}`}
     >
       <PixelIcon name={icon} size={22} className={active ? 'text-brand-800' : 'text-stone-500'} />
-      <Text className={`flex-1 text-base font-pixel ${active ? 'text-brand-800' : 'text-stone-600'}`}>{label}</Text>
+      <Text className={`flex-1 text-base font-semibold ${active ? 'text-brand-800' : 'text-stone-600'}`}>{label}</Text>
       {badge > 0 ? (
         <View className="h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1">
-          <Text className="text-xs font-pixel-bold text-[#FFFFFF]">{badge > 9 ? '9+' : badge}</Text>
+          <Text className="text-xs font-bold text-[#FFFFFF]">{badge > 9 ? '9+' : badge}</Text>
         </View>
       ) : null}
     </Pressable>

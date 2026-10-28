@@ -33,6 +33,7 @@ import type {
   JoinRequestWithUser,
   JoinStatus,
   LeaderboardEntry,
+  MascotCare,
   Membership,
   MemberWithProfile,
   NewEventInput,
@@ -814,6 +815,19 @@ export async function sendNewsletterIfDue(): Promise<void> {
 
 export async function getGroupLevel(groupId: string): Promise<GroupLevel> {
   return ((check(await supabase.rpc('group_level', { gid: groupId })) as GroupLevel | null) ?? { xp: 0, events: 0, trips: 0, attendances: 0 });
+}
+
+// ---- Taking care of the mascot (tamagotchi) ----
+
+const NO_CARE: MascotCare = { fed_at: null, fed_by: null, played_at: null, played_by: null };
+
+export async function getMascotCare(groupId: string): Promise<MascotCare> {
+  return (check(await supabase.rpc('mascot_status', { gid: groupId })) as MascotCare | null) ?? NO_CARE;
+}
+
+// Members only: feeds the mascot or plays with it, for the whole group
+export async function careForMascot(groupId: string, what: 'feed' | 'play'): Promise<MascotCare> {
+  return (check(await supabase.rpc('care_for_mascot', { gid: groupId, what })) as MascotCare | null) ?? NO_CARE;
 }
 
 // ---- The group's history ----

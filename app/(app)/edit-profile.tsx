@@ -2,7 +2,7 @@
 // and the private settings (birth year, your area, newsletter, venues' invitations)
 
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { ArrivalPicker } from '../../components/ArrivalPicker';
 import { Avatar } from '../../components/Avatar';
@@ -20,6 +20,7 @@ import { intentLabels, interestOptions } from '../../lib/format';
 import { randomSeed } from '../../lib/identicon';
 import { pickProfilePhoto } from '../../lib/pickers';
 import type { PickedFile, UserIntent, UserSettings } from '../../lib/types';
+import { Text } from '../../components/Text';
 
 export default function EditProfileScreen() {
   const user = useAuth((state) => state.user)!;
@@ -133,10 +134,10 @@ export default function EditProfileScreen() {
           />
 
           {isBusiness ? null : (
-            <View className="gap-4 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
+            <View className="gap-4 rounded-3xl border border-stone-200 bg-white p-4">
               <View className="flex-row items-center justify-between gap-4">
                 <View className="flex-1">
-                  <Text className="text-base font-pixel text-ink">Sono nuovo/a in città</Text>
+                  <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
                   <Text className="text-sm text-stone-500">Mostra il badge “Da poco in città” e ti suggeriamo i gruppi che accolgono persone nuove.</Text>
                 </View>
                 <Switch
@@ -154,7 +155,7 @@ export default function EditProfileScreen() {
 
           {isBusiness ? null : (
             <View className="gap-3">
-              <Text className="text-lg font-pixel text-ink">Cosa cerchi?</Text>
+              <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
               <View className="flex-row flex-wrap gap-2">
                 {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
                   <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
@@ -164,7 +165,7 @@ export default function EditProfileScreen() {
           )}
 
           <View className="gap-3">
-            <Text className="text-lg font-pixel text-ink">I tuoi interessi</Text>
+            <Text className="text-lg font-semibold text-ink">I tuoi interessi</Text>
             <View className="flex-row flex-wrap gap-2">
               {allInterests.map((interest) => (
                 <Chip
@@ -177,9 +178,9 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
-          <View className="flex-row items-center justify-between gap-4 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
+          <View className="flex-row items-center justify-between gap-4 rounded-3xl border border-stone-200 bg-white p-4">
             <View className="flex-1">
-              <Text className="text-base font-pixel text-ink">Nascondi la mia attività nei suggerimenti</Text>
+              <Text className="text-base font-semibold text-ink">Nascondi la mia attività nei suggerimenti</Text>
               <Text className="text-sm text-stone-500">
                 “Per te” mostra solo numeri (“ci vanno 3 persone dei tuoi gruppi”), mai nomi. Attivandolo non vieni
                 contato/a nemmeno lì.

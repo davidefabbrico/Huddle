@@ -1,7 +1,7 @@
 // Private settings in "Modifica profilo" (only you see them): birth year, your area and how far
 // to look, the weekly newsletter, venues' invitations. Saved in user_settings.
 
-import { Switch, Text, View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { DISTANCES_KM } from '../lib/search';
 import type { UserSettings } from '../lib/types';
 import { Chip } from './Chip';
@@ -9,6 +9,7 @@ import { InfoTip } from './InfoTip';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors, SWITCH_OFF } from './theme';
+import { Text } from './Text';
 
 interface Props {
   settings: UserSettings;
@@ -20,9 +21,9 @@ interface Props {
 
 export function PrivateSettingsFields({ settings, birthYear, isBusiness, onBirthYear, onChange }: Props) {
   return (
-    <View className="gap-4 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
+    <View className="gap-4 rounded-3xl border border-stone-200 bg-white p-4">
       <View className="flex-row items-center gap-2">
-        <Text className="text-lg font-pixel text-ink">Solo per te</Text>
+        <Text className="text-lg font-semibold text-ink">Solo per te</Text>
         <InfoTip text="Questi dati non compaiono sul profilo: servono solo a cercare e a suggerirti eventi." />
       </View>
       {isBusiness ? null : (
@@ -66,7 +67,7 @@ function Toggle({ title, text, value, onChange }: { title: string; text: string;
   return (
     <View className="flex-row items-center justify-between gap-4">
       <View className="flex-1 flex-row items-center gap-2">
-        <Text className="text-base font-pixel text-ink">{title}</Text>
+        <Text className="text-base font-semibold text-ink">{title}</Text>
         <InfoTip text={text} />
       </View>
       <Switch

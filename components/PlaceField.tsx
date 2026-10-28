@@ -2,11 +2,12 @@
 // which "Trova parcheggio" (SmartPark) uses; typing again clears them.
 
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { searchPlaces, type Place } from '../lib/geocode';
 import { TextField } from './TextField';
 import { colors } from './theme';
+import { Text } from './Text';
 
 export interface PlaceValue {
   text: string;
@@ -69,7 +70,7 @@ export function PlaceField({
           <Text className="text-xs text-emerald-700">{foundHint}</Text>
         </View>
       ) : results.length > 0 ? (
-        <View className="overflow-hidden rounded-2xl border-2 border-line bg-white">
+        <View className="overflow-hidden rounded-2xl bg-white">
           {results.map((place, index) => (
             <Pressable
               key={`${place.lat},${place.lon}`}

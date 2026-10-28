@@ -5,7 +5,7 @@
 // per month ("Palestra serale · 12 volte"). Seen by whoever sees the group (counts only, no attendee names).
 
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ClanEmblem } from '../../../../components/GroupMascotCard';
 import { GroupTheme } from '../../../../components/GroupTheme';
@@ -17,6 +17,7 @@ import * as api from '../../../../lib/api';
 import { clanOf, legendCards, stageFor, type LegendCard, type Rarity } from '../../../../lib/mascot';
 import { firstName, formatDate, monthLabel, tripDatesLabel } from '../../../../lib/format';
 import type { GroupHistory } from '../../../../lib/types';
+import { Text } from '../../../../components/Text';
 
 interface Item {
   key: string;
@@ -122,13 +123,13 @@ export default function GroupHistoryScreen() {
       <Screen width="page">
         <Header title="La nostra storia" subtitle={group.name} />
         <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2 wide:px-8">
-          <View className="flex-row items-center gap-4 rounded-3xl border-2 border-b-4 border-line bg-brand-200 p-4">
+          <View className="flex-row items-center gap-4 rounded-3xl bg-brand-200 p-4">
             <Pressable onPress={() => setShowCards(!showCards)} accessibilityRole="button" accessibilityLabel="Lo stemma del clan" hitSlop={8}>
               <ClanEmblem element={clan.element} rings={stageFor(level.xp).level} size={56} />
             </Pressable>
             <View className="flex-1 gap-0.5">
               <Text className="text-xs text-brand-800">{clan.name} · dal {formatDate(history.created_at)}</Text>
-              <Text className="text-lg font-pixel text-brand-800">{stats.join(' · ')}</Text>
+              <Text className="text-lg font-semibold text-brand-800">{stats.join(' · ')}</Text>
             </View>
           </View>
 
@@ -143,7 +144,7 @@ export default function GroupHistoryScreen() {
                 <Text>📍</Text>
               </View>
               <View className="flex-1 justify-center">
-                <Text className="font-pixel text-ink">Oggi</Text>
+                <Text className="font-semibold text-ink">Oggi</Text>
                 <Text className="text-sm text-stone-500">E la storia continua…</Text>
               </View>
             </View>
@@ -166,7 +167,7 @@ function LegendCards({ cards }: { cards: LegendCard[] }) {
   const unlocked = cards.filter((c) => c.unlockedAt).length;
   return (
     <View className="gap-2">
-      <Text className="text-base font-pixel text-ink">
+      <Text className="text-base font-semibold text-ink">
         Carte leggendarie {unlocked}/{cards.length}
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 pb-1">
@@ -174,13 +175,13 @@ function LegendCards({ cards }: { cards: LegendCard[] }) {
           const style = RARITY_STYLE[card.rarity];
           return card.unlockedAt ? (
             <View key={card.id} className={`h-40 w-28 items-center justify-between rounded-2xl p-3 ${style.box}`}>
-              <Text className={`text-[10px] font-pixel-bold uppercase tracking-wider ${style.label}`}>
+              <Text className={`text-[10px] font-bold uppercase tracking-wider ${style.label}`}>
                 {card.rarity}
                 {card.rarity === 'leggendaria' ? ' ✨' : ''}
               </Text>
               <Text className="text-4xl">{card.emoji}</Text>
               <View className="items-center">
-                <Text className="text-center text-xs font-pixel text-ink">{card.title}</Text>
+                <Text className="text-center text-xs font-semibold text-ink">{card.title}</Text>
                 <Text className="text-[10px] text-stone-500">{formatDate(card.unlockedAt)}</Text>
               </View>
             </View>
@@ -198,9 +199,9 @@ function LegendCards({ cards }: { cards: LegendCard[] }) {
 
 function TimelineRow({ item }: { item: Item }) {
   const content = (
-    <View className="mb-4 flex-1 gap-1 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
-      <Text className="text-xs font-pixel uppercase tracking-wide text-stone-400">{formatDate(item.at)}</Text>
-      <Text className="text-base font-pixel text-ink">{item.title}</Text>
+    <View className="mb-4 flex-1 gap-1 rounded-3xl border border-stone-200 bg-white p-3">
+      <Text className="text-xs font-semibold uppercase tracking-wide text-stone-400">{formatDate(item.at)}</Text>
+      <Text className="text-base font-semibold text-ink">{item.title}</Text>
       {item.subtitle ? <Text className="text-sm text-stone-500">{item.subtitle}</Text> : null}
       {item.photos?.length ? (
         <View className="mt-1 flex-row gap-1.5">
@@ -209,7 +210,7 @@ function TimelineRow({ item }: { item: Item }) {
           ))}
           {item.photos.length > 4 ? (
             <View className="h-16 w-16 items-center justify-center rounded-xl bg-stone-100">
-              <Text className="font-pixel text-stone-600">+{item.photos.length - 4}</Text>
+              <Text className="font-semibold text-stone-600">+{item.photos.length - 4}</Text>
             </View>
           ) : null}
         </View>

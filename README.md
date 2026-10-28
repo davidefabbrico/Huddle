@@ -10,11 +10,11 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 
 ## Funzioni
 
-- **Stile arcade**, come le mascotte: angoli squadrati, schede e pulsanti con il contorno scuro a pixel (più spesso
-  sotto, come i pulsanti dei cabinati: premuti si abbassano), icone pixel nella barra e nel menu
-  ([components/PixelIcon.tsx](components/PixelIcon.tsx)), font pixel per titoli, pulsanti e numeri ("Huddle Pixel",
-  cioè Pixelify Sans senza legature, in [assets/fonts](assets/fonts)); i testi lunghi restano nel font di sistema.
-  Tinte pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
+- **Stile**: tocco arcade come le mascotte, ma calmo. Angoli squadrati, schede piatte con un filo grigio; solo i
+  pulsanti principali (e il ➕) sono "da cabinato", con il contorno scuro più spesso sotto. Icone pixel nella barra e
+  nel menu ([components/PixelIcon.tsx](components/PixelIcon.tsx)). Testi in Chakra Petch (lettere squadrate, a metà
+  tra un font normale e il pixel: [components/Text.tsx](components/Text.tsx)), il logo "Huddle" in font pixel
+  ([assets/fonts](assets/fonts)). Tinte pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
   il suo colore: entrando nel gruppo (pagina, chat, eventi, storia, organizzare) tutta l'interfaccia prende la sua
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
@@ -23,6 +23,9 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   art vintage, animate come gli sprite dei vecchi videogiochi ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
   cucciolo → giovane → leggenda) e compare solo quando si apre un gruppo o si organizza qualcosa. Si muove anche
   con "Riduci movimento" attivo.
+- **Tamagotchi**: nella pagina del gruppo la mascotte ha due barre, Pancia e Gioco, che si svuotano in un giorno. Chi
+  è nel gruppo le dà la pappa 🍎 o ci gioca ⚽ (per tutti: si vede chi l'ha fatto per ultimo). Non muore mai: con le
+  barre vuote è solo un po' triste e smette di saltellare.
 - **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
   uno dei tuoi gruppi e lì compare come scheda da aprire.
 - **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
@@ -168,6 +171,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261030_cerca_eta_affidabilita_locali.sql` | ricerca (zona e fascia d'età dei gruppi), affidabilità, locali/aziende e promozioni, newsletter |
 | `20261031_ricorrenze_eventi_voti_account.sql` | periodo delle ricorrenze, eventi pubblici/privati, modifica e annullamento, voti nella scaletta, eliminazione account |
 | `20261101_mascotte_condivisione.sql` | mascotte e livello del gruppo, eventi condivisi nelle chat |
+| `20261102_mascotte_tamagotchi.sql` | tamagotchi della mascotte: pappa e gioco per tutto il gruppo |
 
 ### 2. Login ed email
 

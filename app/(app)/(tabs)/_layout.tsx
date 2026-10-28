@@ -1,4 +1,4 @@
-// Bottom tab bar, arcade style: pixel icons only (labels kept for screen readers), on an outlined tile when active.
+// Bottom tab bar: pixel icons only (labels kept for screen readers), on a pastel tile when active; ➕ is an arcade button.
 // Gruppi · Eventi · ➕ Crea · Chat · Profilo (your avatar). Notifications live behind the bell on Gruppi.
 // On wide screens the bar is hidden: the side menu (components/SideNav.tsx) takes its place.
 
@@ -18,11 +18,11 @@ import { useIsWide } from '../../../hooks/useLayout';
 const TAB_BAR_CONTENT_HEIGHT = 60;
 const TAB_PADDING = 5;
 
-// Pixel icon; when active, on a pastel tile with the arcade outline (like a selected menu entry)
+// Pixel icon; when active, on a pastel tile
 function tabIcon(name: PixelIconName) {
   return function TabIcon({ focused }: { focused: boolean }) {
     return (
-      <View className={`h-10 w-14 items-center justify-center rounded-full border-2 ${focused ? 'border-line bg-brand-200' : 'border-transparent'}`}>
+      <View className={`h-10 w-14 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
         <PixelIcon name={name} size={22} className={focused ? 'text-brand-800' : 'text-stone-500'} />
       </View>
     );
@@ -42,10 +42,10 @@ export default function TabsLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           display: wide ? 'none' : 'flex',
-          // White like the cards (dark grey at night), with the arcade outline over the page
+          // White like the cards (dark grey at night), with a hairline over the page
           backgroundColor: neutrals.white,
-          borderTopWidth: 2,
-          borderTopColor: neutrals.line,
+          borderTopWidth: 1,
+          borderTopColor: neutrals.stone[200],
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
           ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
         },
@@ -85,7 +85,7 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: 'Profilo',
           // Your avatar, on the pill when active
           tabBarIcon: ({ focused }) => (
-            <View className={`h-10 w-14 items-center justify-center rounded-full border-2 ${focused ? 'border-line bg-brand-200' : 'border-transparent'}`}>
+            <View className={`h-10 w-14 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
               {user ? <Avatar {...avatarOf(user)} size={26} /> : null}
             </View>
           ),

@@ -7,7 +7,7 @@
 // Topics (from the interests list) help "Per te". Optional poster ("locandina"): a PDF or an image.
 
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
@@ -28,6 +28,7 @@ import { isInPast } from '../../lib/eventTiming';
 import { dayKey, fromDayKey, interestOptions, isoWeekday, parseTime, tripDatesLabel, weekdayNames } from '../../lib/format';
 import { isPdf, pickPoster } from '../../lib/pickers';
 import type { EventKind, EventVisibility, NewEventInput, PickedFile } from '../../lib/types';
+import { Text } from '../../components/Text';
 
 // Today + the next 13 days, as { label, date } with date at local midnight
 function nextDays(count = 14) {
@@ -174,7 +175,7 @@ export default function CreateEventScreen() {
               </View>
             ) : (
               <Text className="text-base text-stone-600">
-                Per <Text className="font-pixel text-ink">{groups[0].group.name}</Text>
+                Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
               </Text>
             )}
 
@@ -296,7 +297,7 @@ export default function CreateEventScreen() {
             <View className="gap-2">
               <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
               {poster ? (
-                <View className="flex-row items-center gap-3 rounded-2xl border-2 border-line bg-white p-3">
+                <View className="flex-row items-center gap-3 rounded-2xl bg-white p-3">
                   <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} className="text-brand-600" />
                   <Text numberOfLines={1} className="flex-1 text-ink">
                     {poster.name}

@@ -1,6 +1,6 @@
 // Edit a group you administer (?id=group_id), including the external chat link
 
-import { ActivityIndicator, Text } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { GroupForm } from '../../components/GroupForm';
 import { Header } from '../../components/Header';
@@ -9,6 +9,7 @@ import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
+import { Text } from '../../components/Text';
 
 export default function EditGroupScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

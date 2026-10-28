@@ -1,7 +1,7 @@
 // Group lobby/chat. Only members, guests and accepted requesters get in.
 
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ import { useChat } from '../../../../hooks/useChat';
 import * as api from '../../../../lib/api';
 import { formatEventDate, formatMessageTime, tripDatesLabel } from '../../../../lib/format';
 import type { ChatMessageWithAuthor, EventWithGroup } from '../../../../lib/types';
+import { Text, TextInput } from '../../../../components/Text';
 
 export default function GroupChatScreen() {
   const { id, welcome } = useLocalSearchParams<{ id: string; welcome?: string }>();
@@ -74,7 +75,7 @@ export default function GroupChatScreen() {
           <View className="h-16 w-16 items-center justify-center rounded-full bg-stone-200">
             <Ionicons name="lock-closed" size={28} className="text-stone-500" />
           </View>
-          <Text className="text-center text-lg font-pixel text-ink">La chat è riservata al gruppo</Text>
+          <Text className="text-center text-lg font-semibold text-ink">La chat è riservata al gruppo</Text>
           <Text className="text-center text-stone-500">Chiedi di unirti: appena ti accettano potrai scrivere qui.</Text>
           <Button
             title="Torna al gruppo"
@@ -129,7 +130,7 @@ export default function GroupChatScreen() {
               returnKeyType="send"
               placeholder="Scrivi un messaggio…"
               placeholderTextColor="#A8A29E"
-              className="h-11 flex-1 rounded-full border-2 border-line bg-white px-4 text-base text-ink"
+              className="h-11 flex-1 rounded-full border border-stone-300 bg-white px-4 text-base text-ink"
             />
             <Pressable
               onPress={handleSend}
@@ -154,7 +155,7 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
         {message.event ? (
           <SharedEvent event={message.event} />
         ) : (
-          <View className="rounded-3xl border-2 border-b-4 border-line rounded-br-md bg-brand-200 px-4 py-2.5">
+          <View className="rounded-3xl rounded-br-md bg-brand-200 px-4 py-2.5">
             <Text className="text-base text-brand-800">{message.content}</Text>
           </View>
         )}
@@ -168,13 +169,13 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
       <Avatar {...avatarOf(message.author)} size={32} />
       <View className="flex-shrink">
         <View className="mb-1 flex-row flex-wrap items-center gap-2">
-          <Text className="text-xs font-pixel text-stone-600">{message.author.full_name}</Text>
+          <Text className="text-xs font-semibold text-stone-600">{message.author.full_name}</Text>
           {message.author.is_relocated ? <RelocatedBadge /> : null}
         </View>
         {message.event ? (
           <SharedEvent event={message.event} />
         ) : (
-          <View className="rounded-3xl border-2 border-b-4 border-line rounded-bl-md bg-white px-4 py-2.5">
+          <View className="rounded-3xl border border-stone-200 rounded-bl-md bg-white px-4 py-2.5">
             <Text className="text-base text-ink">{message.content}</Text>
           </View>
         )}
@@ -188,14 +189,14 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
 function SharedEvent({ event }: { event: EventWithGroup }) {
   return (
     <Link href={{ pathname: '/event/[id]', params: { id: event.id } }} asChild>
-      <Pressable className="w-64 gap-1 rounded-3xl border-2 border-b-4 border-line bg-white p-3 active:bg-stone-100">
+      <Pressable className="w-64 gap-1 rounded-3xl border border-stone-200 bg-white p-3 active:bg-stone-100">
         <View className="flex-row items-center gap-2">
           <GroupIcon name={event.group_name} icon={event.group_icon} color={event.group_color} size={28} />
           <Text numberOfLines={1} className="flex-1 text-xs text-stone-500">
             {event.group_name}
           </Text>
         </View>
-        <Text numberOfLines={2} className="text-base font-pixel text-ink">
+        <Text numberOfLines={2} className="text-base font-semibold text-ink">
           {event.kind === 'trip' ? '🏖️' : '📅'} {event.title}
         </Text>
         <Text className="text-sm text-stone-500">

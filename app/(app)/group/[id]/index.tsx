@@ -7,7 +7,7 @@
 // On a computer: the group, its actions and events on the left; leaderboard and members on the right.
 
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
@@ -32,6 +32,7 @@ import * as api from '../../../../lib/api';
 import { ageRangeLabel } from '../../../../lib/search';
 import { parkingGroupUrl } from '../../../../lib/smartpark';
 import type { Group, JoinStatus, LeaderboardEntry } from '../../../../lib/types';
+import { Text } from '../../../../components/Text';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -132,7 +133,7 @@ export default function GroupDetailScreen() {
 
                 {group.description ? <Text className="text-base leading-6 text-stone-700">{group.description}</Text> : null}
 
-                <GroupMascotCard group={group} level={level} />
+                <GroupMascotCard group={group} level={level} care={{ groupId: id, canCare: isMember }} />
 
                 <JoinSection group={group} access={access} onRequest={() => useJoinStore.getState().requestToJoin(user.id, id)} />
 
@@ -164,7 +165,7 @@ export default function GroupDetailScreen() {
                 {group.admin_id === user.id ? <AdminSection group={group} onChanged={details.reload} /> : null}
 
                 <View className="gap-3">
-                  <Text className="text-lg font-pixel text-ink">Prossimi eventi</Text>
+                  <Text className="text-lg font-semibold text-ink">Prossimi eventi</Text>
                   {events.length === 0 ? (
                     <Text className="text-stone-500">
                       Nessun evento in programma.{isMember ? ' Organizzane uno: i membri riceveranno una notifica.' : ''}
@@ -180,8 +181,8 @@ export default function GroupDetailScreen() {
                 {leaderboard.length > 0 ? <Leaderboard entries={leaderboard} myId={user.id} /> : null}
 
                 <View className="gap-3">
-                  <Text className="text-lg font-pixel text-ink">Membri ({members.length})</Text>
-                  <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
+                  <Text className="text-lg font-semibold text-ink">Membri ({members.length})</Text>
+                  <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
                     {members.map((member, index) => (
                       <View
                         key={member.id}
@@ -190,7 +191,7 @@ export default function GroupDetailScreen() {
                         <Avatar {...avatarOf(member)} />
                         <View className="flex-1 gap-1">
                           <View className="flex-row flex-wrap items-center gap-2">
-                            <Text className="font-pixel text-ink">
+                            <Text className="font-semibold text-ink">
                               {member.full_name}
                               {member.id === user.id ? ' (tu)' : ''}
                             </Text>
@@ -297,10 +298,10 @@ function AdminSection({ group, onChanged }: { group: Group; onChanged: () => voi
   const list = requests.data ?? [];
 
   return (
-    <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-brand-50 p-4">
+    <View className="gap-3 rounded-3xl bg-brand-50 p-4">
       <View className="flex-row items-center gap-2">
         <Ionicons name="star" size={16} color={brand[600]} />
-        <Text className="text-base font-pixel text-brand-700">Gestisci il gruppo</Text>
+        <Text className="text-base font-semibold text-brand-700">Gestisci il gruppo</Text>
       </View>
 
       <Button
@@ -310,7 +311,7 @@ function AdminSection({ group, onChanged }: { group: Group; onChanged: () => voi
         onPress={() => router.push({ pathname: '/edit-group', params: { id: groupId } })}
       />
 
-      <Text className="mt-1 text-sm font-pixel text-stone-600">
+      <Text className="mt-1 text-sm font-semibold text-stone-600">
         Richieste e ospiti{list.length ? ` (${list.length})` : ''}
       </Text>
       {!requests.data ? (
@@ -319,12 +320,12 @@ function AdminSection({ group, onChanged }: { group: Group; onChanged: () => voi
         <Text className="text-sm text-stone-500">Nessuna richiesta in attesa.</Text>
       ) : (
         list.map((request) => (
-          <View key={request.id} className="gap-3 rounded-2xl border-2 border-line bg-white p-3">
+          <View key={request.id} className="gap-3 rounded-2xl bg-white p-3">
             <View className="flex-row gap-3">
               <Avatar {...avatarOf(request.user)} size={40} />
               <View className="flex-1 gap-1">
                 <View className="flex-row flex-wrap items-center gap-2">
-                  <Text className="font-pixel text-ink">{request.user.full_name}</Text>
+                  <Text className="font-semibold text-ink">{request.user.full_name}</Text>
                   {request.status === 'guest' ? <Badge label="Ospite" tone="sky" /> : null}
                   {request.user.is_relocated ? <RelocatedBadge /> : null}
                 </View>
@@ -364,7 +365,7 @@ function AdminSection({ group, onChanged }: { group: Group; onChanged: () => voi
 
       {group.visibility === 'private' ? (
         <View className="mt-1 gap-2">
-          <Text className="text-sm font-pixel text-stone-600">Link d’invito</Text>
+          <Text className="text-sm font-semibold text-stone-600">Link d’invito</Text>
           <Text className="text-sm text-stone-500">
             Il gruppo è privato: si entra solo con il link (usa “Invita amici”). Se è finito in mani sbagliate, creane uno nuovo:
             quello vecchio smette di funzionare.
@@ -406,19 +407,19 @@ function Leaderboard({ entries, myId }: { entries: LeaderboardEntry[]; myId: str
   const medals = ['🥇', '🥈', '🥉'];
   return (
     <View className="gap-3">
-      <Text className="text-lg font-pixel text-ink">Classifica del gruppo</Text>
-      <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
+      <Text className="text-lg font-semibold text-ink">Classifica del gruppo</Text>
+      <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
         {entries.map((entry, index) => (
           <View
             key={entry.user.id}
             className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-stone-100' : ''} ${entry.user.id === myId ? 'bg-brand-50' : ''}`}
           >
-            <Text className="w-7 text-center text-base font-pixel text-stone-500">
+            <Text className="w-7 text-center text-base font-semibold text-stone-500">
               {entry.points > 0 && index < 3 ? medals[index] : index + 1}
             </Text>
             <Avatar {...avatarOf(entry.user)} size={34} />
             <View className="flex-1">
-              <Text numberOfLines={1} className="font-pixel text-ink">
+              <Text numberOfLines={1} className="font-semibold text-ink">
                 {entry.user.full_name}
                 {entry.user.id === myId ? ' (tu)' : ''}
               </Text>
@@ -427,7 +428,7 @@ function Leaderboard({ entries, myId }: { entries: LeaderboardEntry[]; myId: str
                 {entry.passengers ? ` · ${entry.passengers} 🚗` : ''}
               </Text>
             </View>
-            <Text className="text-base font-pixel-bold text-brand-600">{entry.points} pt</Text>
+            <Text className="text-base font-bold text-brand-600">{entry.points} pt</Text>
           </View>
         ))}
       </View>
@@ -447,7 +448,7 @@ function ParkingGroupButton({ code }: { code: string }) {
         <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
       </View>
       <View className="flex-1">
-        <Text className="font-pixel text-ink">Parcheggi del gruppo su SmartPark</Text>
+        <Text className="font-semibold text-ink">Parcheggi del gruppo su SmartPark</Text>
         <Text className="text-xs text-stone-500">Codice {code} · scoprite insieme dove si trova posto</Text>
       </View>
       <Ionicons name="open-outline" size={18} className="text-stone-500" />

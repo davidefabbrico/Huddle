@@ -4,7 +4,7 @@
 // Cancelling is on the event page ("Annulla l'evento").
 
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
@@ -20,6 +20,7 @@ import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
 import { dayKey, fromDayKey, interestOptions, parseTime, tripDatesLabel } from '../../lib/format';
 import type { EventVisibility, EventWithGroup, Group } from '../../lib/types';
+import { Text } from '../../components/Text';
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

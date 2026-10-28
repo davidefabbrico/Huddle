@@ -1,9 +1,10 @@
 // Month calendar (no libraries): used by the agenda ("Ci vado": dots on your days) and to pick a
 // holiday's dates (a range). Days are "YYYY-MM-DD" keys in local time; weeks start on Monday.
 
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { dayKey, monthLabel } from '../lib/format';
+import { Text } from './Text';
 
 interface Props {
   month: Date; // any day of the month to show
@@ -31,19 +32,19 @@ export function MonthCalendar({ month, onMonthChange, marks = {}, selected, rang
   const shift = (months: number) => onMonthChange(new Date(month.getFullYear(), month.getMonth() + months, 1));
 
   return (
-    <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
+    <View className="gap-2 rounded-3xl border border-stone-200 bg-white p-3">
       <View className="flex-row items-center justify-between">
         <Pressable onPress={() => shift(-1)} accessibilityRole="button" accessibilityLabel="Mese precedente" hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100">
           <Ionicons name="chevron-back" size={20} className="text-ink" />
         </Pressable>
-        <Text className="text-base font-pixel capitalize text-ink">{monthLabel(first)}</Text>
+        <Text className="text-base font-semibold capitalize text-ink">{monthLabel(first)}</Text>
         <Pressable onPress={() => shift(1)} accessibilityRole="button" accessibilityLabel="Mese successivo" hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100">
           <Ionicons name="chevron-forward" size={20} className="text-ink" />
         </Pressable>
       </View>
       <View className="flex-row">
         {WEEKDAYS.map((d, i) => (
-          <Text key={i} className="flex-1 text-center text-xs font-pixel text-stone-400">
+          <Text key={i} className="flex-1 text-center text-xs font-semibold text-stone-400">
             {d}
           </Text>
         ))}
@@ -71,7 +72,7 @@ export function MonthCalendar({ month, onMonthChange, marks = {}, selected, rang
                   className={`h-8 w-8 items-center justify-center rounded-full ${isSelected ? 'bg-brand-300' : day === today ? 'border border-brand-500' : ''}`}
                 >
                   <Text
-                    className={`text-sm ${isSelected ? 'font-pixel-bold text-brand-800' : disabled ? 'text-stone-300' : count ? 'font-pixel text-ink' : 'text-stone-600'}`}
+                    className={`text-sm ${isSelected ? 'font-bold text-brand-800' : disabled ? 'text-stone-300' : count ? 'font-semibold text-ink' : 'text-stone-600'}`}
                   >
                     {Number(day.slice(8))}
                   </Text>
