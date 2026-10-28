@@ -1,8 +1,9 @@
-// Small pill labels: "Da poco in città" for relocated users, plus generic tags
+// Small pill labels (Material 3 tonal): "Da poco in città" for relocated users, plus generic tags
 
 import type { ComponentProps } from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useBrand } from './GroupTheme';
 import { colors } from './theme';
 
 type Tone = 'sky' | 'green' | 'stone' | 'brand';
@@ -10,8 +11,8 @@ type Tone = 'sky' | 'green' | 'stone' | 'brand';
 const toneClass: Record<Tone, { box: string; text: string; icon: string }> = {
   sky: { box: 'bg-sky-100', text: 'text-sky-700', icon: colors.sky },
   green: { box: 'bg-emerald-100', text: 'text-emerald-700', icon: colors.green },
-  stone: { box: 'bg-stone-200', text: 'text-stone-600', icon: colors.muted },
-  brand: { box: 'bg-brand-100', text: 'text-brand-700', icon: colors.brandDark },
+  stone: { box: 'bg-stone-200/70', text: 'text-stone-600', icon: colors.muted },
+  brand: { box: 'bg-brand-100', text: 'text-brand-700', icon: '' }, // icon: the group's (useBrand)
 };
 
 interface Props {
@@ -22,10 +23,11 @@ interface Props {
 }
 
 export function Badge({ label, tone = 'stone', icon, centered = false }: Props) {
+  const brand = useBrand();
   const t = toneClass[tone];
   return (
     <View className={`flex-row items-center gap-1 rounded-full px-2 py-0.5 ${centered ? 'self-center' : 'self-start'} ${t.box}`}>
-      {icon ? <Ionicons name={icon} size={11} color={t.icon} /> : null}
+      {icon ? <Ionicons name={icon} size={11} color={tone === 'brand' ? brand[600] : t.icon} /> : null}
       <Text className={`text-xs font-semibold ${t.text}`}>{label}</Text>
     </View>
   );

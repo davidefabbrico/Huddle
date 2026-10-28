@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, avatarOf } from '../../../../components/Avatar';
 import { RelocatedBadge } from '../../../../components/Badge';
 import { Button } from '../../../../components/Button';
 import { ExternalChatButton } from '../../../../components/ExternalChatButton';
+import { GroupIcon } from '../../../../components/GroupIcon';
+import { GroupTheme } from '../../../../components/GroupTheme';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
 import { bottomPadding } from '../../../../components/safeArea';
@@ -17,8 +19,8 @@ import { useAsync } from '../../../../hooks/useAsync';
 import { useAuth } from '../../../../hooks/useAuth';
 import { useChat } from '../../../../hooks/useChat';
 import * as api from '../../../../lib/api';
-import { formatMessageTime } from '../../../../lib/format';
-import type { ChatMessageWithAuthor } from '../../../../lib/types';
+import { formatEventDate, formatMessageTime, tripDatesLabel } from '../../../../lib/format';
+import type { ChatMessageWithAuthor, EventWithGroup } from '../../../../lib/types';
 
 export default function GroupChatScreen() {
   const { id, welcome } = useLocalSearchParams<{ id: string; welcome?: string }>();
@@ -84,61 +86,63 @@ export default function GroupChatScreen() {
   }
 
   return (
-    <Screen width="page">
-      <Header
-        title={title}
-        subtitle={info.data.isGuest ? 'Sei ospite nella lobby' : 'Chat del gruppo'}
-        right={info.data.chatLink ? <ExternalChatButton url={info.data.chatLink} compact /> : undefined}
-      />
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {welcome ? (
-          <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-2xl bg-emerald-100 p-3">
-            <Ionicons name="sparkles" size={20} color={colors.green} />
-            <Text className="flex-1 text-sm text-emerald-800">
-              Richiesta accettata! Presentati al gruppo con un messaggio.
-            </Text>
-          </View>
-        ) : null}
+    <GroupTheme group={info.data.group}>
+      <Screen width="page">
+        <Header
+          title={title}
+          subtitle={info.data.isGuest ? 'Sei ospite nella lobby' : undefined}
+          right={info.data.chatLink ? <ExternalChatButton url={info.data.chatLink} compact /> : undefined}
+        />
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {welcome ? (
+            <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-2xl bg-emerald-100 p-3">
+              <Ionicons name="sparkles" size={20} color={colors.green} />
+              <Text className="flex-1 text-sm text-emerald-800">
+                Richiesta accettata! Presentati al gruppo con un messaggio.
+              </Text>
+            </View>
+          ) : null}
 
-        {loading ? (
-          <ActivityIndicator color={colors.brand} className="mt-10" />
-        ) : (
-          <FlatList
-            ref={listRef}
-            data={messages}
-            keyExtractor={(m) => m.id}
-            contentContainerClassName="gap-3 px-4 py-4"
-            renderItem={({ item }) => <MessageBubble message={item} isMine={item.user_id === user.id} />}
-            ListEmptyComponent={<Text className="text-center text-stone-500">Ancora nessun messaggio. Rompi il ghiaccio!</Text>}
-          />
-        )}
+          {loading ? (
+            <ActivityIndicator color={colors.brand} className="mt-10" />
+          ) : (
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={(m) => m.id}
+              contentContainerClassName="gap-3 px-4 py-4"
+              renderItem={({ item }) => <MessageBubble message={item} isMine={item.user_id === user.id} />}
+              ListEmptyComponent={<Text className="text-center text-stone-500">Ancora nessun messaggio. Rompi il ghiaccio!</Text>}
+            />
+          )}
 
-        <View
-          className="flex-row items-center gap-2 border-t border-stone-200 bg-white px-3 pt-3"
-          style={bottomPadding(insets.bottom, 12)}
-        >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={handleSend}
-            submitBehavior="submit"
-            returnKeyType="send"
-            placeholder="Scrivi un messaggio…"
-            placeholderTextColor="#A8A29E"
-            className="h-11 flex-1 rounded-full bg-stone-100 px-4 text-base text-ink"
-          />
-          <Pressable
-            onPress={handleSend}
-            disabled={!draft.trim()}
-            accessibilityRole="button"
-            accessibilityLabel="Invia"
-            className={`h-11 w-11 items-center justify-center rounded-full ${draft.trim() ? 'bg-brand-500 active:bg-brand-600' : 'bg-stone-200'}`}
+          <View
+            className="flex-row items-center gap-2 bg-surface px-3 pt-2"
+            style={bottomPadding(insets.bottom, 12)}
           >
-            <Ionicons name="send" size={18} color={draft.trim() ? colors.white : colors.muted} />
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </Screen>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={handleSend}
+              submitBehavior="submit"
+              returnKeyType="send"
+              placeholder="Scrivi un messaggio…"
+              placeholderTextColor="#A8A29E"
+              className="h-11 flex-1 rounded-full bg-white px-4 text-base text-ink"
+            />
+            <Pressable
+              onPress={handleSend}
+              disabled={!draft.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Invia"
+              className={`h-11 w-11 items-center justify-center rounded-full ${draft.trim() ? 'bg-brand-300 active:bg-brand-400' : 'bg-stone-200'}`}
+            >
+              <Ionicons name="send" size={18} color={draft.trim() ? colors.ink : colors.muted} />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Screen>
+    </GroupTheme>
   );
 }
 
@@ -146,9 +150,13 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
   if (isMine) {
     return (
       <View className="max-w-[80%] self-end">
-        <View className="rounded-3xl rounded-br-md bg-brand-500 px-4 py-2.5">
-          <Text className="text-base text-white">{message.content}</Text>
-        </View>
+        {message.event ? (
+          <SharedEvent event={message.event} />
+        ) : (
+          <View className="rounded-3xl rounded-br-md bg-brand-200 px-4 py-2.5">
+            <Text className="text-base text-brand-800">{message.content}</Text>
+          </View>
+        )}
         <Text className="mt-1 self-end text-xs text-stone-400">{formatMessageTime(message.created_at)}</Text>
       </View>
     );
@@ -162,11 +170,38 @@ function MessageBubble({ message, isMine }: { message: ChatMessageWithAuthor; is
           <Text className="text-xs font-semibold text-stone-600">{message.author.full_name}</Text>
           {message.author.is_relocated ? <RelocatedBadge /> : null}
         </View>
-        <View className="rounded-3xl rounded-bl-md border border-stone-200 bg-white px-4 py-2.5">
-          <Text className="text-base text-ink">{message.content}</Text>
-        </View>
+        {message.event ? (
+          <SharedEvent event={message.event} />
+        ) : (
+          <View className="rounded-3xl rounded-bl-md bg-white px-4 py-2.5">
+            <Text className="text-base text-ink">{message.content}</Text>
+          </View>
+        )}
         <Text className="mt-1 text-xs text-stone-400">{formatMessageTime(message.created_at)}</Text>
       </View>
     </View>
+  );
+}
+
+// An event or holiday shared in the chat: a small card that opens it (with its own group's colors)
+function SharedEvent({ event }: { event: EventWithGroup }) {
+  return (
+    <Link href={{ pathname: '/event/[id]', params: { id: event.id } }} asChild>
+      <Pressable className="w-64 gap-1 rounded-3xl bg-white p-3 active:bg-stone-100">
+        <View className="flex-row items-center gap-2">
+          <GroupIcon name={event.group_name} icon={event.group_icon} color={event.group_color} size={28} />
+          <Text numberOfLines={1} className="flex-1 text-xs text-stone-500">
+            {event.group_name}
+          </Text>
+        </View>
+        <Text numberOfLines={2} className="text-base font-semibold text-ink">
+          {event.kind === 'trip' ? '🏖️' : '📅'} {event.title}
+        </Text>
+        <Text className="text-sm text-stone-500">
+          {event.kind === 'trip' ? tripDatesLabel(event.date_time, event.ends_at) : formatEventDate(event.date_time)}
+          {event.location ? ` · ${event.location}` : ''}
+        </Text>
+      </Pressable>
+    </Link>
   );
 }

@@ -13,7 +13,7 @@ export function PosterView({ url, mime }: { url: string; mime: string | null }) 
       <Pressable
         onPress={open}
         accessibilityRole="link"
-        className="flex-row items-center gap-3 rounded-3xl border border-stone-200 bg-white p-4 active:bg-stone-100"
+        className="flex-row items-center gap-3 rounded-3xl bg-white p-4 active:bg-stone-100"
       >
         <View className="h-12 w-12 items-center justify-center rounded-2xl bg-red-50">
           <Ionicons name="document-text" size={26} color="#DC2626" />

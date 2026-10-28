@@ -17,7 +17,7 @@ export function GroupCard({ group, reliability, distance }: { group: GroupSummar
 
   return (
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
-      <Pressable className="rounded-3xl border border-stone-200 bg-white p-4 active:bg-stone-100">
+      <Pressable className="rounded-3xl bg-white p-4 active:bg-stone-100">
         <View className="flex-row gap-3">
           <GroupIcon {...groupIconOf(group)} />
           <View className="flex-1">
@@ -50,7 +50,7 @@ export function GroupCard({ group, reliability, distance }: { group: GroupSummar
           ) : null}
           {group.visibility === 'private' ? <Badge label="Privato" icon="lock-closed" /> : null}
           {isOpen ? (
-            <Badge label="Aperto a nuovi membri" tone="green" icon="checkmark-circle" />
+            <Badge label="Aperto" tone="green" icon="checkmark-circle" />
           ) : (
             <Badge label="Al completo" icon="lock-closed" />
           )}

@@ -11,7 +11,7 @@ export default function AppLayout() {
   const stack = <Stack screenOptions={{ headerShown: false }} />;
   if (!wide) return stack;
   return (
-    <View className="flex-1 flex-row bg-stone-50">
+    <View className="flex-1 flex-row bg-surface">
       <SideNav />
       <View className="flex-1">{stack}</View>
     </View>

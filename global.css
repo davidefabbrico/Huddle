@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* App palette (pastel peach): the "brand" colors. Inside a group they're replaced by the group's
+   palette (components/GroupTheme.tsx). Keep in sync with APP_PALETTE in lib/palette.ts. */
+:root {
+  --brand-50: 255 246 241;
+  --brand-100: 255 233 221;
+  --brand-200: 255 213 192;
+  --brand-300: 251 187 154;
+  --brand-400: 245 158 116;
+  --brand-500: 236 131 87;
+  --brand-600: 201 100 60;
+  --brand-700: 156 74 43;
+  --brand-800: 107 50 30;
+}

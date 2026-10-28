@@ -1,4 +1,4 @@
-// Top bar with a back button. Falls back to Home when there is no history (e.g. a web deep link).
+// Material 3 small top app bar: back arrow, title, optional actions. Falls back to Home when there is no history (e.g. a web deep link).
 
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -16,23 +16,23 @@ export function Header({ title, subtitle, right }: Props) {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   return (
-    <View className="flex-row items-center gap-3 border-b border-stone-200 bg-white px-4 py-3">
+    <View className="h-16 flex-row items-center gap-1 bg-surface px-1">
       <Pressable
         onPress={goBack}
         accessibilityRole="button"
         accessibilityLabel="Indietro"
         hitSlop={8}
-        className="h-9 w-9 items-center justify-center rounded-full bg-stone-100 active:bg-stone-200"
+        className="h-12 w-12 items-center justify-center rounded-full active:bg-stone-200"
       >
-        <Ionicons name="chevron-back" size={20} color={colors.ink} />
+        <Ionicons name="arrow-back" size={22} color={colors.ink} />
       </Pressable>
       <View className="flex-1">
-        <Text numberOfLines={1} className="text-base font-semibold text-ink">
+        <Text numberOfLines={1} className="text-lg font-medium text-ink">
           {title}
         </Text>
-        {subtitle ? <Text className="text-xs text-stone-500">{subtitle}</Text> : null}
+        {subtitle ? <Text numberOfLines={1} className="text-xs text-stone-500">{subtitle}</Text> : null}
       </View>
-      {right}
+      {right ? <View className="pr-3">{right}</View> : null}
     </View>
   );
 }

@@ -13,6 +13,7 @@ import { Avatar, avatarOf } from './Avatar';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { TextField } from './TextField';
+import { InfoTip } from './InfoTip';
 import { colors } from './theme';
 
 interface Props {
@@ -47,10 +48,12 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
 
   return (
     <View className="gap-3">
-      <Text className="text-base font-semibold text-ink">{isTrip ? 'Come si parte?' : 'Come ci arrivi?'}</Text>
-      {isTrip && canChoose ? (
-        <Text className="text-sm text-stone-500">In auto insieme, oppure in aereo, treno o nave: dillo agli altri.</Text>
-      ) : null}
+      <View className="flex-row items-center justify-between">
+        <Text className="text-base font-semibold text-ink">{isTrip ? 'Come si parte?' : 'Come ci arrivi?'}</Text>
+        <InfoTip
+          text={`Si condividono solo la zona e l’orario di partenza, mai la posizione. Chi dà un passaggio guadagna ${POINTS.passenger} punti per ogni passeggero.`}
+        />
+      </View>
 
       {canChoose && me ? (
         <View className="gap-3">
@@ -100,7 +103,7 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
       ) : null}
 
       {drivers.length > 0 ? (
-        <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+        <View className="overflow-hidden rounded-3xl bg-white">
           {drivers.map((driver, index) => {
             const passengers = passengersOf(driver.id);
             const free = driver.seats - passengers.length;
@@ -170,12 +173,6 @@ export function CarpoolSection({ isTrip = false, attendees, myId, carSpots, canC
         </Pressable>
       ) : null}
 
-      {canChoose ? (
-        <Text className="text-xs text-stone-500">
-          Si condividono solo la zona e l’orario di partenza, mai la posizione. Chi dà un passaggio guadagna{' '}
-          {POINTS.passenger} punti per ogni passeggero che partecipa.
-        </Text>
-      ) : null}
     </View>
   );
 }

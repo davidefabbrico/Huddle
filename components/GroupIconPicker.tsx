@@ -34,7 +34,7 @@ export function GroupIconPicker({ name, icon, color, onChange }: Props) {
       </Pressable>
 
       {open ? (
-        <View className="gap-3 rounded-3xl border border-stone-200 bg-white p-3">
+        <View className="gap-3 rounded-3xl bg-white p-3">
           <View className="flex-row flex-wrap justify-center gap-2.5">
             {GROUP_COLOR_KEYS.map((key) => (
               <Pressable

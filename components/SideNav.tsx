@@ -1,7 +1,7 @@
 // Side menu on wide screens (computer browser): takes the place of the bottom tab bar and stays
 // visible on every page (group, event, chat…). Same sections, plus Attività with the unread count.
 
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname, type Href } from 'expo-router';
@@ -10,6 +10,7 @@ import { useAsync } from '../hooks/useAsync';
 import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 import { Avatar, avatarOf } from './Avatar';
+import { Confetti } from './Confetti';
 import { colors } from './theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -39,13 +40,16 @@ export function SideNav() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const active = sectionOf(pathname);
+  const [burst, setBurst] = useState(0);
   // Refreshed on every page change (opening Attività marks them as read)
   const unread = useAsync(() => (user ? api.getUnreadNotificationCount(user.id) : Promise.resolve(0)), [user?.id, pathname]);
 
   return (
-    <View className="w-64 gap-1 border-r border-stone-200 bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
+    <View className="w-64 gap-1 bg-[#EFEAE6] px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
       <Pressable
         onPress={() => router.navigate('/')}
+        onLongPress={() => setBurst((b) => b + 1)} // easter egg: confetti
+        delayLongPress={600}
         accessibilityRole="link"
         accessibilityLabel="Huddle, vai ai gruppi"
         className="mb-6 flex-row items-center gap-3 px-3"
@@ -68,10 +72,10 @@ export function SideNav() {
       <Pressable
         onPress={() => router.navigate('/create')}
         accessibilityRole="link"
-        className={`mt-4 h-12 flex-row items-center justify-center gap-2 rounded-2xl ${active === 'create' ? 'bg-brand-600' : 'bg-brand-500 active:bg-brand-600'}`}
+        className={`mt-4 h-14 flex-row items-center justify-center gap-2 rounded-2xl ${active === 'create' ? 'bg-brand-300' : 'bg-brand-200 active:bg-brand-300'}`}
       >
-        <Ionicons name="add" size={22} color={colors.white} />
-        <Text className="text-base font-semibold text-white">Crea</Text>
+        <Ionicons name="add" size={24} color={colors.ink} />
+        <Text className="text-base font-semibold text-ink">Crea</Text>
       </Pressable>
 
       <View className="flex-1" />
@@ -81,7 +85,7 @@ export function SideNav() {
           onPress={() => router.navigate('/profile')}
           accessibilityRole="link"
           accessibilityLabel="Profilo"
-          className={`flex-row items-center gap-3 rounded-2xl px-3 py-2 ${active === 'profile' ? 'bg-stone-100' : 'active:bg-stone-100'}`}
+          className={`flex-row items-center gap-3 rounded-full px-3 py-2 ${active === 'profile' ? 'bg-brand-100' : 'active:bg-stone-100'}`}
         >
           <Avatar {...avatarOf(user)} size={36} />
           <View className="flex-1">
@@ -92,6 +96,7 @@ export function SideNav() {
           </View>
         </Pressable>
       ) : null}
+      <Confetti burst={burst} />
     </View>
   );
 }
@@ -102,7 +107,7 @@ function NavItem({ label, icon, active, badge, onPress }: { label: string; icon:
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={badge > 0 ? `${label}, ${badge} non lette` : label}
-      className={`h-12 flex-row items-center gap-4 rounded-2xl px-3 ${active ? 'bg-stone-100' : 'active:bg-stone-100'}`}
+      className={`h-14 flex-row items-center gap-4 rounded-full px-4 ${active ? 'bg-brand-100' : 'active:bg-stone-100'}`}
     >
       <Ionicons name={icon} size={24} color={active ? colors.ink : colors.muted} />
       <Text className={`flex-1 text-base ${active ? 'font-bold text-ink' : 'text-stone-600'}`}>{label}</Text>

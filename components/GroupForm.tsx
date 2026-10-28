@@ -4,12 +4,16 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { detectChatApp, validateChatLink } from '../lib/chatLinks';
 import { interestOptions } from '../lib/format';
-import { groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
+import { mascotOf, SPECIES } from '../lib/mascot';
+import { GROUP_PALETTES } from '../lib/palette';
+import { GROUP_COLOR_KEYS, groupLook, isGroupColor, isGroupIcon, suggestGroupIcon, type GroupColor } from '../lib/groupIcons';
 import { normalizeParkingCode, validateParkingCode } from '../lib/smartpark';
 import type { NewGroupInput } from '../lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { GroupIconPicker } from './GroupIconPicker';
+import { InfoTip } from './InfoTip';
+import { MascotPreview } from './Mascot';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors } from './theme';
@@ -37,6 +41,8 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
     ...initial,
     visibility: initial.visibility ?? 'public',
     expenses_enabled: initial.expenses_enabled ?? false,
+    // a mascot is always picked: the group's, or (new group) the fox
+    mascot: initial.mascot ?? (initial.name ? mascotOf(initial) : 'fox'),
     chat_url: initial.chat_url ?? '',
     parking_code: initial.parking_code ?? '',
   });
@@ -48,7 +54,10 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
   const [look, setLook] = useState<{ icon: string; color: GroupColor } | null>(
     isGroupIcon(initial.icon) && isGroupColor(initial.color) ? { icon: initial.icon, color: initial.color } : null,
   );
-  const shownLook = look ?? (initial.icon || initial.color ? groupLook(initial) : suggestGroupIcon(values.name));
+  // The suggested color is picked once: only the icon follows the name as you type
+  const [startColor] = useState<GroupColor>(() => GROUP_COLOR_KEYS[Math.floor(Math.random() * GROUP_COLOR_KEYS.length)]);
+  const shownLook =
+    look ?? (initial.icon || initial.color ? groupLook(initial) : { icon: suggestGroupIcon(values.name).icon, color: startColor });
 
   const [ageMin, setAgeMin] = useState(initial.age_min != null ? String(initial.age_min) : '');
   const [ageMax, setAgeMax] = useState(initial.age_max != null ? String(initial.age_max) : '');
@@ -83,6 +92,25 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
         <GroupIconPicker name={values.name} icon={shownLook.icon} color={shownLook.color} onChange={setLook} />
+
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-stone-700">La mascotte</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+            {SPECIES.map((species) => (
+              <Pressable
+                key={species.key}
+                onPress={() => set({ mascot: species.key })}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: values.mascot === species.key }}
+                accessibilityLabel={species.name}
+                className="items-center gap-1"
+              >
+                <MascotPreview species={species.key} accent={GROUP_PALETTES[shownLook.color][400]} selected={values.mascot === species.key} />
+                <Text className={`text-xs ${values.mascot === species.key ? 'font-semibold text-brand-700' : 'text-stone-500'}`}>{species.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
         <TextField label="Nome del gruppo" value={values.name} onChangeText={(name) => set({ name })} placeholder="Es. Calcetto del lunedì" />
         <TextField
           label="Descrizione"
@@ -102,7 +130,10 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
         />
 
         <View className="gap-2">
-          <Text className="text-sm font-medium text-stone-700">Per che età? (facoltativo)</Text>
+<View className="flex-row items-center gap-2">
+            <Text className="text-sm font-medium text-stone-700">Per che età? (facoltativo)</Text>
+            <InfoTip text="Chi cerca gruppi per età vi trova. Lasciate vuoto se va bene a tutti." />
+          </View>
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
               <TextField label="Da (anni)" value={ageMin} onChangeText={setAgeMin} placeholder="Es. 25" keyboardType="number-pad" maxLength={2} />
@@ -111,7 +142,6 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
               <TextField label="A (anni)" value={ageMax} onChangeText={setAgeMax} placeholder="Es. 40" keyboardType="number-pad" maxLength={2} />
             </View>
           </View>
-          <Text className="text-xs text-stone-500">Chi cerca per età vi trova. Lasciate vuoto se va bene a tutti.</Text>
         </View>
 
         <View className="gap-2">
@@ -132,44 +162,28 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
         </View>
 
         <View className="gap-2">
-          <Text className="text-sm font-medium text-stone-700">Chi può trovare il gruppo?</Text>
-          {(
-            [
-              { value: 'public', title: '🌍 Pubblico', text: 'Compare in “Gruppi”: chiunque può vederlo e chiedere di entrare.' },
-              { value: 'private', title: '🔒 Privato', text: 'Lo vede solo chi è dentro. Si entra solo con il link d’invito (e approvi tu).' },
-            ] as const
-          ).map((option) => {
-            const selected = values.visibility === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => set({ visibility: option.value })}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                className={`rounded-2xl border-2 bg-white px-4 py-3 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
-              >
-                <Text className="font-semibold text-ink">{option.title}</Text>
-                <Text className="text-sm text-stone-500">{option.text}</Text>
-              </Pressable>
-            );
-          })}
+          <View className="flex-row items-center gap-2">
+            <Text className="text-sm font-medium text-stone-700">Chi può trovare il gruppo?</Text>
+            <InfoTip text="Pubblico: compare in “Gruppi”, chiunque può vederlo e chiedere di entrare. Privato: lo vede solo chi è dentro, si entra solo con il link d’invito (e approvi tu)." />
+          </View>
+          <View className="flex-row flex-wrap gap-2">
+            <Chip label="🌍 Pubblico" selected={values.visibility === 'public'} onPress={() => set({ visibility: 'public' })} />
+            <Chip label="🔒 Privato" selected={values.visibility === 'private'} onPress={() => set({ visibility: 'private' })} />
+          </View>
         </View>
 
         <View className="gap-2">
           <Text className="text-sm font-medium text-stone-700">Accettate nuovi membri?</Text>
           <View className="flex-row flex-wrap gap-2">
-            <Chip label="Sì, aperto a nuovi membri" selected={values.type === 'open_to_new'} onPress={() => set({ type: 'open_to_new' })} />
+            <Chip label="Sì, aperto" selected={values.type === 'open_to_new'} onPress={() => set({ type: 'open_to_new' })} />
             <Chip label="No, al completo" selected={values.type === 'closed'} onPress={() => set({ type: 'closed' })} />
           </View>
         </View>
 
-        <View className="flex-row items-center justify-between gap-4 rounded-2xl border-2 border-stone-200 bg-white px-4 py-3">
-          <View className="flex-1">
+        <View className="flex-row items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3">
+          <View className="flex-1 flex-row items-center gap-2">
             <Text className="font-semibold text-ink">💶 Spese condivise</Text>
-            <Text className="text-sm text-stone-500">
-              Negli eventi si segna chi ha pagato cosa e a fine evento si vede chi deve quanto (come Splitwise). Nelle
-              vacanze ci sono sempre.
-            </Text>
+            <InfoTip text="Negli eventi si segna chi ha pagato cosa e a fine evento si vede chi deve quanto (come Splitwise). Nelle vacanze ci sono sempre." />
           </View>
           <Switch
             value={values.expenses_enabled ?? false}
@@ -191,11 +205,9 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
             autoCorrect={false}
             keyboardType="url"
           />
-          <Text className="text-xs text-stone-500">
-            {chatUrl.trim() && !linkError
-              ? `Riconosciuto: ${detectChatApp(chatUrl).name}. Lo vedranno solo membri e ospiti.`
-              : 'WhatsApp, Telegram, Signal o Discord. Lo vedranno solo membri e ospiti, non chi cerca gruppi.'}
-          </Text>
+          {chatUrl.trim() && !linkError ? (
+            <Text className="text-xs text-emerald-700">✓ {detectChatApp(chatUrl).name} · lo vedono solo membri e ospiti</Text>
+          ) : null}
         </View>
 
         <View className="gap-1.5">
@@ -207,10 +219,6 @@ export function GroupForm({ initial = empty, submitLabel, footnote, onSubmit }: 
             autoCapitalize="characters"
             autoCorrect={false}
           />
-          <Text className="text-xs text-stone-500">
-            Con SmartPark gli amici scoprono insieme dove si parcheggia e non finiscono tutti nello stesso posto. Il codice
-            lo vedranno solo membri e ospiti.
-          </Text>
         </View>
 
         {error ? <Text className="text-sm text-red-600">{error}</Text> : null}

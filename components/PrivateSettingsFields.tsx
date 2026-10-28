@@ -5,6 +5,7 @@ import { Switch, Text, View } from 'react-native';
 import { DISTANCES_KM } from '../lib/search';
 import type { UserSettings } from '../lib/types';
 import { Chip } from './Chip';
+import { InfoTip } from './InfoTip';
 import { PlaceField } from './PlaceField';
 import { TextField } from './TextField';
 import { colors } from './theme';
@@ -20,9 +21,9 @@ interface Props {
 export function PrivateSettingsFields({ settings, birthYear, isBusiness, onBirthYear, onChange }: Props) {
   return (
     <View className="gap-4 rounded-3xl bg-white p-4">
-      <View>
+      <View className="flex-row items-center gap-2">
         <Text className="text-lg font-semibold text-ink">Solo per te</Text>
-        <Text className="text-sm text-stone-500">Questi dati non compaiono sul profilo: servono a cercare e suggerire.</Text>
+        <InfoTip text="Questi dati non compaiono sul profilo: servono solo a cercare e a suggerirti eventi." />
       </View>
       {isBusiness ? null : (
         <TextField label="Anno di nascita" value={birthYear} onChangeText={onBirthYear} placeholder="Es. 1994" keyboardType="number-pad" maxLength={4} />
@@ -64,9 +65,9 @@ export function PrivateSettingsFields({ settings, birthYear, isBusiness, onBirth
 function Toggle({ title, text, value, onChange }: { title: string; text: string; value: boolean; onChange: (value: boolean) => void }) {
   return (
     <View className="flex-row items-center justify-between gap-4">
-      <View className="flex-1">
+      <View className="flex-1 flex-row items-center gap-2">
         <Text className="text-base font-semibold text-ink">{title}</Text>
-        <Text className="text-sm text-stone-500">{text}</Text>
+        <InfoTip text={text} />
       </View>
       <Switch
         value={value}

@@ -12,14 +12,13 @@ module.exports = {
       screens: { wide: '900px' },
       // Huddle brand palette (warm, welcoming)
       colors: {
-        brand: {
-          50: '#FFF4ED',
-          100: '#FFE6D5',
-          500: '#F26B3A',
-          600: '#DB5426',
-          700: '#B5401C',
-        },
+        // From CSS variables (global.css): inside a group they become the group's pastel palette
+        brand: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800].map((tone) => [tone, `rgb(var(--brand-${tone}) / <alpha-value>)`]),
+        ),
         ink: '#1F2430',
+        // Material 3 surface: the page background (white cards sit on it)
+        surface: '#F6F3F1',
       },
     },
   },

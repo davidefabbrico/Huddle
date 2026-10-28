@@ -96,7 +96,7 @@ export function ExpensesSection({ eventId, myId, expenses, participants, people,
       )}
 
       {expenses.length ? (
-        <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+        <View className="overflow-hidden rounded-3xl bg-white">
           {[...expenses].reverse().map((expense, index) => (
             <View key={expense.id} className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
               <Text className="text-xl">{expense.is_settlement ? '💸' : '🧾'}</Text>

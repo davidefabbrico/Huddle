@@ -39,7 +39,7 @@ export default function ChatsScreen() {
             <Button title="Trova un gruppo" icon="people" onPress={() => router.navigate('/')} />
           </View>
         ) : (
-          <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+          <View className="overflow-hidden rounded-3xl bg-white">
             {chats.data?.map((chat, index) => (
               <ChatRow key={chat.group.id} chat={chat} myId={user.id} first={index === 0} />
             ))}

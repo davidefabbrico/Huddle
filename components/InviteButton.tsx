@@ -31,8 +31,9 @@ export function InviteButton({ group }: { group: Pick<Group, 'id' | 'name' | 'vi
 
   return (
     <Button
-      title={copied ? 'Link copiato ✓' : 'Invita amici'}
-      icon={copied ? 'checkmark' : 'share-social-outline'}
+      title={copied ? 'Link copiato ✓' : 'Invita'}
+      icon={copied ? 'checkmark' : 'person-add-outline'}
+      size="sm"
       variant="secondary"
       onPress={invite}
     />

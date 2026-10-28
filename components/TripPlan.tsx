@@ -71,7 +71,7 @@ export function TripPlan({ eventId, myId, days, items, participants, canEdit, on
         groups.map((group) => (
           <View key={group.key} className="gap-1">
             <Text className="text-xs font-semibold uppercase tracking-wide text-stone-500">{group.label}</Text>
-            <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+            <View className="overflow-hidden rounded-3xl bg-white">
               {group.items.map((item, index) => (
                 <PlanRow
                   key={item.id}
@@ -184,10 +184,10 @@ function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onR
         accessibilityLabel={voted ? `Togli il voto a ${item.title}` : `Vota ${item.title}`}
         aria-pressed={voted}
         hitSlop={6}
-        className={`flex-row items-center gap-1 rounded-full border px-2 py-1 ${voted ? 'border-brand-500 bg-brand-500' : 'border-stone-300 bg-white'}`}
+        className={`flex-row items-center gap-1 rounded-full border px-2 py-1 ${voted ? 'border-brand-300 bg-brand-200' : 'border-stone-300 bg-white'}`}
       >
         <Text className="text-xs">👍</Text>
-        <Text className={`text-xs font-semibold ${voted ? 'text-white' : 'text-stone-600'}`}>{item.votes.length}</Text>
+        <Text className={`text-xs font-semibold ${voted ? 'text-brand-800' : 'text-stone-600'}`}>{item.votes.length}</Text>
       </Pressable>
       {canEdit ? (
         <Pressable onPress={busy ? undefined : onDelete} accessibilityRole="button" accessibilityLabel={`Togli ${item.title}`} hitSlop={6}>

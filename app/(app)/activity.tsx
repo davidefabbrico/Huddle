@@ -64,7 +64,7 @@ export default function ActivityScreen() {
         </View>
       ) : (
         <ScrollView contentContainerClassName="px-4 py-4">
-          <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+          <View className="overflow-hidden rounded-3xl bg-white">
             {notifications.data.map((n, index) => {
               const style = typeStyle[n.type];
               const href = destination(n);

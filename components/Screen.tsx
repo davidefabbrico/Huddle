@@ -11,7 +11,7 @@ const maxWidth = { form: 'max-w-2xl', page: 'max-w-3xl', wide: 'max-w-6xl' };
 export function Screen({ children, width = 'form' }: { children: ReactNode; width?: keyof typeof maxWidth }) {
   const insets = useSafeAreaInsets();
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-surface" style={{ paddingTop: insets.top }}>
       <View className={`w-full flex-1 self-center ${maxWidth[width]}`}>{children}</View>
     </View>
   );

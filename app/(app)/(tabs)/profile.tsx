@@ -1,6 +1,7 @@
 // Profilo tab: who you are, points, achievements, your rank in each group, the rank ladder and your account.
 // Two columns on a computer.
 
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
@@ -10,12 +11,14 @@ import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
 import { ConfirmButton } from '../../../components/ConfirmButton';
 import { Columns } from '../../../components/Columns';
+import { Confetti } from '../../../components/Confetti';
+import { InfoTip } from '../../../components/InfoTip';
 import { GroupIcon, groupIconOf } from '../../../components/GroupIcon';
 import { Screen } from '../../../components/Screen';
 import { colors } from '../../../components/theme';
 import { useAsync } from '../../../hooks/useAsync';
 import { useAuth } from '../../../hooks/useAuth';
-import { computeAchievements, type Achievement } from '../../../lib/achievements';
+import { computeAchievements, newAchievements, type Achievement } from '../../../lib/achievements';
 import * as api from '../../../lib/api';
 import { arrivalLabel, intentLabels, roleLabels } from '../../../lib/format';
 import { businessPointsRules, pointsRules, PROMOTION_COST } from '../../../lib/points';
@@ -26,7 +29,15 @@ import type { Membership } from '../../../lib/types';
 export default function ProfileScreen() {
   const user = useAuth((state) => state.user)!;
   const signOut = useAuth((state) => state.signOut);
-  const stats = useAsync(() => api.getProfileStats(user.id), [user.id], { refetchOnFocus: true });
+  // Achievements unlocked since the last visit get a little party (confetti + banner)
+  const stats = useAsync(
+    async () => {
+      const result = await api.getProfileStats(user.id);
+      return { ...result, fresh: newAchievements(computeAchievements(result)), loadedAt: Date.now() };
+    },
+    [user.id],
+    { refetchOnFocus: true },
+  );
   // Points as the database counts them (per account type), and what a venue spent on promotions
   const myPoints = useAsync(() => api.getMyPoints(), [user.id], { refetchOnFocus: true });
   const isBusiness = user.account_type === 'business';
@@ -40,9 +51,26 @@ export default function ProfileScreen() {
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const bestRank = rankFor(Math.max(0, ...list.map((m) => m.attended_events)));
 
+  const fresh = stats.data?.fresh ?? [];
+  const [showRules, setShowRules] = useState(false);
+
   return (
     <Screen width="wide">
+      <Confetti burst={fresh.length ? (stats.data?.loadedAt ?? 0) : 0} />
       <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
+        {fresh.length ? (
+          <View className="flex-row items-center gap-3 rounded-3xl bg-amber-100 p-4">
+            <Text className="text-3xl">{fresh[0].emoji}</Text>
+            <View className="flex-1">
+              <Text className="text-xs font-semibold uppercase text-amber-700">
+                {fresh[0].secret ? 'Traguardo segreto sbloccato!' : 'Traguardo sbloccato!'}
+              </Text>
+              <Text className="text-base font-semibold text-amber-900">
+                {fresh.map((a) => a.name).join(', ')}
+              </Text>
+            </View>
+          </View>
+        ) : null}
         <Columns
           main={
             <>
@@ -86,29 +114,36 @@ export default function ProfileScreen() {
 
               {/* Reliability: what the points mean */}
               {reliability ? (
-                <View className="gap-1 rounded-3xl border border-brand-100 bg-brand-50 p-4">
-                  <Text className="text-sm font-semibold text-brand-700">LA TUA AFFIDABILITÀ</Text>
+                <View className="gap-1 rounded-3xl bg-brand-50 p-4">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-brand-700">LA TUA AFFIDABILITÀ</Text>
+                    <InfoTip
+                      text={
+                        nextReliability
+                          ? `Con ${nextReliability.minPoints} punti diventi “${nextReliability.label}” (ne hai ${earned}). La vedono gli altri sul tuo profilo e nei gruppi.`
+                          : 'Livello massimo: la vedono gli altri sul tuo profilo e nei gruppi.'
+                      }
+                    />
+                  </View>
                   <Text className="text-xl font-bold text-ink">
                     {starsLabel(reliability.stars)} {reliability.label}
                   </Text>
                   <Text className="text-sm text-stone-600">{reliability.description}</Text>
-                  <Text className="text-xs text-stone-500">
-                    {nextReliability
-                      ? `Con ${nextReliability.minPoints} punti diventi “${nextReliability.label}” (ne hai ${earned}). La vedono gli altri sul tuo profilo e nei gruppi.`
-                      : 'Livello massimo: la vedono gli altri sul tuo profilo e nei gruppi.'}
-                  </Text>
                 </View>
               ) : null}
 
-              {/* How points work */}
+              {/* How points work (opens on tap) */}
               <View className="gap-2 rounded-3xl bg-white p-4">
-                <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
-                {isBusiness ? (
+                <Pressable onPress={() => setShowRules(!showRules)} accessibilityRole="button" className="flex-row items-center justify-between">
+                  <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
+                  <Ionicons name={showRules ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+                </Pressable>
+                {!showRules ? null : isBusiness ? (
                   <Text className="text-sm text-stone-500">
                     Per i locali contano le persone che vengono. Con {PROMOTION_COST} punti mandi un tuo evento ai gruppi della zona.
                   </Text>
                 ) : null}
-                {(isBusiness ? businessPointsRules : pointsRules).map((rule) => (
+                {(showRules ? (isBusiness ? businessPointsRules : pointsRules) : []).map((rule) => (
                   <View key={rule.label} className="flex-row items-center gap-3">
                     <Text className="text-lg">{rule.emoji}</Text>
                     <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
@@ -173,7 +208,7 @@ export default function ProfileScreen() {
               <View className="gap-3">
                 <Text className="text-lg font-semibold text-ink">La scala dei gradi</Text>
                 <Text className="text-sm text-stone-500">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
-                <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+                <View className="overflow-hidden rounded-3xl bg-white">
                   {RANKS.map((rank, index) => {
                     const reached = list.length > 0 && bestRank.level >= rank.level;
                     return (
@@ -218,9 +253,9 @@ export default function ProfileScreen() {
 
 function Stat({ value, label, highlight = false }: { value: string; label: string; highlight?: boolean }) {
   return (
-    <View className={`flex-1 items-center justify-center gap-1 rounded-3xl px-2 py-4 ${highlight ? 'bg-brand-500' : 'bg-white'}`}>
-      <Text className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-ink'}`}>{value}</Text>
-      <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-white' : 'text-stone-500'}`}>
+    <View className={`flex-1 items-center justify-center gap-1 rounded-3xl px-2 py-4 ${highlight ? 'bg-brand-200' : 'bg-white'}`}>
+      <Text className={`text-2xl font-bold ${highlight ? 'text-brand-800' : 'text-ink'}`}>{value}</Text>
+      <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-brand-700' : 'text-stone-500'}`}>
         {label}
       </Text>
     </View>
@@ -229,6 +264,15 @@ function Stat({ value, label, highlight = false }: { value: string; label: strin
 
 // One achievement badge; locked ones are faded and show how to unlock them
 function AchievementTile({ achievement }: { achievement: Achievement }) {
+  if (achievement.secret && !achievement.unlocked) {
+    return (
+      <View className="w-[31%] flex-grow items-center gap-1 rounded-3xl border border-dashed border-stone-300 p-3">
+        <Text className="text-3xl opacity-40">🔒</Text>
+        <Text className="text-center text-sm font-semibold text-stone-400">???</Text>
+        <Text className="text-center text-xs text-stone-400">Traguardo segreto</Text>
+      </View>
+    );
+  }
   return (
     <View
       className={`w-[31%] flex-grow items-center gap-1 rounded-3xl p-3 ${achievement.unlocked ? 'bg-white' : 'border border-dashed border-stone-300'}`}
@@ -251,7 +295,7 @@ function RankCard({ membership }: { membership: Membership }) {
 
   return (
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
-      <Pressable className="gap-3 rounded-3xl border border-stone-200 bg-white p-4 active:bg-stone-100">
+      <Pressable className="gap-3 rounded-3xl bg-white p-4 active:bg-stone-100">
         <View className="flex-row items-center gap-3">
           <GroupIcon {...groupIconOf(group)} size={40} />
           <View className="flex-1">
@@ -270,7 +314,7 @@ function RankCard({ membership }: { membership: Membership }) {
           <View className="flex-1 gap-1.5">
             <Text className="font-bold text-brand-700">{rank.name}</Text>
             <View className="h-2 overflow-hidden rounded-full bg-brand-100">
-              <View className="h-full rounded-full bg-brand-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+              <View className="h-full rounded-full bg-brand-400" style={{ width: `${Math.round(progress * 100)}%` }} />
             </View>
             <Text className="text-xs text-stone-500">
               {next

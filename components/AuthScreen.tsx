@@ -20,22 +20,22 @@ export function AuthScreen({ children }: { children: ReactNode }) {
   if (!wide) return <Screen>{children}</Screen>;
 
   return (
-    <View className="flex-1 flex-row bg-stone-50">
-      <View className="flex-1 justify-center gap-8 bg-brand-500 px-16">
+    <View className="flex-1 flex-row bg-surface">
+      <View className="flex-1 justify-center gap-8 bg-brand-100 px-16">
         <View className="flex-row items-center gap-4">
           <Image source={require('../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 20 }} accessibilityIgnoresInvertColors />
-          <Text className="text-5xl font-bold text-white">Huddle</Text>
+          <Text className="text-5xl font-bold text-brand-800">Huddle</Text>
         </View>
-        <Text className="max-w-md text-2xl font-semibold leading-9 text-white">
+        <Text className="max-w-md text-2xl font-semibold leading-9 text-brand-800">
           Organizza eventi con i tuoi gruppi e conosci gente nuova.
         </Text>
         <View className="max-w-md gap-4">
           {highlights.map((item) => (
             <View key={item.icon} className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white/20">
-                <Ionicons name={item.icon} size={20} color={colors.white} />
+              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white/70">
+                <Ionicons name={item.icon} size={20} color={colors.brandDark} />
               </View>
-              <Text className="flex-1 text-base text-white">{item.text}</Text>
+              <Text className="flex-1 text-base text-brand-800">{item.text}</Text>
             </View>
           ))}
         </View>

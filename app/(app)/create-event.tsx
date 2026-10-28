@@ -20,6 +20,8 @@ import { colors } from '../../components/theme';
 import { useAsync } from '../../hooks/useAsync';
 import { useAuth } from '../../hooks/useAuth';
 import * as api from '../../lib/api';
+import { GroupMascotCard } from '../../components/GroupMascotCard';
+import { GroupTheme } from '../../components/GroupTheme';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { VisibilityChoice } from '../../components/VisibilityChoice';
 import { isInPast } from '../../lib/eventTiming';
@@ -66,7 +68,10 @@ export default function CreateEventScreen() {
 
   const groups = memberships.data ?? [];
   const groupIdToUse = selectedGroup ?? (groups.length === 1 ? groups[0].group.id : undefined);
-  const groupIsPrivate = groups.find((m) => m.group.id === groupIdToUse)?.group.visibility === 'private';
+  const chosenGroup = groups.find((m) => m.group.id === groupIdToUse)?.group;
+  const groupIsPrivate = chosenGroup?.visibility === 'private';
+  // The group's mascot cheers while you organize (it shows only when you're doing something with a group)
+  const level = useAsync(() => (groupIdToUse ? api.getGroupLevel(groupIdToUse) : Promise.resolve(null)), [groupIdToUse]);
 
   // Range: the first tap is the first day, the second the last day (tap again to restart).
   // For a recurring event the first day also suggests the weekday.
@@ -148,186 +153,182 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <Screen>
-      <Header title={isTrip ? 'Nuova vacanza' : 'Nuovo evento'} />
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
-          {groups.length > 1 ? (
-            <View className="gap-2">
-              <Text className="text-sm font-medium text-stone-700">Gruppo</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {groups.map(({ group }) => (
-                  <Chip
-                    key={group.id}
-                    label={group.name}
-                    selected={groupIdToUse === group.id}
-                    onPress={() => setSelectedGroup(group.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : (
-            <Text className="text-base text-stone-600">
-              Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
-            </Text>
-          )}
-
-          <View className="flex-row flex-wrap gap-2">
-            <Chip label="📅 Evento" selected={!isTrip} onPress={() => setKind('event')} />
-            <Chip label="🏖️ Vacanza" selected={isTrip} onPress={() => setKind('trip')} />
-          </View>
-
-          <TextField
-            label="Titolo"
-            value={title}
-            onChangeText={setTitle}
-            placeholder={isTrip ? 'Es. Ponte in Sicilia' : 'Es. Corsa serale 6 km'}
-          />
-
-          {isTrip ? (
-            <View className="gap-2">
-              <Text className="text-sm font-medium text-stone-700">
-                {period.start
-                  ? `🏖️ ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
-                  : 'Tocca il primo e l’ultimo giorno'}
-              </Text>
-              <MonthCalendar
-                month={periodMonth}
-                onMonthChange={setPeriodMonth}
-                range={period}
-                minDay={dayKey(new Date())}
-                onDayPress={pickPeriodDay}
-              />
-            </View>
-          ) : (
-            <View className="gap-2">
-              <View className="flex-row items-center justify-between gap-3">
-                <Text className="text-sm font-medium text-stone-700">{repeat ? 'Ogni settimana, di' : 'Giorno'}</Text>
-                <Chip
-                  label="🔁 Si ripete ogni settimana"
-                  selected={repeat}
-                  // the weekday is suggested by the first day of the period, picked on the calendar
-                  onPress={() => setRepeat(!repeat)}
-                />
-              </View>
-              {repeat ? (
+    <GroupTheme group={chosenGroup}>
+      <Screen>
+        <Header title={isTrip ? 'Nuova vacanza' : 'Nuovo evento'} />
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerClassName="gap-5 px-4 py-5" keyboardShouldPersistTaps="handled">
+            {groups.length > 1 ? (
+              <View className="gap-2">
+                <Text className="text-sm font-medium text-stone-700">Gruppo</Text>
                 <View className="flex-row flex-wrap gap-2">
-                  {weekdayNames.map((name, index) => {
-                    const day = index + 1;
-                    const selected = weekdays.includes(day);
-                    return (
-                      <Chip
-                        key={name}
-                        label={name}
-                        selected={selected}
-                        onPress={() => setWeekdays(selected ? weekdays.filter((d) => d !== day) : [...weekdays, day])}
-                      />
-                    );
-                  })}
-                </View>
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
-                  {days.map((day, index) => (
-                    <Chip key={day.label} label={day.label} selected={dayIndex === index} onPress={() => setDayIndex(index)} />
+                  {groups.map(({ group }) => (
+                    <Chip
+                      key={group.id}
+                      label={group.name}
+                      selected={groupIdToUse === group.id}
+                      onPress={() => setSelectedGroup(group.id)}
+                    />
                   ))}
-                </ScrollView>
-              )}
-              {repeat ? (
-                <>
-                  <Text className="mt-2 text-sm font-medium text-stone-700">
-                    {period.start
-                      ? `🔁 ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
-                      : 'Da quando a quando? Tocca il primo e l’ultimo giorno'}
-                  </Text>
-                  <MonthCalendar
-                    month={periodMonth}
-                    onMonthChange={setPeriodMonth}
-                    range={period}
-                    minDay={dayKey(new Date())}
-                    onDayPress={pickPeriodDay}
-                  />
-                  <Text className="text-xs text-stone-500">
-                    Tutte le date vengono create subito (al massimo un anno; potrai allungarlo o accorciarlo). Chi dice “Ci
-                    sono ogni volta” risulta già presente, con la sua auto.
-                  </Text>
-                </>
-              ) : null}
-            </View>
-
-          )}
-
-          {isTrip ? null : (
-            <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
-          )}
-          <PlaceField
-            label={isTrip ? 'Destinazione' : 'Luogo'}
-            value={place}
-            onChange={setPlace}
-            placeholder={isTrip ? 'Es. Palermo' : 'Es. Via Pascal 12, Milano'}
-          />
-
-          <VisibilityChoice groupIsPrivate={groupIsPrivate} value={visibility} onChange={setVisibility} isTrip={isTrip} />
-
-          <View className="gap-2">
-            <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {interestOptions.map((interest) => {
-                const selected = tags.includes(interest);
-                return (
-                  <Chip
-                    key={interest}
-                    label={interest}
-                    selected={selected}
-                    onPress={() =>
-                      setTags(selected ? tags.filter((t) => t !== interest) : tags.length < 3 ? [...tags, interest] : tags)
-                    }
-                  />
-                );
-              })}
-            </View>
-            <Text className="text-xs text-stone-500">Così “Per te” lo suggerisce a chi ha questi interessi.</Text>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
-            {poster ? (
-              <View className="flex-row items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3">
-                <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} color={colors.brandDark} />
-                <Text numberOfLines={1} className="flex-1 text-ink">
-                  {poster.name}
-                </Text>
-                <Button title="Rimuovi" size="sm" variant="muted" onPress={() => setPoster(null)} />
+                </View>
               </View>
             ) : (
-              <Button
-                title="Aggiungi PDF o immagine"
-                icon="attach"
-                variant="secondary"
-                onPress={async () => {
-                  try {
-                    setPoster(await pickPoster());
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : 'File non valido');
-                  }
-                }}
-              />
+              <Text className="text-base text-stone-600">
+                Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
+              </Text>
             )}
-          </View>
 
-          {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-          <Button
-            title={isTrip ? 'Crea vacanza' : repeat ? 'Crea evento ricorrente' : 'Crea evento'}
-            icon={isTrip ? 'airplane' : repeat ? 'repeat' : 'calendar'}
-            onPress={handleCreate}
-            loading={loading}
-          />
-          <Text className="text-center text-sm text-stone-500">
-            {isTrip
-              ? 'I membri del gruppo riceveranno una notifica e potranno preparare insieme cosa fare e cosa vedere.'
-              : 'I membri del gruppo riceveranno una notifica.'}
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+            {chosenGroup && level.data ? (
+              <GroupMascotCard group={chosenGroup} level={level.data} compact cheer={isTrip ? 'Si parte! Preparo la valigia 🧳' : 'Si organizza! Che bello 🎉'} />
+            ) : null}
+
+            <View className="flex-row flex-wrap gap-2">
+              <Chip label="📅 Evento" selected={!isTrip} onPress={() => setKind('event')} />
+              <Chip label="🏖️ Vacanza" selected={isTrip} onPress={() => setKind('trip')} />
+            </View>
+
+            <TextField
+              label="Titolo"
+              value={title}
+              onChangeText={setTitle}
+              placeholder={isTrip ? 'Es. Ponte in Sicilia' : 'Es. Corsa serale 6 km'}
+            />
+
+            {isTrip ? (
+              <View className="gap-2">
+                <Text className="text-sm font-medium text-stone-700">
+                  {period.start
+                    ? `🏖️ ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
+                    : 'Tocca il primo e l’ultimo giorno'}
+                </Text>
+                <MonthCalendar
+                  month={periodMonth}
+                  onMonthChange={setPeriodMonth}
+                  range={period}
+                  minDay={dayKey(new Date())}
+                  onDayPress={pickPeriodDay}
+                />
+              </View>
+            ) : (
+              <View className="gap-2">
+                <View className="flex-row items-center justify-between gap-3">
+                  <Text className="text-sm font-medium text-stone-700">{repeat ? 'Ogni settimana, di' : 'Giorno'}</Text>
+                  <Chip
+                    label="🔁 Si ripete ogni settimana"
+                    selected={repeat}
+                    // the weekday is suggested by the first day of the period, picked on the calendar
+                    onPress={() => setRepeat(!repeat)}
+                  />
+                </View>
+                {repeat ? (
+                  <View className="flex-row flex-wrap gap-2">
+                    {weekdayNames.map((name, index) => {
+                      const day = index + 1;
+                      const selected = weekdays.includes(day);
+                      return (
+                        <Chip
+                          key={name}
+                          label={name}
+                          selected={selected}
+                          onPress={() => setWeekdays(selected ? weekdays.filter((d) => d !== day) : [...weekdays, day])}
+                        />
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2">
+                    {days.map((day, index) => (
+                      <Chip key={day.label} label={day.label} selected={dayIndex === index} onPress={() => setDayIndex(index)} />
+                    ))}
+                  </ScrollView>
+                )}
+                {repeat ? (
+                  <>
+                    <Text className="mt-2 text-sm font-medium text-stone-700">
+                      {period.start
+                        ? `🔁 ${tripDatesLabel(fromDayKey(period.start).toISOString(), fromDayKey(period.end ?? period.start).toISOString())}${period.end ? '' : ' · ora tocca l’ultimo giorno'}`
+                        : 'Da quando a quando? Tocca il primo e l’ultimo giorno'}
+                    </Text>
+                    <MonthCalendar
+                      month={periodMonth}
+                      onMonthChange={setPeriodMonth}
+                      range={period}
+                      minDay={dayKey(new Date())}
+                      onDayPress={pickPeriodDay}
+                    />
+                  </>
+                ) : null}
+              </View>
+
+            )}
+
+            {isTrip ? null : (
+              <TextField label="Ora" value={time} onChangeText={setTime} placeholder="19:30" keyboardType="numbers-and-punctuation" />
+            )}
+            <PlaceField
+              label={isTrip ? 'Destinazione' : 'Luogo'}
+              value={place}
+              onChange={setPlace}
+              placeholder={isTrip ? 'Es. Palermo' : 'Es. Via Pascal 12, Milano'}
+            />
+
+            <VisibilityChoice groupIsPrivate={groupIsPrivate} value={visibility} onChange={setVisibility} isTrip={isTrip} />
+
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-stone-700">Di cosa si tratta? (fino a 3)</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {interestOptions.map((interest) => {
+                  const selected = tags.includes(interest);
+                  return (
+                    <Chip
+                      key={interest}
+                      label={interest}
+                      selected={selected}
+                      onPress={() =>
+                        setTags(selected ? tags.filter((t) => t !== interest) : tags.length < 3 ? [...tags, interest] : tags)
+                      }
+                    />
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
+              {poster ? (
+                <View className="flex-row items-center gap-3 rounded-2xl bg-white p-3">
+                  <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} color={colors.brandDark} />
+                  <Text numberOfLines={1} className="flex-1 text-ink">
+                    {poster.name}
+                  </Text>
+                  <Button title="Rimuovi" size="sm" variant="muted" onPress={() => setPoster(null)} />
+                </View>
+              ) : (
+                <Button
+                  title="Aggiungi PDF o immagine"
+                  icon="attach"
+                  variant="secondary"
+                  onPress={async () => {
+                    try {
+                      setPoster(await pickPoster());
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : 'File non valido');
+                    }
+                  }}
+                />
+              )}
+            </View>
+
+            {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+            <Button
+              title={isTrip ? 'Crea vacanza' : repeat ? 'Crea evento ricorrente' : 'Crea evento'}
+              icon={isTrip ? 'airplane' : repeat ? 'repeat' : 'calendar'}
+              onPress={handleCreate}
+              loading={loading}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Screen>
+    </GroupTheme>
   );
 }

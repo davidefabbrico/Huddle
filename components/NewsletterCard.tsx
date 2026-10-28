@@ -10,12 +10,11 @@ import { colors } from './theme';
 
 export function NewsletterCard({ picks, hasArea }: { picks: WeeklyPick[]; hasArea: boolean }) {
   return (
-    <View className="gap-2 rounded-3xl border border-brand-100 bg-brand-50 p-4">
+    <View className="gap-2 rounded-3xl bg-brand-50 p-4">
       <Text className="text-base font-bold text-ink">📰 La tua settimana</Text>
       {picks.length === 0 ? (
         <Text className="text-sm text-stone-600">
-          Nessun evento nei prossimi 7 giorni {hasArea ? 'vicino a te o ' : ''}con i tuoi interessi.
-          {hasArea ? '' : ' Imposta la tua zona in Modifica profilo per vedere anche quelli vicini.'}
+          Niente in vista questa settimana.{hasArea ? '' : ' Imposta la tua zona nel profilo per vedere anche gli eventi vicini.'}
         </Text>
       ) : (
         picks.map(({ event, why }) => (

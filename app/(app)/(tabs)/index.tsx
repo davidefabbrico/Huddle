@@ -8,6 +8,7 @@ import { Link, router } from 'expo-router';
 import { RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Chip } from '../../../components/Chip';
+import { Confetti } from '../../../components/Confetti';
 import { SearchButton } from '../../../components/SearchButton';
 import { Grid } from '../../../components/Columns';
 import { GroupCard } from '../../../components/GroupCard';
@@ -23,7 +24,7 @@ type Filter = 'all' | 'open' | 'mine';
 
 const filters: { value: Filter; label: string }[] = [
   { value: 'all', label: 'Tutti' },
-  { value: 'open', label: 'Aperti a nuovi membri' },
+  { value: 'open', label: 'Aperti' },
   { value: 'mine', label: 'I miei' },
 ];
 
@@ -52,20 +53,16 @@ export default function GroupsScreen() {
     return true;
   });
 
-  const subtitle =
-    user.role === 'group'
-      ? 'Scopri chi c’è in giro e cosa fanno gli altri gruppi.'
-      : 'Questi gruppi cercano gente nuova. Trova il tuo.';
+  const [burst, setBurst] = useState(0); // easter egg: hold the greeting for confetti
 
   return (
     <Screen width="wide">
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
-        <View className="flex-row items-start justify-between gap-3">
-          <View className="flex-1 gap-1">
-            <Text className="text-3xl font-bold text-ink">Ciao, {firstName(user.full_name)} 👋</Text>
+      <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-3 wide:px-8 wide:pt-8">
+        <View className="flex-row items-center justify-between gap-3">
+          <Pressable className="flex-1 gap-1" onLongPress={() => setBurst((b) => b + 1)} delayLongPress={600}>
+            <Text className="text-2xl font-semibold text-ink">Ciao, {firstName(user.full_name)} 👋</Text>
             {user.is_relocated ? <RelocatedBadge /> : null}
-            <Text className="text-base text-stone-600">{subtitle}</Text>
-          </View>
+          </Pressable>
           {wide ? null : (
             <View className="flex-row gap-2">
               <SearchButton />
@@ -103,6 +100,7 @@ export default function GroupsScreen() {
           </Grid>
         )}
       </ScrollView>
+      <Confetti burst={burst} />
     </Screen>
   );
 }

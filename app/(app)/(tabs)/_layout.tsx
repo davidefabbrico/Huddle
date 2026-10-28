@@ -1,4 +1,4 @@
-// Bottom tab bar, Instagram style: icons only (labels kept for screen readers), filled when active.
+// Bottom tab bar, Material 3 style: icons only (labels kept for screen readers), filled on a pill when active.
 // Gruppi · Eventi · ➕ Crea · Chat · Profilo (your avatar). Notifications live behind the bell on Gruppi.
 // On wide screens the bar is hidden: the side menu (components/SideNav.tsx) takes its place.
 
@@ -21,10 +21,14 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 const TAB_BAR_CONTENT_HEIGHT = 60;
 const TAB_PADDING = 5;
 
-// Outline icon normally, filled icon on the active tab
+// Material 3 navigation bar: outline icon, or filled icon on a pastel pill when active
 function tabIcon(outline: IconName, filled: IconName) {
   return function TabIcon({ focused }: { focused: boolean }) {
-    return <Ionicons name={focused ? filled : outline} size={26} color={focused ? colors.ink : colors.muted} />;
+    return (
+      <View className={`h-8 w-16 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
+        <Ionicons name={focused ? filled : outline} size={22} color={focused ? colors.ink : colors.muted} />
+      </View>
+    );
   };
 }
 
@@ -40,13 +44,13 @@ export default function TabsLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           display: wide ? 'none' : 'flex',
-          backgroundColor: colors.white,
-          borderTopColor: '#E7E5E4',
+          backgroundColor: '#EFEAE6', // Material 3 surface container
+          borderTopWidth: 0,
           // Space for the home indicator below the icons (CSS env() on the web, see safeArea.ts)
           ...barWithSafeArea(insets.bottom, TAB_BAR_CONTENT_HEIGHT),
         },
-        // Wide enough for the ➕ square (44px) and the avatar ring; the default box is 31x28
-        tabBarIconStyle: { width: 48, height: TAB_BAR_CONTENT_HEIGHT - 2 * TAB_PADDING },
+        // Wide enough for the active pill (64px); the default box is 31x28
+        tabBarIconStyle: { width: 64, height: TAB_BAR_CONTENT_HEIGHT - 2 * TAB_PADDING },
       }}
     >
       <Tabs.Screen
@@ -64,8 +68,8 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: 'Crea',
           // Brand-colored square, like a "post" button
           tabBarIcon: ({ focused }) => (
-            <View className={`h-9 w-11 items-center justify-center rounded-xl ${focused ? 'bg-brand-600' : 'bg-brand-500'}`}>
-              <Ionicons name="add" size={26} color={colors.white} />
+            <View className={`h-10 w-14 items-center justify-center rounded-2xl ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
+              <Ionicons name="add" size={26} color={colors.ink} />
             </View>
           ),
         }}
@@ -79,10 +83,10 @@ export default function TabsLayout() {
         options={{
           title: 'Profilo',
           tabBarAccessibilityLabel: 'Profilo',
-          // Your avatar, with a ring when active
+          // Your avatar, on the pill when active
           tabBarIcon: ({ focused }) => (
-            <View className={`rounded-full border-2 p-0.5 ${focused ? 'border-ink' : 'border-transparent'}`}>
-              {user ? <Avatar {...avatarOf(user)} size={24} /> : null}
+            <View className={`h-8 w-16 items-center justify-center rounded-full ${focused ? 'bg-brand-200' : ''}`}>
+              {user ? <Avatar {...avatarOf(user)} size={26} /> : null}
             </View>
           ),
         }}

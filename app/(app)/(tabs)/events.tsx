@@ -7,6 +7,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { AgendaView } from '../../../components/AgendaView';
 import { Chip } from '../../../components/Chip';
 import { Grid } from '../../../components/Columns';
+import { InfoTip } from '../../../components/InfoTip';
 import { NewsletterCard } from '../../../components/NewsletterCard';
 import { EventCard } from '../../../components/EventCard';
 import { Screen } from '../../../components/Screen';
@@ -69,20 +70,23 @@ export default function EventsScreen() {
 
   return (
     <Screen width="wide">
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
-        <View className="flex-row items-start justify-between gap-3">
-          <View className="flex-1 gap-1">
-            <Text className="text-3xl font-bold text-ink">Eventi</Text>
-            <Text className="text-base text-stone-600">Rispondi “Ci sono” o “Non ci sono”: così chi organizza sa su chi contare.</Text>
-          </View>
+      <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-3 wide:px-8 wide:pt-8">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="flex-1 text-2xl font-semibold text-ink">Eventi</Text>
           <SearchButton />
         </View>
 
-        <View className="flex-row flex-wrap gap-2">
-          <Chip label="✨ Per te" selected={filter === 'forYou'} onPress={() => setFilter('forYou')} />
-          <Chip label="📅 Ci vado" selected={filter === 'going'} onPress={() => setFilter('going')} />
-          <Chip label="Tutti" selected={filter === 'all'} onPress={() => setFilter('all')} />
-          <Chip label="Dei miei gruppi" selected={filter === 'mine'} onPress={() => setFilter('mine')} />
+        {/* Filters on one scrolling row (Material chips); the ⓘ stays outside so its bubble isn't clipped */}
+        <View className="z-10 flex-row items-center gap-2">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1" contentContainerClassName="gap-2">
+            <Chip label="✨ Per te" selected={filter === 'forYou'} onPress={() => setFilter('forYou')} />
+            <Chip label="📅 Ci vado" selected={filter === 'going'} onPress={() => setFilter('going')} />
+            <Chip label="Tutti" selected={filter === 'all'} onPress={() => setFilter('all')} />
+            <Chip label="Dei miei gruppi" selected={filter === 'mine'} onPress={() => setFilter('mine')} />
+          </ScrollView>
+          {filter === 'forYou' ? (
+            <InfoTip text="Eventi scelti per te dai tuoi interessi e da cosa piace a chi è nei tuoi gruppi. Solo quelli a cui non hai ancora risposto." />
+          ) : null}
         </View>
 
         {!data.data && data.loading ? (
@@ -100,9 +104,6 @@ export default function EventsScreen() {
               </Text>
             ) : (
               <View className="gap-3">
-                <Text className="text-sm text-stone-500">
-                  In base ai tuoi interessi e a cosa piace a chi è nei tuoi gruppi. Ci sono solo eventi a cui non hai ancora risposto.
-                </Text>
                 <Grid>
                   {suggestions.map((s) => (
                     <EventCard key={s.event.id} event={s.event} showGroup reason={s.reason} outside={s.outside} />

@@ -75,6 +75,18 @@ export interface Group {
   age_max: number | null;
   tags: string[]; // what they're into (from interestOptions)
   is_business: boolean; // a venue's page: anyone can answer its events
+  mascot: MascotSpecies | null; // the group's mascot (components/Mascot.tsx), null = not chosen
+  created_at?: string; // its birthday (the mascot wears a party hat)
+}
+
+export type MascotSpecies = 'fox' | 'cat' | 'panda' | 'frog' | 'penguin' | 'dragon';
+
+// The group's level (group_level): drives the mascot's stage and the clan
+export interface GroupLevel {
+  xp: number; // people at past events + 2 per event
+  events: number;
+  trips: number;
+  attendances: number;
 }
 
 // What an invite link shows before joining (also for private groups)
@@ -233,6 +245,7 @@ export interface ChatMessage {
   group_id: string;
   user_id: string;
   content: string;
+  event_id: string | null; // an event or holiday shared in the chat
   created_at: string; // ISO 8601
 }
 
@@ -298,6 +311,7 @@ export interface ForYouSignals {
 
 export interface ChatMessageWithAuthor extends ChatMessage {
   author: Pick<User, 'id' | 'full_name' | 'is_relocated' | 'avatar_url' | 'avatar_seed'>;
+  event: EventWithGroup | null; // the shared event, if any (null also if it was deleted or you can't see it)
 }
 
 export interface JoinRequestWithUser extends JoinRequest {
@@ -380,6 +394,7 @@ export interface NewGroupInput {
   age_min?: number | null;
   age_max?: number | null;
   tags?: string[];
+  mascot?: MascotSpecies | null;
   chat_url?: string | null;
   parking_code?: string | null;
 }

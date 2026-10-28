@@ -32,7 +32,7 @@ export function MonthCalendar({ month, onMonthChange, marks = {}, selected, rang
   const shift = (months: number) => onMonthChange(new Date(month.getFullYear(), month.getMonth() + months, 1));
 
   return (
-    <View className="gap-2 rounded-3xl border border-stone-200 bg-white p-3">
+    <View className="gap-2 rounded-3xl bg-white p-3">
       <View className="flex-row items-center justify-between">
         <Pressable onPress={() => shift(-1)} accessibilityRole="button" accessibilityLabel="Mese precedente" hitSlop={8} className="h-9 w-9 items-center justify-center rounded-full active:bg-stone-100">
           <Ionicons name="chevron-back" size={20} color={colors.ink} />
@@ -69,15 +69,15 @@ export function MonthCalendar({ month, onMonthChange, marks = {}, selected, rang
                 className={`h-11 flex-1 items-center justify-center ${inRange && !isEdge ? 'bg-brand-50' : ''}`}
               >
                 <View
-                  className={`h-8 w-8 items-center justify-center rounded-full ${isSelected ? 'bg-brand-500' : day === today ? 'border border-brand-500' : ''}`}
+                  className={`h-8 w-8 items-center justify-center rounded-full ${isSelected ? 'bg-brand-300' : day === today ? 'border border-brand-500' : ''}`}
                 >
                   <Text
-                    className={`text-sm ${isSelected ? 'font-bold text-white' : disabled ? 'text-stone-300' : count ? 'font-semibold text-ink' : 'text-stone-600'}`}
+                    className={`text-sm ${isSelected ? 'font-bold text-brand-800' : disabled ? 'text-stone-300' : count ? 'font-semibold text-ink' : 'text-stone-600'}`}
                   >
                     {Number(day.slice(8))}
                   </Text>
                 </View>
-                {count ? <View className={`absolute bottom-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-brand-700' : 'bg-brand-500'}`} /> : null}
+                {count ? <View className={`absolute bottom-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? 'bg-brand-700' : 'bg-brand-400'}`} /> : null}
               </Pressable>
             );
           })}

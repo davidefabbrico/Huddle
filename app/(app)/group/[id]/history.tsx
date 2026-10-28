@@ -1,14 +1,18 @@
-// "La nostra storia": what the group has done from its creation to today, as a timeline.
+// "La nostra storia": what the group has done from its creation to today, as a timeline, with the
+// clan's emblem and the legendary cards to collect (easter eggs, lib/mascot.ts). In the group's colors.
 // Past events and holidays (how many came, their photos), who joined; a recurring event is one line
 // per month ("Palestra serale · 12 volte"). Seen by whoever sees the group (counts only, no attendee names).
 
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { ClanEmblem } from '../../../../components/GroupMascotCard';
+import { GroupTheme } from '../../../../components/GroupTheme';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
 import { colors } from '../../../../components/theme';
 import { useAsync } from '../../../../hooks/useAsync';
 import * as api from '../../../../lib/api';
+import { clanOf, legendCards, stageFor, type LegendCard, type Rarity } from '../../../../lib/mascot';
 import { firstName, formatDate, monthLabel, tripDatesLabel } from '../../../../lib/format';
 import type { GroupHistory } from '../../../../lib/types';
 
@@ -79,8 +83,8 @@ function timeline(history: GroupHistory, groupName: string): Item[] {
 export default function GroupHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const data = useAsync(async () => {
-    const [group, history] = await Promise.all([api.getGroupById(id), api.getGroupHistory(id)]);
-    return group && history ? { group, history } : null;
+    const [group, history, level] = await Promise.all([api.getGroupById(id), api.getGroupHistory(id), api.getGroupLevel(id)]);
+    return group && history ? { group, history, level } : null;
   }, [id]);
 
   if (!data.data) {
@@ -96,7 +100,9 @@ export default function GroupHistoryScreen() {
     );
   }
 
-  const { group, history } = data.data;
+  const { group, history, level } = data.data;
+  const clan = clanOf(group);
+  const cards = legendCards(history, level);
   const items = timeline(history, group.name);
   const events = history.events.filter((e) => e.kind === 'event').length;
   const trips = history.events.filter((e) => e.kind === 'trip').length;
@@ -109,36 +115,85 @@ export default function GroupHistoryScreen() {
   ].filter(Boolean);
 
   return (
-    <Screen width="page">
-      <Header title="La nostra storia" subtitle={group.name} />
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-5 wide:px-8">
-        <View className="gap-1 rounded-3xl bg-brand-500 p-5">
-          <Text className="text-sm text-white/80">Insieme dal {formatDate(history.created_at)}</Text>
-          <Text className="text-xl font-bold text-white">{stats.join(' · ')}</Text>
-        </View>
-
-        <View>
-          {items.map((item) => (
-            <TimelineRow key={item.key} item={item} />
-          ))}
-          <View className="flex-row gap-4">
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-500">
-              <Text>📍</Text>
-            </View>
-            <View className="flex-1 justify-center">
-              <Text className="font-semibold text-ink">Oggi</Text>
-              <Text className="text-sm text-stone-500">E la storia continua…</Text>
+    <GroupTheme group={group}>
+      <Screen width="page">
+        <Header title="La nostra storia" subtitle={group.name} />
+        <ScrollView contentContainerClassName="gap-5 px-4 pb-10 pt-2 wide:px-8">
+          <View className="flex-row items-center gap-4 rounded-3xl bg-brand-100 p-4">
+            <ClanEmblem element={clan.element} rings={stageFor(level.xp).level} size={56} />
+            <View className="flex-1 gap-0.5">
+              <Text className="text-xs text-brand-700">{clan.name} · dal {formatDate(history.created_at)}</Text>
+              <Text className="text-lg font-semibold text-brand-800">{stats.join(' · ')}</Text>
             </View>
           </View>
-        </View>
+
+          <LegendCards cards={cards} />
+
+          <View>
+            {items.map((item) => (
+              <TimelineRow key={item.key} item={item} />
+            ))}
+            <View className="flex-row gap-4">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-100">
+                <Text>📍</Text>
+              </View>
+              <View className="flex-1 justify-center">
+                <Text className="font-semibold text-ink">Oggi</Text>
+                <Text className="text-sm text-stone-500">E la storia continua…</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </Screen>
+    </GroupTheme>
+  );
+}
+
+const RARITY_STYLE: Record<Rarity, { box: string; label: string }> = {
+  comune: { box: 'bg-stone-100', label: 'text-stone-500' },
+  rara: { box: 'bg-sky-100', label: 'text-sky-700' },
+  epica: { box: 'bg-violet-100', label: 'text-violet-700' },
+  leggendaria: { box: 'bg-amber-100', label: 'text-amber-700' },
+};
+
+// Collectible cards of the group's special moments; locked ones are a "?" with the hint
+function LegendCards({ cards }: { cards: LegendCard[] }) {
+  const unlocked = cards.filter((c) => c.unlockedAt).length;
+  return (
+    <View className="gap-2">
+      <Text className="text-base font-semibold text-ink">
+        Carte leggendarie {unlocked}/{cards.length}
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 pb-1">
+        {cards.map((card) => {
+          const style = RARITY_STYLE[card.rarity];
+          return card.unlockedAt ? (
+            <View key={card.id} className={`h-40 w-28 items-center justify-between rounded-2xl p-3 ${style.box}`}>
+              <Text className={`text-[10px] font-bold uppercase tracking-wider ${style.label}`}>
+                {card.rarity}
+                {card.rarity === 'leggendaria' ? ' ✨' : ''}
+              </Text>
+              <Text className="text-4xl">{card.emoji}</Text>
+              <View className="items-center">
+                <Text className="text-center text-xs font-semibold text-ink">{card.title}</Text>
+                <Text className="text-[10px] text-stone-500">{formatDate(card.unlockedAt)}</Text>
+              </View>
+            </View>
+          ) : (
+            <View key={card.id} className="h-40 w-28 items-center justify-center gap-2 rounded-2xl border border-dashed border-stone-300 p-3">
+              <Text className="text-3xl text-stone-300">?</Text>
+              <Text className="text-center text-[10px] text-stone-400">{card.hint}</Text>
+            </View>
+          );
+        })}
       </ScrollView>
-    </Screen>
+    </View>
   );
 }
 
 function TimelineRow({ item }: { item: Item }) {
   const content = (
-    <View className="mb-4 flex-1 gap-1 rounded-3xl border border-stone-200 bg-white p-3">
+    <View className="mb-4 flex-1 gap-1 rounded-3xl bg-white p-3">
       <Text className="text-xs font-semibold uppercase tracking-wide text-stone-400">{formatDate(item.at)}</Text>
       <Text className="text-base font-semibold text-ink">{item.title}</Text>
       {item.subtitle ? <Text className="text-sm text-stone-500">{item.subtitle}</Text> : null}
@@ -161,7 +216,7 @@ function TimelineRow({ item }: { item: Item }) {
     <View className="flex-row gap-4">
       {/* The line of the timeline, with the emoji on it */}
       <View className="w-10 items-center">
-        <View className="h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white">
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
           <Text className="text-lg">{item.emoji}</Text>
         </View>
         <View className="w-0.5 flex-1 bg-stone-200" />

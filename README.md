@@ -10,6 +10,14 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 
 ## Funzioni
 
+- **Stile**: Material 3 in tinta pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
+  il suo colore: entrando nel gruppo (pagina, chat, eventi, storia, organizzare) tutta l'interfaccia prende la sua
+  tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
+- **Mascotte del gruppo**: l'admin sceglie tra 6 creature (volpe, gatto, panda, rana, pinguino, draghetto) disegnate
+  e animate nell'app ([components/Mascot.tsx](components/Mascot.tsx)). Cresce con il livello del gruppo (uovo →
+  cucciolo → giovane → leggenda) e compare solo quando si apre un gruppo o si organizza qualcosa.
+- **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
+  uno dei tuoi gruppi e lì compare come scheda da aprire.
 - **Account**: registrazione con conferma email, login, password dimenticata (link via email), cambio password.
   La sessione resta attiva anche chiudendo e riaprendo l'app.
 - **Barra in basso** (stile Instagram): Gruppi · Eventi · ➕ Crea · Chat · Profilo
@@ -125,6 +133,7 @@ lib/
   recommendations.ts         "Per te": punteggio e motivazione dei suggerimenti
   expenses.ts                spese condivise: saldi e "chi deve a chi"
   search.ts, reliability.ts  filtri di ricerca; livelli di affidabilità dai punti
+  mascot.ts, palette.ts      mascotte, clan, carte leggendarie; palette pastello (app e gruppi)
 supabase/schema.sql          schema completo: tabelle, trigger, Row Level Security, Storage
 ```
 
@@ -149,6 +158,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261029_vacanze_foto_spese_storia.sql` | vacanze con scaletta, foto degli eventi, spese condivise, storia del gruppo |
 | `20261030_cerca_eta_affidabilita_locali.sql` | ricerca (zona e fascia d'età dei gruppi), affidabilità, locali/aziende e promozioni, newsletter |
 | `20261031_ricorrenze_eventi_voti_account.sql` | periodo delle ricorrenze, eventi pubblici/privati, modifica e annullamento, voti nella scaletta, eliminazione account |
+| `20261101_mascotte_condivisione.sql` | mascotte e livello del gruppo, eventi condivisi nelle chat |
 
 ### 2. Login ed email
 
@@ -215,3 +225,14 @@ Dettagli tecnici:
 - `404.html` è una copia di `index.html`: GitHub Pages la serve per gli indirizzi che non esistono come file
   (es. `/Huddle/group/…` o `/Huddle/reset-password`), così i link diretti, i link delle email e il refresh funzionano.
 - `.nojekyll` evita che GitHub ignori la cartella `_expo/`.
+
+## Easter egg (spoiler)
+
+- **Clan**: ogni gruppo appartiene a un clan, fatto della sua mascotte e di un elemento (Fuoco, Acqua, Vento, Terra,
+  Fulmine) che nasce da cosa fa il gruppo. Si scopre toccando lo stemma accanto alla mascotte; lo stemma prende un
+  anello a ogni stadio.
+- **Carte leggendarie**: nella storia del gruppo, i momenti speciali (primo evento, prima vacanza, tutti presenti,
+  un anno insieme…) diventano carte comuni, rare, epiche e leggendarie da collezionare.
+- **Traguardi segreti** nel profilo, nascosti finché non si sbloccano; ogni nuovo traguardo arriva con i coriandoli.
+- **Segreti**: 7 tocchi sulla mascotte la fanno ballare; tenendo premuto il saluto "Ciao, …" (o il logo su computer)
+  partono i coriandoli; le mascotte mettono il cappello a Halloween, a Natale e al compleanno del gruppo.

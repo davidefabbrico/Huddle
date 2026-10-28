@@ -25,6 +25,7 @@ import type {
   ForYouSignals,
   Group,
   GroupHistory,
+  GroupLevel,
   GroupLinks,
   GroupSummary,
   InvitePreview,
@@ -85,7 +86,7 @@ function check<T>(result: { data: T; error: { message?: string } | null }): NonN
 
 const EVENT_SELECT =
   '*, groups(name, icon, color, type, age_min, age_max, is_business), event_series(id, weekdays, start_time, created_by, starts_on, ends_on)';
-const AUTHOR_SELECT = '*, users(id, full_name, is_relocated, avatar_url, avatar_seed)';
+const AUTHOR_SELECT = `*, users(id, full_name, is_relocated, avatar_url, avatar_seed), events(${EVENT_SELECT})`;
 
 function toEvent(row: Row): EventWithGroup {
   return {
@@ -123,7 +124,9 @@ function toMessage(row: Row): ChatMessageWithAuthor {
     user_id: row.user_id,
     content: row.content,
     created_at: row.created_at,
+    event_id: row.event_id ?? null,
     author: row.users ?? { id: row.user_id, full_name: 'Utente', is_relocated: false, avatar_url: null, avatar_seed: null },
+    event: row.events ? toEvent(row.events) : null,
   };
 }
 
@@ -318,6 +321,7 @@ export async function createGroup(userId: string, input: NewGroupInput): Promise
         age_min: input.age_min ?? null,
         age_max: input.age_max ?? null,
         tags: input.tags ?? [],
+        mascot: input.mascot ?? null,
         icon: input.icon ?? null,
         color: input.color ?? null,
         admin_id: userId,
@@ -806,6 +810,12 @@ export async function sendNewsletterIfDue(): Promise<void> {
   await supabase.rpc('newsletter_digest');
 }
 
+// ---- The group's level (mascot, clan) ----
+
+export async function getGroupLevel(groupId: string): Promise<GroupLevel> {
+  return ((check(await supabase.rpc('group_level', { gid: groupId })) as GroupLevel | null) ?? { xp: 0, events: 0, trips: 0, attendances: 0 });
+}
+
 // ---- The group's history ----
 
 export async function getGroupHistory(groupId: string): Promise<GroupHistory | null> {
@@ -1034,11 +1044,16 @@ export async function getMyChats(userId: string): Promise<ChatPreview[]> {
   return [...chats.values()].sort((a, b) => (b.last_message?.created_at ?? '').localeCompare(a.last_message?.created_at ?? ''));
 }
 
-export async function sendMessage(groupId: string, userId: string, content: string): Promise<ChatMessageWithAuthor> {
+// eventId: share an event or holiday (the database checks it can go in this chat)
+export async function sendMessage(groupId: string, userId: string, content: string, eventId?: string): Promise<ChatMessageWithAuthor> {
   const text = content.trim();
   if (!text) throw new Error('Il messaggio è vuoto');
   const row: Row = check(
-    await supabase.from('chat_messages').insert({ group_id: groupId, user_id: userId, content: text }).select(AUTHOR_SELECT).single(),
+    await supabase
+      .from('chat_messages')
+      .insert({ group_id: groupId, user_id: userId, content: text, event_id: eventId ?? null })
+      .select(AUTHOR_SELECT)
+      .single(),
   );
   return toMessage(row);
 }
@@ -1058,7 +1073,10 @@ export function subscribeToMessages(
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `group_id=eq.${groupId}` }, (payload) => {
       const row = payload.new as Row;
       if (!authors.has(row.user_id)) authors.set(row.user_id, getUserById(row.user_id));
-      authors.get(row.user_id)!.then((user) => onMessage(toMessage({ ...row, users: user })));
+      // the realtime row has only ids: fetch the author (cached) and the shared event
+      Promise.all([authors.get(row.user_id)!, row.event_id ? getEventById(row.event_id) : null]).then(([user, event]) =>
+        onMessage({ ...toMessage({ ...row, users: user }), event }),
+      );
     })
     .on('system', {}, (payload: { extension?: string; status?: string }) => {
       if (payload?.extension === 'postgres_changes' && payload.status === 'ok') onReady?.();

@@ -191,7 +191,7 @@ export default function SignupScreen() {
                       accessibilityState={{ selected }}
                       className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
                     >
-                      <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-500' : 'bg-stone-100'}`}>
+                      <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-200' : 'bg-stone-100'}`}>
                         <Ionicons name={option.icon} size={24} color={selected ? colors.white : colors.muted} />
                       </View>
                       <View className="flex-1">

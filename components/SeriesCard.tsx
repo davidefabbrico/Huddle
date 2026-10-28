@@ -10,6 +10,7 @@ import type { EventWithGroup, SeriesRegular, User } from '../lib/types';
 import { Button } from './Button';
 import { ConfirmButton } from './ConfirmButton';
 import { MonthCalendar } from './MonthCalendar';
+import { InfoTip } from './InfoTip';
 
 interface Props {
   series: NonNullable<EventWithGroup['series']>;
@@ -55,23 +56,26 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
     : '';
 
   return (
-    <View className="gap-3 rounded-3xl border border-violet-200 bg-violet-50 p-4">
-      <Text className="text-base font-semibold text-violet-950">
-        🔁 Si ripete {weekdaysLabel(series.weekdays)} alle {shortTime(series.start_time)}
-      </Text>
+    <View className="gap-3 rounded-3xl bg-brand-50 p-4">
+      <View className="flex-row items-center justify-between gap-2">
+        <Text className="flex-1 text-base font-semibold text-brand-800">
+          🔁 {weekdaysLabel(series.weekdays)} alle {shortTime(series.start_time)}
+        </Text>
+        <InfoTip text="“Ci sono ogni volta” copia le tue scelte di oggi (auto, posti, partenza, passaggio) sulle prossime date. Per saltare una data rispondi “Non ci sono” solo lì." />
+      </View>
       {series.ends_on ? (
-        <Text className="-mt-2 text-sm text-violet-900">
+        <Text className="-mt-2 text-sm text-brand-700">
           {series.starts_on ? `Dal ${shortDayLabel(series.starts_on)} ` : 'Fino '}al {shortDayLabel(series.ends_on)}
         </Text>
       ) : null}
       {others.length > 0 ? (
-        <Text className="text-sm text-violet-900">Ci sono ogni volta: {others.map((r) => nameOf(r.user_id)).join(', ')}</Text>
+        <Text className="text-sm text-brand-700">Ci sono ogni volta: {others.map((r) => nameOf(r.user_id)).join(', ')}</Text>
       ) : null}
 
       {canAnswer ? (
         mine ? (
           <View className="gap-2">
-            <Text className="text-sm text-violet-900">
+            <Text className="text-sm text-brand-700">
               <Text className="font-semibold">Ci sei ogni volta</Text>
               {usual ? ` · ${usual}` : ''}
             </Text>
@@ -79,23 +83,17 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
               <Button title="Usa le scelte di oggi" icon="repeat" size="sm" variant="secondary" disabled={busy} onPress={onSetRegular} />
               <Button title="Non più ogni volta" size="sm" variant="muted" disabled={busy} onPress={onRemoveRegular} />
             </View>
-            <Text className="text-xs text-violet-800">
-              Le prossime volte risulti già tra chi c’è, con le stesse scelte per l’auto. Per una data sola rispondi “Non ci sono”.
-            </Text>
           </View>
         ) : (
           <View className="gap-2">
             <Button title="Ci sono ogni volta" icon="repeat" variant="secondary" disabled={busy} onPress={onSetRegular} />
-            <Text className="text-xs text-violet-800">
-              Copia le tue scelte di oggi (auto, posti, partenza, passaggio) sulle prossime date.
-            </Text>
           </View>
         )
       ) : null}
 
       {canStop && editingEnd ? (
         <View className="gap-2">
-          <Text className="text-sm font-semibold text-violet-950">Nuovo ultimo giorno: {shortDayLabel(newEnd)}</Text>
+          <Text className="text-sm font-semibold text-brand-800">Nuovo ultimo giorno: {shortDayLabel(newEnd)}</Text>
           <MonthCalendar
             month={month}
             onMonthChange={setMonth}
@@ -103,7 +101,6 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
             minDay={dayKey(new Date())}
             onDayPress={(d) => (!maxEnd || d <= maxEnd ? setNewEnd(d) : undefined)}
           />
-          <Text className="text-xs text-violet-800">Più avanti: si aggiungono le date. Prima: le date dopo spariscono.</Text>
           <View className="flex-row gap-2">
             <Button
               title="Salva"
