@@ -21,7 +21,7 @@ export function GroupIcon({ name, icon, color, size = 48 }: Props) {
   return (
     <View
       className={`items-center justify-center ${GROUP_COLORS[look.color].tile}`}
-      style={{ width: size, height: size, borderRadius: size * 0.28 }}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.1) }}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

@@ -174,7 +174,7 @@ export default function CreateEventScreen() {
               </View>
             ) : (
               <Text className="text-base text-stone-600">
-                Per <Text className="font-semibold text-ink">{groups[0].group.name}</Text>
+                Per <Text className="font-pixel text-ink">{groups[0].group.name}</Text>
               </Text>
             )}
 
@@ -296,7 +296,7 @@ export default function CreateEventScreen() {
             <View className="gap-2">
               <Text className="text-sm font-medium text-stone-700">Locandina (facoltativa)</Text>
               {poster ? (
-                <View className="flex-row items-center gap-3 rounded-2xl bg-white p-3">
+                <View className="flex-row items-center gap-3 rounded-2xl border-2 border-line bg-white p-3">
                   <Ionicons name={isPdf(poster.mimeType) ? 'document-text' : 'image-outline'} size={22} className="text-brand-600" />
                   <Text numberOfLines={1} className="flex-1 text-ink">
                     {poster.name}

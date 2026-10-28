@@ -23,10 +23,10 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
 
   return (
     <Link href={{ pathname: '/event/[id]', params: { id: event.id } }} asChild>
-      <Pressable className="flex-row gap-3 rounded-3xl bg-white p-3 active:bg-stone-100">
+      <Pressable className="flex-row gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-3 active:bg-stone-100">
         <View className="w-14 items-center justify-center rounded-2xl bg-brand-50 py-2">
-          <Text className="text-xl font-bold text-brand-600">{tile.day}</Text>
-          <Text className="text-xs font-semibold text-brand-600">{tile.month}</Text>
+          <Text className="text-xl font-pixel-bold text-brand-600">{tile.day}</Text>
+          <Text className="text-xs font-pixel text-brand-600">{tile.month}</Text>
         </View>
         <View className="flex-1 justify-center">
           <View className="flex-row flex-wrap gap-1">
@@ -41,7 +41,7 @@ export function EventCard({ event, showGroup = false, answer, reason, outside = 
             {answer?.status === 'not_going' ? <Badge label="Non ci sei" icon="close" /> : null}
             {event.poster_url ? <Badge label="Locandina" tone="brand" icon="attach" /> : null}
           </View>
-          <Text numberOfLines={1} className="text-base font-semibold text-ink">
+          <Text numberOfLines={1} className="text-base font-pixel text-ink">
             {event.title}
           </Text>
           {showGroup ? (

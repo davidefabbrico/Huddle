@@ -27,7 +27,7 @@ export function avatarOf(user: Pick<User, 'full_name' | 'avatar_url' | 'avatar_s
 }
 
 export function Avatar({ name, url, seed, size = 40 }: Props) {
-  const box = { width: size, height: size, borderRadius: size / 2 };
+  const box = { width: size, height: size, borderRadius: Math.round(size * 0.1) };
 
   if (url) {
     return <Image source={{ uri: url }} style={box} accessibilityLabel={name} />;
@@ -39,21 +39,21 @@ export function Avatar({ name, url, seed, size = 40 }: Props) {
 
   return (
     <View className={`items-center justify-center rounded-full ${colorFor(name)}`} style={box}>
-      <Text className="font-semibold text-ink" style={{ fontSize: size * 0.38 }}>
+      <Text className="font-pixel text-ink" style={{ fontSize: size * 0.38 }}>
         {initials(name)}
       </Text>
     </View>
   );
 }
 
-// 5x5 mirrored pixel grid inside a light circle (the grid stays inside so the circle doesn't crop it)
+// 5x5 mirrored pixel grid on a light square tile (the grid stays inside the tile)
 export function PixelAvatar({ seed, size }: { seed: string; size: number }) {
   const { color, cells } = identicon(seed);
   const cell = (size * 0.62) / 5;
   return (
     <View
       className="items-center justify-center rounded-full bg-stone-100"
-      style={{ width: size, height: size, borderRadius: size / 2 }}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.1) }}
     >
       {cells.map((row, r) => (
         <View key={r} className="flex-row">

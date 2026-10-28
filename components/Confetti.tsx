@@ -55,7 +55,7 @@ function Piece({ index }: { index: number }) {
           position: 'absolute',
           width: start.size,
           height: start.round ? start.size : start.size * 1.6,
-          borderRadius: start.round ? start.size : 2,
+          borderRadius: 0, // square bits, like pixels
           backgroundColor: COLORS[index % COLORS.length],
         },
         style,

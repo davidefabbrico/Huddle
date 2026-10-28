@@ -50,7 +50,9 @@ export default function EditGroupScreen() {
           submitLabel="Salva"
           onSubmit={async (values) => {
             await api.updateGroup(id, values);
-            router.back();
+            // opened from a link or after a reload there's no page behind: go to the group
+            if (router.canGoBack()) router.back();
+            else router.replace({ pathname: '/group/[id]', params: { id } });
           }}
         />
       )}

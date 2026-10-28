@@ -38,7 +38,7 @@ export function GroupMascotCard({ group, level, compact = false, cheer }: Props)
   const progress = next ? (level.xp - stage.minXp) / (next.minXp - stage.minXp) : 1;
 
   return (
-    <View className={`overflow-hidden rounded-3xl bg-brand-50 ${compact ? 'p-3' : 'p-4'}`}>
+    <View className={`overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-brand-50 ${compact ? 'p-3' : 'p-4'}`}>
       <View className="flex-row items-center gap-3">
         <Mascot
           species={mascotOf(group)}
@@ -49,13 +49,13 @@ export function GroupMascotCard({ group, level, compact = false, cheer }: Props)
           onSecret={() => setBurst((b) => b + 1)}
         />
         <View className="flex-1 gap-2">
-          <View className="self-start rounded-2xl rounded-bl-sm bg-white px-3 py-2">
+          <View className="self-start rounded-2xl border-2 border-line rounded-bl-sm bg-white px-3 py-2">
             <Text className="text-sm text-ink">{cheer ?? GREETINGS[stage.level]}</Text>
           </View>
           {compact ? null : (
             <View className="gap-1">
               <View className="flex-row items-center justify-between">
-                <Text className="text-xs font-semibold text-brand-700">{stage.name}</Text>
+                <Text className="text-xs font-pixel text-brand-700">{stage.name}</Text>
                 <Pressable onPress={() => setShowClan(!showClan)} accessibilityRole="button" accessibilityLabel="Il clan del gruppo" hitSlop={8}>
                   <ClanEmblem element={clan.element} rings={stage.level} size={30} />
                 </Pressable>
@@ -71,10 +71,10 @@ export function GroupMascotCard({ group, level, compact = false, cheer }: Props)
         </View>
       </View>
       {showClan ? (
-        <View className="mt-3 flex-row items-center gap-3 rounded-2xl bg-white p-3">
+        <View className="mt-3 flex-row items-center gap-3 rounded-2xl border-2 border-line bg-white p-3">
           <ClanEmblem element={clan.element} rings={stage.level} size={48} />
           <View className="flex-1">
-            <Text className="font-semibold text-ink">{clan.name}</Text>
+            <Text className="font-pixel text-ink">{clan.name}</Text>
             <Text className="text-sm italic text-stone-500">“{clan.motto}”</Text>
           </View>
         </View>

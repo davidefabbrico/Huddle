@@ -63,13 +63,13 @@ export default function ProfileScreen() {
       <Confetti burst={fresh.length ? (stats.data?.loadedAt ?? 0) : 0} />
       <ScrollView contentContainerClassName="gap-6 px-4 pb-10 pt-4 wide:px-8 wide:pt-8">
         {fresh.length ? (
-          <View className="flex-row items-center gap-3 rounded-3xl bg-amber-100 p-4">
+          <View className="flex-row items-center gap-3 rounded-3xl border-2 border-b-4 border-line bg-amber-100 p-4">
             <Text className="text-3xl">{fresh[0].emoji}</Text>
             <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase text-amber-700">
+              <Text className="text-xs font-pixel uppercase text-amber-700">
                 {fresh[0].secret ? 'Traguardo segreto sbloccato!' : 'Traguardo sbloccato!'}
               </Text>
-              <Text className="text-base font-semibold text-amber-900">
+              <Text className="text-base font-pixel text-amber-900">
                 {fresh.map((a) => a.name).join(', ')}
               </Text>
             </View>
@@ -81,7 +81,7 @@ export default function ProfileScreen() {
               {/* Identity */}
               <View className="items-center gap-2">
                 <Avatar {...avatarOf(user)} size={88} />
-                <Text className="text-center text-2xl font-bold text-ink">{user.full_name}</Text>
+                <Text className="text-center text-2xl font-pixel-bold text-ink">{user.full_name}</Text>
                 <View className="flex-row flex-wrap justify-center gap-2">
                   {user.is_relocated ? <RelocatedBadge /> : null}
                   {isBusiness ? (
@@ -118,9 +118,9 @@ export default function ProfileScreen() {
 
               {/* Reliability: what the points mean */}
               {reliability ? (
-                <View className="gap-1 rounded-3xl bg-brand-50 p-4">
+                <View className="gap-1 rounded-3xl border-2 border-b-4 border-line bg-brand-50 p-4">
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-sm font-semibold text-brand-700">LA TUA AFFIDABILITÀ</Text>
+                    <Text className="text-sm font-pixel text-brand-700">LA TUA AFFIDABILITÀ</Text>
                     <InfoTip
                       text={
                         nextReliability
@@ -129,7 +129,7 @@ export default function ProfileScreen() {
                       }
                     />
                   </View>
-                  <Text className="text-xl font-bold text-ink">
+                  <Text className="text-xl font-pixel-bold text-ink">
                     {starsLabel(reliability.stars)} {reliability.label}
                   </Text>
                   <Text className="text-sm text-stone-600">{reliability.description}</Text>
@@ -137,9 +137,9 @@ export default function ProfileScreen() {
               ) : null}
 
               {/* How points work (opens on tap) */}
-              <View className="gap-2 rounded-3xl bg-white p-4">
+              <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
                 <Pressable onPress={() => setShowRules(!showRules)} accessibilityRole="button" className="flex-row items-center justify-between">
-                  <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
+                  <Text className="text-sm font-pixel text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
                   <Ionicons name={showRules ? 'chevron-up' : 'chevron-down'} size={18} className="text-stone-500" />
                 </Pressable>
                 {!showRules ? null : isBusiness ? (
@@ -151,20 +151,20 @@ export default function ProfileScreen() {
                   <View key={rule.label} className="flex-row items-center gap-3">
                     <Text className="text-lg">{rule.emoji}</Text>
                     <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
-                    <Text className="font-bold text-brand-600">+{rule.points}</Text>
+                    <Text className="font-pixel-bold text-brand-600">+{rule.points}</Text>
                   </View>
                 ))}
               </View>
 
               {/* What you're looking for */}
-              <View className="gap-3 rounded-3xl bg-white p-4">
-                <Text className="text-sm font-semibold text-stone-500">COSA CERCO</Text>
+              <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
+                <Text className="text-sm font-pixel text-stone-500">COSA CERCO</Text>
                 <View className="flex-row">
                   <Chip label={intentLabels[user.intent]} selected />
                 </View>
                 {user.interests.length > 0 ? (
                   <>
-                    <Text className="mt-1 text-sm font-semibold text-stone-500">INTERESSI</Text>
+                    <Text className="mt-1 text-sm font-pixel text-stone-500">INTERESSI</Text>
                     <View className="flex-row flex-wrap gap-2">
                       {user.interests.map((interest) => (
                         <Chip key={interest} label={interest} />
@@ -180,7 +180,7 @@ export default function ProfileScreen() {
               {/* Achievements */}
               {stats.data ? (
                 <View className="gap-3">
-                  <Text className="text-lg font-semibold text-ink">
+                  <Text className="text-lg font-pixel text-ink">
                     Traguardi ({unlockedCount}/{achievements.length})
                   </Text>
                   <View className="flex-row flex-wrap gap-3">
@@ -193,11 +193,11 @@ export default function ProfileScreen() {
 
               {/* Rank in each group */}
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Il tuo grado nei gruppi</Text>
+                <Text className="text-lg font-pixel text-ink">Il tuo grado nei gruppi</Text>
                 {!stats.data && stats.loading ? (
                   <ActivityIndicator color={colors.brand} />
                 ) : list.length === 0 ? (
-                  <View className="items-center gap-3 rounded-3xl border border-dashed border-stone-300 p-6">
+                  <View className="items-center gap-3 rounded-3xl border-2 border-dashed border-stone-300 p-6">
                     <Text className="text-center text-stone-500">
                       Entra in un gruppo e partecipa agli eventi per salire di grado: da Volto nuovo a Leggenda vivente.
                     </Text>
@@ -210,16 +210,16 @@ export default function ProfileScreen() {
 
               {/* The ladder */}
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">La scala dei gradi</Text>
+                <Text className="text-lg font-pixel text-ink">La scala dei gradi</Text>
                 <Text className="text-sm text-stone-500">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
-                <View className="overflow-hidden rounded-3xl bg-white">
+                <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
                   {RANKS.map((rank, index) => {
                     const reached = list.length > 0 && bestRank.level >= rank.level;
                     return (
                       <View key={rank.level} className={`flex-row items-center gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
                         <Text className={`text-2xl ${reached ? '' : 'opacity-40'}`}>{rank.emoji}</Text>
                         <View className="flex-1">
-                          <Text className={`font-semibold ${reached ? 'text-ink' : 'text-stone-400'}`}>
+                          <Text className={`font-pixel ${reached ? 'text-ink' : 'text-stone-400'}`}>
                             {rank.level}. {rank.name}
                           </Text>
                           <Text className="text-sm text-stone-500">{rank.description}</Text>
@@ -234,8 +234,8 @@ export default function ProfileScreen() {
               </View>
 
               {/* Account */}
-              <View className="gap-3 rounded-3xl bg-white p-4">
-                <Text className="text-sm font-semibold text-stone-500">ACCOUNT</Text>
+              <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
+                <Text className="text-sm font-pixel text-stone-500">ACCOUNT</Text>
                 {email.data ? <Text className="text-base text-stone-700">{email.data}</Text> : null}
                 <View className="flex-row flex-wrap items-center gap-2">
                   <Text className="mr-1 text-base text-stone-700">Tema</Text>
@@ -269,8 +269,8 @@ export default function ProfileScreen() {
 
 function Stat({ value, label, highlight = false }: { value: string; label: string; highlight?: boolean }) {
   return (
-    <View className={`flex-1 items-center justify-center gap-1 rounded-3xl px-2 py-4 ${highlight ? 'bg-brand-200' : 'bg-white'}`}>
-      <Text className={`text-2xl font-bold ${highlight ? 'text-brand-800' : 'text-ink'}`}>{value}</Text>
+    <View className={`flex-1 items-center justify-center gap-1 rounded-3xl border-2 border-b-4 border-line px-2 py-4 ${highlight ? 'bg-brand-200' : 'bg-white'}`}>
+      <Text className={`text-2xl font-pixel-bold ${highlight ? 'text-brand-800' : 'text-ink'}`}>{value}</Text>
       <Text numberOfLines={2} className={`text-center text-xs ${highlight ? 'text-brand-800' : 'text-stone-500'}`}>
         {label}
       </Text>
@@ -282,10 +282,10 @@ function Stat({ value, label, highlight = false }: { value: string; label: strin
 function AchievementTile({ achievement }: { achievement: Achievement }) {
   return (
     <View
-      className={`w-[31%] flex-grow items-center gap-1 rounded-3xl p-3 ${achievement.unlocked ? 'bg-white' : 'border border-dashed border-stone-300'}`}
+      className={`w-[31%] flex-grow items-center gap-1 rounded-3xl p-3 ${achievement.unlocked ? 'border-2 border-b-4 border-line bg-white' : 'border-2 border-dashed border-stone-300'}`}
     >
       <Text className={`text-3xl ${achievement.unlocked ? '' : 'opacity-30'}`}>{achievement.emoji}</Text>
-      <Text className={`text-center text-sm font-semibold ${achievement.unlocked ? 'text-ink' : 'text-stone-400'}`}>
+      <Text className={`text-center text-sm font-pixel ${achievement.unlocked ? 'text-ink' : 'text-stone-400'}`}>
         {achievement.name}
       </Text>
       <Text className="text-center text-xs text-stone-500">{achievement.description}</Text>
@@ -302,11 +302,11 @@ function RankCard({ membership }: { membership: Membership }) {
 
   return (
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
-      <Pressable className="gap-3 rounded-3xl bg-white p-4 active:bg-stone-100">
+      <Pressable className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4 active:bg-stone-100">
         <View className="flex-row items-center gap-3">
           <GroupIcon {...groupIconOf(group)} size={40} />
           <View className="flex-1">
-            <Text numberOfLines={1} className="font-semibold text-ink">
+            <Text numberOfLines={1} className="font-pixel text-ink">
               {group.name}
             </Text>
             <Text className="text-sm text-stone-500">
@@ -319,7 +319,7 @@ function RankCard({ membership }: { membership: Membership }) {
         <View className="flex-row items-center gap-3 rounded-2xl bg-brand-50 p-3">
           <Text className="text-3xl">{rank.emoji}</Text>
           <View className="flex-1 gap-1.5">
-            <Text className="font-bold text-brand-700">{rank.name}</Text>
+            <Text className="font-pixel-bold text-brand-700">{rank.name}</Text>
             <View className="h-2 overflow-hidden rounded-full bg-brand-100">
               <View className="h-full rounded-full bg-brand-400" style={{ width: `${Math.round(progress * 100)}%` }} />
             </View>

@@ -1,5 +1,6 @@
-// Material 3 buttons, pastel: filled (primary), outlined (secondary), tonal neutral (muted).
-// Fully rounded; dark text on pastel so it stays readable. Colors follow the group (GroupTheme).
+// Arcade buttons, pastel: filled (primary), white (secondary), neutral (muted). Square, with the dark
+// pixel outline, thicker below like a cabinet's button: pressed, it sinks. Pixel font; dark text on
+// pastel so it stays readable. Colors follow the group (GroupTheme).
 
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
@@ -11,9 +12,9 @@ type Size = 'md' | 'sm';
 
 // Full class names (not built dynamically) so Tailwind can find them
 const containerClass: Record<Variant, string> = {
-  primary: 'bg-brand-300 active:bg-brand-400',
-  secondary: 'border border-brand-300 active:bg-brand-50',
-  muted: 'bg-stone-200/70 active:bg-stone-200',
+  primary: 'border-line bg-brand-300 active:bg-brand-400',
+  secondary: 'border-line bg-white active:bg-brand-50',
+  muted: 'border-stone-400 bg-stone-200 active:bg-stone-300',
 };
 const textClass: Record<Variant, string> = {
   primary: 'text-brand-800',
@@ -42,14 +43,14 @@ export function Button({ title, onPress, variant = 'primary', icon, loading, dis
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
-      className={`flex-row items-center justify-center gap-2 rounded-full ${small ? 'h-9 px-4' : 'h-12 px-6'} ${containerClass[variant]} ${disabled ? 'opacity-50' : ''}`}
+      className={`flex-row items-center justify-center gap-2 rounded-full border-2 border-b-4 active:border-b-2 ${small ? 'h-9 px-4' : 'h-12 px-6'} ${containerClass[variant]} ${disabled ? 'opacity-50' : ''}`}
     >
       {loading ? (
         <ActivityIndicator color={iconColor} />
       ) : (
         <>
           {icon ? <Ionicons name={icon} size={small ? 16 : 18} color={iconColor} /> : null}
-          <Text className={`font-semibold ${small ? 'text-sm' : 'text-base'} ${textClass[variant]}`}>{title}</Text>
+          <Text className={`font-pixel ${small ? 'text-sm' : 'text-base'} ${textClass[variant]}`}>{title}</Text>
         </>
       )}
     </Pressable>

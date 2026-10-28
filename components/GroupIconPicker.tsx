@@ -30,11 +30,11 @@ export function GroupIconPicker({ name, icon, color, onChange }: Props) {
         className="items-center gap-2"
       >
         <GroupIcon name={name || 'Gruppo'} icon={icon} color={color} size={88} />
-        <Text className="text-sm font-semibold text-brand-600">{open ? 'Fatto' : 'Cambia icona'}</Text>
+        <Text className="text-sm font-pixel text-brand-600">{open ? 'Fatto' : 'Cambia icona'}</Text>
       </Pressable>
 
       {open ? (
-        <View className="gap-3 rounded-3xl bg-white p-3">
+        <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
           <View className="flex-row flex-wrap justify-center gap-2.5">
             {GROUP_COLOR_KEYS.map((key) => (
               <Pressable

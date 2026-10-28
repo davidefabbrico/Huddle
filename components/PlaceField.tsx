@@ -69,7 +69,7 @@ export function PlaceField({
           <Text className="text-xs text-emerald-700">{foundHint}</Text>
         </View>
       ) : results.length > 0 ? (
-        <View className="overflow-hidden rounded-2xl bg-white">
+        <View className="overflow-hidden rounded-2xl border-2 border-line bg-white">
           {results.map((place, index) => (
             <Pressable
               key={`${place.lat},${place.lon}`}

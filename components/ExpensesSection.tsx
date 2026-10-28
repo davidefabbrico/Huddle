@@ -50,13 +50,13 @@ export function ExpensesSection({ eventId, myId, expenses, participants, people,
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-base font-semibold text-ink">{ended ? 'Conti finali' : 'Spese'}</Text>
+        <Text className="text-base font-pixel text-ink">{ended ? 'Conti finali' : 'Spese'}</Text>
         {total ? <Text className="text-sm text-stone-500">Totale {formatEuro(total)}</Text> : null}
       </View>
 
       {expenses.length ? (
-        <View className="gap-2 rounded-3xl bg-emerald-50 p-4">
-          <Text className="text-base font-semibold text-emerald-900">
+        <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-emerald-50 p-4">
+          <Text className="text-base font-pixel text-emerald-900">
             {mine > 0 ? `Ti devono ${formatEuro(mine)}` : mine < 0 ? `Devi ${formatEuro(-mine)}` : 'Sei in pari ✓'}
           </Text>
           {toSettle.length === 0 ? (
@@ -65,7 +65,7 @@ export function ExpensesSection({ eventId, myId, expenses, participants, people,
             toSettle.map((s) => (
               <View key={`${s.from}-${s.to}`} className="flex-row flex-wrap items-center gap-2">
                 <Text className="flex-1 text-sm text-emerald-900">
-                  <Text className="font-semibold">{nameOf(s.from)}</Text> → <Text className="font-semibold">{nameOf(s.to)}</Text>{' '}
+                  <Text className="font-pixel">{nameOf(s.from)}</Text> → <Text className="font-pixel">{nameOf(s.to)}</Text>{' '}
                   {formatEuro(s.amount_cents)}
                 </Text>
                 {s.from === myId || s.to === myId ? (
@@ -96,7 +96,7 @@ export function ExpensesSection({ eventId, myId, expenses, participants, people,
       )}
 
       {expenses.length ? (
-        <View className="overflow-hidden rounded-3xl bg-white">
+        <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
           {[...expenses].reverse().map((expense, index) => (
             <View key={expense.id} className={`flex-row items-center gap-3 px-4 py-3 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
               <Text className="text-xl">{expense.is_settlement ? '💸' : '🧾'}</Text>
@@ -112,7 +112,7 @@ export function ExpensesSection({ eventId, myId, expenses, participants, people,
                     : `Pagato da ${objectName(expense.paid_by)} · diviso tra ${expense.shares.length} · ${timeAgo(expense.created_at)}`}
                 </Text>
               </View>
-              {expense.is_settlement ? null : <Text className="font-semibold text-ink">{formatEuro(expense.amount_cents)}</Text>}
+              {expense.is_settlement ? null : <Text className="font-pixel text-ink">{formatEuro(expense.amount_cents)}</Text>}
               {expense.created_by === myId || expense.paid_by === myId || isAdmin ? (
                 <Button title="Togli" size="sm" variant="muted" disabled={busy} onPress={() => run(() => api.deleteExpense(expense.id))} />
               ) : null}
@@ -166,7 +166,7 @@ function NewExpenseForm({ myId, participants, busy, onCancel, onSave }: {
   }
 
   return (
-    <View className="gap-3 rounded-3xl bg-white p-4">
+    <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
       {/* One field per row: side by side, a web input can't shrink below ~20 characters and overflows */}
       <TextInput
         value={description}
@@ -174,10 +174,10 @@ function NewExpenseForm({ myId, participants, busy, onCancel, onSave }: {
         placeholder="Per cosa? Es. Pizza"
         placeholderTextColor="#A8A29E"
         maxLength={100}
-        className="h-11 w-full rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink outline-none"
+        className="h-11 w-full rounded-2xl border-2 border-line bg-white px-4 text-base text-ink outline-none"
       />
       <View className="flex-row items-center gap-2">
-        <Text className="text-lg font-semibold text-stone-600">€</Text>
+        <Text className="text-lg font-pixel text-stone-600">€</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
@@ -185,7 +185,7 @@ function NewExpenseForm({ myId, participants, busy, onCancel, onSave }: {
           placeholderTextColor="#A8A29E"
           keyboardType="decimal-pad"
           accessibilityLabel="Importo in euro"
-          className="h-11 w-32 rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink outline-none"
+          className="h-11 w-32 rounded-2xl border-2 border-line bg-white px-4 text-base text-ink outline-none"
         />
       </View>
       <Text className="text-sm font-medium text-stone-700">Ha pagato</Text>

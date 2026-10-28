@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { PixelIcon } from '../../../components/PixelIcon';
 import { Link, router } from 'expo-router';
 import { RelocatedBadge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
@@ -60,7 +60,7 @@ export default function GroupsScreen() {
       <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-3 wide:px-8 wide:pt-8">
         <View className="flex-row items-center justify-between gap-3">
           <Pressable className="flex-1 gap-1" onLongPress={() => setBurst((b) => b + 1)} delayLongPress={600}>
-            <Text className="text-2xl font-semibold text-ink">Ciao, {firstName(user.full_name)} 👋</Text>
+            <Text className="text-2xl font-pixel text-ink">Ciao, {firstName(user.full_name)} 👋</Text>
             {user.is_relocated ? <RelocatedBadge /> : null}
           </Pressable>
           {wide ? null : (
@@ -112,12 +112,12 @@ function BellButton({ unread }: { unread: number }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={unread > 0 ? `Attività, ${unread} non lette` : 'Attività'}
-        className="h-11 w-11 items-center justify-center rounded-full bg-white active:bg-stone-200"
+        className="h-11 w-11 items-center justify-center rounded-full border-2 border-b-4 border-line bg-white active:border-b-2 active:bg-stone-200"
       >
-        <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={24} className="text-ink" />
+        <PixelIcon name="bell" size={20} className="text-ink" />
         {unread > 0 ? (
           <View className="absolute -right-0.5 -top-0.5 h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1">
-            <Text className="text-xs font-bold text-[#FFFFFF]">{unread > 9 ? '9+' : unread}</Text>
+            <Text className="text-xs font-pixel-bold text-[#FFFFFF]">{unread > 9 ? '9+' : unread}</Text>
           </View>
         ) : null}
       </Pressable>

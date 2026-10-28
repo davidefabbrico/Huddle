@@ -92,7 +92,9 @@ function EditForm({ event, group }: { event: EventWithGroup; group: Group }) {
         tags,
         visibility: group.visibility === 'private' ? 'private' : visibility,
       });
-      router.back();
+      // opened from a link or after a reload there's no page behind: go to the event
+      if (router.canGoBack()) router.back();
+      else router.replace({ pathname: '/event/[id]', params: { id: event.id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Salvataggio non riuscito');
       setLoading(false);

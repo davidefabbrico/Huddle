@@ -137,9 +137,9 @@ export default function EventScreen() {
           <Columns
             main={
               <>
-                <View className="gap-3 rounded-3xl bg-white p-4">
+                <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
                   {phase === 'live' ? <Badge label="In corso" tone="green" icon="radio-button-on" /> : null}
-                  <Text className="text-2xl font-semibold text-ink">{event.title}</Text>
+                  <Text className="text-2xl font-pixel text-ink">{event.title}</Text>
                   <View className="flex-row flex-wrap gap-1.5">
                     {phase === 'ended' ? <Badge label="Concluso" icon="checkmark-done" /> : null}
                     {event.kind === 'trip' ? <Badge label="Vacanza" tone="sky" icon="airplane" /> : null}
@@ -148,7 +148,7 @@ export default function EventScreen() {
                   </View>
                   {event.cancelled_at ? (
                     <View className="rounded-2xl bg-red-50 p-3">
-                      <Text className="font-semibold text-red-700">
+                      <Text className="font-pixel text-red-700">
                         ❌ {event.kind === 'trip' ? 'Vacanza annullata' : 'Evento annullato'}
                       </Text>
                     </View>
@@ -162,14 +162,14 @@ export default function EventScreen() {
                     <View className="flex-row items-center gap-2">
                       <Avatar {...avatarOf(organizer)} size={24} />
                       <Text className="flex-1 text-base text-stone-700">
-                        Organizza <Text className="font-semibold">{organizer.id === user.id ? 'tu' : organizer.full_name}</Text>
+                        Organizza <Text className="font-pixel">{organizer.id === user.id ? 'tu' : organizer.full_name}</Text>
                       </Text>
                     </View>
                   ) : null}
                   <Link href={{ pathname: '/group/[id]', params: { id: event.group_id } }} asChild>
                     <Pressable className="mt-1 flex-row items-center gap-3 rounded-2xl bg-brand-50 p-3 active:bg-brand-100">
                       <GroupIcon name={event.group_name} icon={event.group_icon} color={event.group_color} size={36} />
-                      <Text className="flex-1 font-semibold text-ink">{event.group_name}</Text>
+                      <Text className="flex-1 font-pixel text-ink">{event.group_name}</Text>
                       <Ionicons name="chevron-forward" size={18} className="text-stone-500" />
                     </Pressable>
                   </Link>
@@ -181,9 +181,9 @@ export default function EventScreen() {
                 {event.poster_url ? <PosterView url={event.poster_url} mime={event.poster_mime} /> : null}
 
                 {newRank ? (
-                  <View className="items-center gap-1 rounded-3xl bg-amber-100 p-5">
+                  <View className="items-center gap-1 rounded-3xl border-2 border-b-4 border-line bg-amber-100 p-5">
                     <Text className="text-4xl">{newRank.emoji}</Text>
-                    <Text className="text-center text-lg font-bold text-amber-900">Nuovo grado: {newRank.name}!</Text>
+                    <Text className="text-center text-lg font-pixel-bold text-amber-900">Nuovo grado: {newRank.name}!</Text>
                     <Text className="text-center text-sm text-amber-800">{newRank.description}</Text>
                   </View>
                 ) : null}
@@ -201,7 +201,7 @@ export default function EventScreen() {
                   <Button title={mine?.status === 'going' ? 'C’eri anche tu ✓' : 'Evento concluso'} variant="muted" disabled />
                 ) : (
                   <View className="gap-3">
-                    <Text className="text-base font-semibold text-ink">Ci sei?</Text>
+                    <Text className="text-base font-pixel text-ink">Ci sei?</Text>
                     <View className="flex-row gap-2">
                       <View className="flex-1">
                         <Button
@@ -345,7 +345,7 @@ export default function EventScreen() {
                     {notGoing.length > 0 ? <PeopleList title={`Non ci sono (${notGoing.length})`} people={notGoing} myId={user.id} /> : null}
                     {noAnswer.length > 0 && phase !== 'ended' ? (
                       <View className="gap-2">
-                        <Text className="text-base font-semibold text-ink">Non hanno ancora risposto ({noAnswer.length})</Text>
+                        <Text className="text-base font-pixel text-ink">Non hanno ancora risposto ({noAnswer.length})</Text>
                         <Text className="text-sm text-stone-500">{noAnswer.map((m) => firstName(m.full_name)).join(', ')}</Text>
                       </View>
                     ) : null}
@@ -356,8 +356,8 @@ export default function EventScreen() {
 
                 {/* Organizer / admin tools */}
                 {canManage ? (
-                  <View className="gap-2 rounded-3xl bg-white p-3">
-                    <Text className="text-sm font-semibold text-stone-600">Gestisci l’evento</Text>
+                  <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
+                    <Text className="text-sm font-pixel text-stone-600">Gestisci l’evento</Text>
                     <View className="flex-row flex-wrap gap-2">
                       <Button
                         title="Modifica"
@@ -452,11 +452,11 @@ interface PeopleListProps {
 function PeopleList({ title, people, myId, empty, right }: PeopleListProps) {
   return (
     <View className="gap-3">
-      <Text className="text-base font-semibold text-ink">{title}</Text>
+      <Text className="text-base font-pixel text-ink">{title}</Text>
       {people.length === 0 ? (
         empty ? <Text className="text-stone-500">{empty}</Text> : null
       ) : (
-        <View className="overflow-hidden rounded-3xl bg-white">
+        <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
           {people.map((person, index) => (
             <View key={person.id} className={`flex-row items-center gap-3 p-3 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
               <Avatar {...avatarOf(person)} size={36} />
@@ -481,10 +481,10 @@ function ThanksButton({ active, count, disabled, onPress }: { active: boolean; c
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={active ? 'Togli il grazie' : 'Ringrazia'}
-      className={`flex-row items-center gap-1 rounded-full border px-3 py-1.5 ${active ? 'border-amber-400 bg-amber-100' : 'border-stone-300 bg-white active:bg-stone-100'}`}
+      className={`flex-row items-center gap-1 rounded-full border-2 px-3 py-1.5 ${active ? 'border-amber-400 bg-amber-100' : 'border-stone-300 bg-white active:bg-stone-100'}`}
     >
       <Text className="text-sm">🙏</Text>
-      <Text className={`text-sm font-semibold ${active ? 'text-amber-800' : 'text-stone-600'}`}>
+      <Text className={`text-sm font-pixel ${active ? 'text-amber-800' : 'text-stone-600'}`}>
         {active ? 'Grazie!' : 'Grazie'}
         {count > 0 ? ` · ${count}` : ''}
       </Text>

@@ -16,11 +16,11 @@ export function GroupCard({ group, reliability, distance }: { group: GroupSummar
 
   return (
     <Link href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
-      <Pressable className="rounded-3xl bg-white p-4 active:bg-stone-100">
+      <Pressable className="rounded-3xl border-2 border-b-4 border-line bg-white p-4 active:bg-stone-100">
         <View className="flex-row gap-3">
           <GroupIcon {...groupIconOf(group)} />
           <View className="flex-1">
-            <Text className="text-base font-semibold text-ink">{group.name}</Text>
+            <Text className="text-base font-pixel text-ink">{group.name}</Text>
             {group.location ? (
               <View className="mt-0.5 flex-row items-center gap-1">
                 <Ionicons name="location-outline" size={13} className="text-stone-500" />

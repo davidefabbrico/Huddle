@@ -44,13 +44,13 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
   return (
     <View className="gap-3">
       {arrival ? (
-        <View className="gap-3 rounded-3xl border border-sky-200 bg-sky-50 p-4">
+        <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-sky-50 p-4">
           <View className="flex-row items-start gap-3">
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
               <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">
-              <Text className="font-semibold text-ink">SmartPark: hai parcheggiato</Text>
+              <Text className="font-pixel text-ink">SmartPark: hai parcheggiato</Text>
               <Text className="text-sm text-stone-600">
                 {eventPlace ? `A ${formatDistance(distanceMeters(arrival, eventPlace))} dall’evento.` : 'Vicino all’evento.'} Cosa vuoi fare?
               </Text>
@@ -87,13 +87,13 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
             onPress={openSmartPark}
             disabled={opening}
             accessibilityRole="link"
-            className="flex-row items-center gap-3 rounded-2xl bg-white p-3 active:bg-stone-100"
+            className="flex-row items-center gap-3 rounded-2xl border-2 border-line bg-white p-3 active:bg-stone-100"
           >
             <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
               <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">
-              <Text className="font-semibold text-ink">{opening ? 'Cerco il luogo…' : 'Trova parcheggio'}</Text>
+              <Text className="font-pixel text-ink">{opening ? 'Cerco il luogo…' : 'Trova parcheggio'}</Text>
               <Text className="text-xs text-stone-500">Con SmartPark, per l’ora dell’evento</Text>
             </View>
             <Ionicons name="open-outline" size={18} className="text-stone-500" />

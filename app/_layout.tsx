@@ -2,11 +2,13 @@
 // Signed out -> login/signup/forgot-password; signed in -> the (app) group;
 // opened the reset-password email link -> only reset-password until a new password is set.
 // A link opened while signed out (invite, group, event) is reopened after signing in.
+// The pixel font (Huddle Pixel, assets/fonts: titles, buttons, numbers) loads before anything is shown.
 
 import '../global.css';
 import '../components/iconColors';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { useFonts } from 'expo-font';
 import { router, Stack, usePathname, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppTheme } from '../components/GroupTheme';
@@ -27,6 +29,12 @@ export default function RootLayout() {
   const recovering = useAuth((state) => state.recovering);
   const pathname = usePathname();
   const mode = useThemeMode();
+  // If the font can't load (offline on the first visit), the app still opens with the system font
+  const [fontsLoaded, fontError] = useFonts({
+    'HuddlePixel-SemiBold': require('../assets/fonts/HuddlePixel-SemiBold.ttf'),
+    'HuddlePixel-Bold': require('../assets/fonts/HuddlePixel-Bold.ttf'),
+  });
+  const fontsReady = fontsLoaded || fontError !== null;
 
   useEffect(() => {
     if (isSupabaseConfigured) return useAuth.getState().init();
@@ -51,7 +59,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!initialized) {
+  if (!initialized || !fontsReady) {
     return (
       <AppTheme>
         <View className="flex-1 items-center justify-center bg-surface">

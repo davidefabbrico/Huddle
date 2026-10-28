@@ -89,14 +89,14 @@ export default function SearchScreen() {
           placeholder="Cerca eventi, gruppi, luoghi…"
           placeholderTextColor="#A8A29E"
           autoFocus
-          className="h-12 rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink"
+          className="h-12 rounded-2xl border-2 border-line bg-white px-4 text-base text-ink"
         />
         <View className="flex-row gap-2">
           <Chip label={`Eventi${data.data ? ` (${events.length})` : ''}`} selected={tab === 'events'} onPress={() => setTab('events')} />
           <Chip label={`Gruppi${data.data ? ` (${groups.length})` : ''}`} selected={tab === 'groups'} onPress={() => setTab('groups')} />
         </View>
 
-        <View className="gap-3 rounded-3xl bg-white p-4">
+        <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
           <FilterRow label="Distanza">
             <Chip label="Ovunque" selected={maxKm === null} onPress={() => setMaxKm(null)} />
             {DISTANCES_KM.map((km) => (
@@ -174,7 +174,7 @@ export default function SearchScreen() {
 function FilterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View className="gap-2">
-      <Text className="text-sm font-semibold text-stone-600">{label}</Text>
+      <Text className="text-sm font-pixel text-stone-600">{label}</Text>
       <View className="flex-row flex-wrap gap-2">{children}</View>
     </View>
   );

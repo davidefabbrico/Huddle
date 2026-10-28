@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { PixelIcon } from './PixelIcon';
 import { router } from 'expo-router';
 
 interface Props {
@@ -23,10 +23,10 @@ export function Header({ title, subtitle, right }: Props) {
         hitSlop={8}
         className="h-12 w-12 items-center justify-center rounded-full active:bg-stone-200"
       >
-        <Ionicons name="arrow-back" size={22} className="text-ink" />
+        <PixelIcon name="back" size={22} className="text-ink" />
       </Pressable>
       <View className="flex-1">
-        <Text numberOfLines={1} className="text-lg font-medium text-ink">
+        <Text numberOfLines={1} className="text-lg font-pixel text-ink">
           {title}
         </Text>
         {subtitle ? <Text numberOfLines={1} className="text-xs text-stone-500">{subtitle}</Text> : null}

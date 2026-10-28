@@ -48,7 +48,7 @@ export function EventPhotos({ eventId, myId, photos, people, canAdd, isAdmin, is
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-base font-semibold text-ink">Foto{photos.length ? ` (${photos.length})` : ''}</Text>
+        <Text className="text-base font-pixel text-ink">Foto{photos.length ? ` (${photos.length})` : ''}</Text>
         {canAdd ? (
           <InfoTip
             text={`Una foto a testa. ${isPublic ? 'Il gruppo è pubblico: le vedono anche le persone di altri gruppi.' : 'Il gruppo è privato: le vede solo chi ne fa parte.'}`}
@@ -68,7 +68,7 @@ export function EventPhotos({ eventId, myId, photos, people, canAdd, isAdmin, is
                 </Text>
                 {isAdmin && photo.user_id !== myId ? (
                   <Pressable onPress={busy ? undefined : () => run(() => api.removeEventPhoto(eventId, photo.user_id))} accessibilityRole="button" hitSlop={6}>
-                    <Text className="text-xs font-semibold text-red-600">Rimuovi</Text>
+                    <Text className="text-xs font-pixel text-red-600">Rimuovi</Text>
                   </Pressable>
                 ) : null}
               </View>

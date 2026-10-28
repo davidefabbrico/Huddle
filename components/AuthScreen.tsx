@@ -22,16 +22,16 @@ export function AuthScreen({ children }: { children: ReactNode }) {
     <View className="flex-1 flex-row bg-surface">
       <View className="flex-1 justify-center gap-8 bg-brand-200 px-16">
         <View className="flex-row items-center gap-4">
-          <Image source={require('../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 20 }} accessibilityIgnoresInvertColors />
-          <Text className="text-5xl font-bold text-brand-800">Huddle</Text>
+          <Image source={require('../assets/icon.png')} style={{ width: 72, height: 72, borderRadius: 6 }} accessibilityIgnoresInvertColors />
+          <Text className="text-5xl font-pixel-bold text-brand-800">Huddle</Text>
         </View>
-        <Text className="max-w-md text-2xl font-semibold leading-9 text-brand-800">
+        <Text className="max-w-md text-2xl font-pixel leading-9 text-brand-800">
           Organizza eventi con i tuoi gruppi e conosci gente nuova.
         </Text>
         <View className="max-w-md gap-4">
           {highlights.map((item) => (
             <View key={item.icon} className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white/70">
+              <View className="h-10 w-10 items-center justify-center rounded-2xl border-2 border-line bg-white/70">
                 <Ionicons name={item.icon} size={20} className="text-brand-600" />
               </View>
               <Text className="flex-1 text-base text-brand-800">{item.text}</Text>

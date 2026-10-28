@@ -60,7 +60,7 @@ export function TripPlan({ eventId, myId, days, items, participants, canEdit, on
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-base font-semibold text-ink">La scaletta</Text>
+        <Text className="text-base font-pixel text-ink">La scaletta</Text>
         {items.length ? <Text className="text-sm text-stone-500">{done}/{items.length} fatti</Text> : null}
       </View>
 
@@ -69,8 +69,8 @@ export function TripPlan({ eventId, myId, days, items, participants, canEdit, on
       ) : (
         groups.map((group) => (
           <View key={group.key} className="gap-1">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-stone-500">{group.label}</Text>
-            <View className="overflow-hidden rounded-3xl bg-white">
+            <Text className="text-xs font-pixel uppercase tracking-wide text-stone-500">{group.label}</Text>
+            <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
               {group.items.map((item, index) => (
                 <PlanRow
                   key={item.id}
@@ -92,7 +92,7 @@ export function TripPlan({ eventId, myId, days, items, participants, canEdit, on
       )}
 
       {canEdit ? (
-        <View className="gap-2 rounded-3xl bg-white p-3">
+        <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-white p-3">
           <View className="flex-row flex-wrap gap-2">
             {(['see', 'todo'] as const).map((k) => (
               <Chip key={k} label={kindLabel[k]} selected={kind === k} onPress={() => setKind(k)} />
@@ -105,7 +105,7 @@ export function TripPlan({ eventId, myId, days, items, participants, canEdit, on
             placeholder={kind === 'see' ? 'Es. Cattedrale di Monreale' : 'Es. Prenotare la barca'}
             placeholderTextColor="#A8A29E"
             maxLength={200}
-            className="h-11 rounded-2xl border border-stone-300 bg-white px-4 text-base text-ink"
+            className="h-11 rounded-2xl border-2 border-line bg-white px-4 text-base text-ink"
           />
           {days.length > 1 ? (
             <View className="flex-row flex-wrap gap-2">
@@ -170,7 +170,7 @@ function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onR
           onBlur={save}
           autoFocus
           maxLength={200}
-          className="h-9 flex-1 rounded-xl border border-brand-500 bg-white px-2 text-base text-ink"
+          className="h-9 flex-1 rounded-xl border-2 border-brand-500 bg-white px-2 text-base text-ink"
         />
       ) : (
         <Pressable onPress={canEdit ? () => setEditing(true) : undefined} className="flex-1" accessibilityHint={canEdit ? 'Tocca per modificare' : undefined}>
@@ -183,10 +183,10 @@ function PlanRow({ item, myId, participants, first, canEdit, busy, onToggle, onR
         accessibilityLabel={voted ? `Togli il voto a ${item.title}` : `Vota ${item.title}`}
         aria-pressed={voted}
         hitSlop={6}
-        className={`flex-row items-center gap-1 rounded-full border px-2 py-1 ${voted ? 'border-brand-300 bg-brand-200' : 'border-stone-300 bg-white'}`}
+        className={`flex-row items-center gap-1 rounded-full border-2 px-2 py-1 ${voted ? 'border-line bg-brand-200' : 'border-stone-300 bg-white'}`}
       >
         <Text className="text-xs">👍</Text>
-        <Text className={`text-xs font-semibold ${voted ? 'text-brand-800' : 'text-stone-600'}`}>{item.votes.length}</Text>
+        <Text className={`text-xs font-pixel ${voted ? 'text-brand-800' : 'text-stone-600'}`}>{item.votes.length}</Text>
       </Pressable>
       {canEdit ? (
         <Pressable onPress={busy ? undefined : onDelete} accessibilityRole="button" accessibilityLabel={`Togli ${item.title}`} hitSlop={6}>

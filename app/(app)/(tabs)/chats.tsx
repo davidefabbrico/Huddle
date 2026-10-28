@@ -21,7 +21,7 @@ export default function ChatsScreen() {
   return (
     <Screen width="page">
       <ScrollView contentContainerClassName="flex-grow gap-5 px-4 pb-10 pt-4 wide:pt-8">
-        <Text className="text-3xl font-bold text-ink">Chat</Text>
+        <Text className="text-3xl font-pixel-bold text-ink">Chat</Text>
 
         {!chats.data && chats.loading ? (
           <ActivityIndicator color={colors.brand} className="mt-10" />
@@ -32,14 +32,14 @@ export default function ChatsScreen() {
             <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-100">
               <Ionicons name="chatbubbles-outline" size={30} className="text-brand-600" />
             </View>
-            <Text className="text-center text-lg font-semibold text-ink">Ancora nessuna chat</Text>
+            <Text className="text-center text-lg font-pixel text-ink">Ancora nessuna chat</Text>
             <Text className="text-center text-stone-500">
               Quando un gruppo ti accetta, la sua chat compare qui.
             </Text>
             <Button title="Trova un gruppo" icon="people" onPress={() => router.navigate('/')} />
           </View>
         ) : (
-          <View className="overflow-hidden rounded-3xl bg-white">
+          <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
             {chats.data?.map((chat, index) => (
               <ChatRow key={chat.group.id} chat={chat} myId={user.id} first={index === 0} />
             ))}
@@ -60,7 +60,7 @@ function ChatRow({ chat, myId, first }: { chat: ChatPreview; myId: string; first
         <GroupIcon {...groupIconOf(chat.group)} size={52} />
         <View className="flex-1 gap-0.5">
           <View className="flex-row items-center gap-2">
-            <Text numberOfLines={1} className="flex-shrink text-base font-semibold text-ink">
+            <Text numberOfLines={1} className="flex-shrink text-base font-pixel text-ink">
               {chat.group.name}
             </Text>
             {chat.access === 'guest' ? <Badge label="Ospite" tone="sky" /> : null}

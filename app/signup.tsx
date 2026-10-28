@@ -84,9 +84,9 @@ export default function SignupScreen() {
     return (
       <AuthScreen>
         <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10">
-          <View className="items-center gap-3 rounded-3xl bg-white p-6">
+          <View className="items-center gap-3 rounded-3xl border-2 border-b-4 border-line bg-white p-6">
             <Ionicons name="mail-unread-outline" size={44} color={colors.brand} />
-            <Text className="text-center text-2xl font-bold text-ink">Controlla la posta</Text>
+            <Text className="text-center text-2xl font-pixel-bold text-ink">Controlla la posta</Text>
             <Text className="text-center text-base text-stone-600">
               Ti abbiamo mandato un link a {email.trim()}. Aprilo per confermare l’account: entrerai direttamente in
               Huddle. Guarda anche nello spam.
@@ -106,7 +106,7 @@ export default function SignupScreen() {
             }}
           />
           {error ? <Text className="text-center text-sm text-red-600">{error}</Text> : null}
-          <Link href="/login" className="text-center font-semibold text-brand-600">
+          <Link href="/login" className="text-center font-pixel text-brand-600">
             Vai all’accesso
           </Link>
         </ScrollView>
@@ -119,12 +119,12 @@ export default function SignupScreen() {
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-7 px-6 py-8" keyboardShouldPersistTaps="handled">
           <View>
-            <Text className="text-3xl font-bold text-ink">Ti diamo il benvenuto</Text>
+            <Text className="text-3xl font-pixel-bold text-ink">Ti diamo il benvenuto</Text>
             <Text className="mt-1 text-base text-stone-600">Due minuti e potrai conoscere il tuo prossimo gruppo.</Text>
           </View>
 
           <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">Chi si iscrive?</Text>
+            <Text className="text-lg font-pixel text-ink">Chi si iscrive?</Text>
             <View className="flex-row flex-wrap gap-2">
               <Chip label="🙋 Una persona" selected={!isBusiness} onPress={() => setAccountType('person')} />
               <Chip label="🏪 Un locale o un’azienda" selected={isBusiness} onPress={() => setAccountType('business')} />
@@ -180,7 +180,7 @@ export default function SignupScreen() {
           {isBusiness ? null : (
             <>
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Come vuoi usare Huddle?</Text>
+                <Text className="text-lg font-pixel text-ink">Come vuoi usare Huddle?</Text>
                 {roleOptions.map((option) => {
                   const selected = role === option.value;
                   return (
@@ -189,13 +189,13 @@ export default function SignupScreen() {
                       onPress={() => setRole(option.value)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
-                      className={`flex-row items-center gap-4 rounded-3xl border-2 bg-white p-4 ${selected ? 'border-brand-500' : 'border-stone-200'}`}
+                      className={`flex-row items-center gap-4 rounded-3xl border-2 border-b-4 bg-white p-4 ${selected ? 'border-brand-500' : 'border-line'}`}
                     >
                       <View className={`h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'bg-brand-200' : 'bg-stone-100'}`}>
                         <Ionicons name={option.icon} size={24} className={selected ? 'text-brand-800' : 'text-stone-500'} />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-base font-semibold text-ink">{option.title}</Text>
+                        <Text className="text-base font-pixel text-ink">{option.title}</Text>
                         <Text className="text-sm text-stone-500">{option.text}</Text>
                       </View>
                       <Ionicons
@@ -208,10 +208,10 @@ export default function SignupScreen() {
                 })}
               </View>
 
-              <View className="gap-4 rounded-3xl bg-white p-4">
+              <View className="gap-4 rounded-3xl border-2 border-b-4 border-line bg-white p-4">
                 <View className="flex-row items-center justify-between gap-4">
                   <View className="flex-1">
-                    <Text className="text-base font-semibold text-ink">Sono nuovo/a in città</Text>
+                    <Text className="text-base font-pixel text-ink">Sono nuovo/a in città</Text>
                     <Text className="text-sm text-stone-500">
                       Se ti sei trasferito/a da poco: badge “Da poco in città” e suggerimenti dei gruppi che accolgono persone nuove.
                     </Text>
@@ -229,7 +229,7 @@ export default function SignupScreen() {
               </View>
 
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Cosa cerchi?</Text>
+                <Text className="text-lg font-pixel text-ink">Cosa cerchi?</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {(Object.keys(intentLabels) as UserIntent[]).map((value) => (
                     <Chip key={value} label={intentLabels[value]} selected={intent === value} onPress={() => setIntent(value)} />
@@ -241,7 +241,7 @@ export default function SignupScreen() {
           )}
 
           <View className="gap-3">
-            <Text className="text-lg font-semibold text-ink">{isBusiness ? 'Che eventi organizzate?' : 'I tuoi interessi'}</Text>
+            <Text className="text-lg font-pixel text-ink">{isBusiness ? 'Che eventi organizzate?' : 'I tuoi interessi'}</Text>
             <View className="flex-row flex-wrap gap-2">
               {interestOptions.map((interest) => (
                 <Chip
@@ -259,7 +259,7 @@ export default function SignupScreen() {
             <Button title="Crea account" icon="sparkles" onPress={handleSignUp} loading={loading} />
             <View className="flex-row justify-center gap-1">
               <Text className="text-stone-600">Hai già un account?</Text>
-              <Link href="/login" className="font-semibold text-brand-600">
+              <Link href="/login" className="font-pixel text-brand-600">
                 Accedi
               </Link>
             </View>

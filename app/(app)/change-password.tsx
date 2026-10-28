@@ -16,8 +16,8 @@ export default function ChangePasswordScreen() {
       <Header title="Cambia password" />
       <ScrollView contentContainerClassName="gap-5 px-6 py-8" keyboardShouldPersistTaps="handled">
         {done ? (
-          <View className="items-center gap-2 rounded-3xl bg-white p-6">
-            <Text className="text-center text-lg font-semibold text-ink">Password aggiornata ✓</Text>
+          <View className="items-center gap-2 rounded-3xl border-2 border-b-4 border-line bg-white p-6">
+            <Text className="text-center text-lg font-pixel text-ink">Password aggiornata ✓</Text>
             <Text className="text-center text-stone-600">Usala dal prossimo accesso.</Text>
           </View>
         ) : (

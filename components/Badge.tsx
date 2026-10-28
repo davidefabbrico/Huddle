@@ -29,7 +29,7 @@ export function Badge({ label, tone = 'stone', icon, centered = false }: Props) 
   return (
     <View className={`flex-row items-center gap-1 rounded-full px-2 py-0.5 ${centered ? 'self-center' : 'self-start'} ${t.box}`}>
       {icon ? <Ionicons name={icon} size={11} color={tone === 'brand' ? brand[600] : tone === 'stone' ? neutrals.stone[500] : t.icon} /> : null}
-      <Text className={`text-xs font-semibold ${t.text}`}>{label}</Text>
+      <Text className={`text-xs font-pixel ${t.text}`}>{label}</Text>
     </View>
   );
 }

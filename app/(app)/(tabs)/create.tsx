@@ -30,7 +30,7 @@ export default function CreateScreen() {
   return (
     <Screen width="page">
       <ScrollView contentContainerClassName="gap-4 px-4 pb-10 pt-3 wide:pt-8">
-        <Text className="text-2xl font-semibold text-ink">Crea</Text>
+        <Text className="text-2xl font-pixel text-ink">Crea</Text>
 
         {!data.data && data.loading ? (
           <ActivityIndicator color={colors.brand} className="mt-6" />
@@ -61,22 +61,22 @@ export default function CreateScreen() {
 
             {isAdmin ? (
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">
+                <Text className="text-lg font-pixel text-ink">
                   Richieste in attesa{pendingTotal > 0 ? ` (${pendingTotal})` : ''}
                 </Text>
-                <View className="overflow-hidden rounded-3xl bg-white">
+                <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
                   {groups.map(({ group, pending_requests }, index) => (
                     <Link key={group.id} href={{ pathname: '/group/[id]', params: { id: group.id } }} asChild>
                       <Pressable
                         className={`flex-row items-center gap-3 p-4 active:bg-stone-100 ${index > 0 ? 'border-t border-stone-100' : ''}`}
                       >
                         <GroupIcon {...groupIconOf(group)} size={40} />
-                        <Text numberOfLines={1} className="flex-1 font-semibold text-ink">
+                        <Text numberOfLines={1} className="flex-1 font-pixel text-ink">
                           {group.name}
                         </Text>
                         {pending_requests > 0 ? (
                           <View className="min-w-6 h-6 items-center justify-center rounded-full bg-brand-200 px-2">
-                            <Text className="text-xs font-bold text-brand-800">{pending_requests}</Text>
+                            <Text className="text-xs font-pixel-bold text-brand-800">{pending_requests}</Text>
                           </View>
                         ) : (
                           <Text className="text-sm text-stone-400">nessuna</Text>
@@ -105,12 +105,12 @@ interface ActionCardProps {
 function ActionCard({ href, icon, title, text }: ActionCardProps) {
   return (
     <Link href={href} asChild>
-      <Pressable className="flex-row items-center gap-4 rounded-3xl bg-white p-4 active:bg-stone-100">
+      <Pressable className="flex-row items-center gap-4 rounded-3xl border-2 border-b-4 border-line bg-white p-4 active:bg-stone-100">
         <View className="h-12 w-12 items-center justify-center rounded-2xl bg-brand-100">
           <Ionicons name={icon} size={24} className="text-brand-600" />
         </View>
         <View className="flex-1">
-          <Text className="text-base font-semibold text-ink">{title}</Text>
+          <Text className="text-base font-pixel text-ink">{title}</Text>
           <Text className="text-sm text-stone-500">{text}</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} className="text-stone-500" />

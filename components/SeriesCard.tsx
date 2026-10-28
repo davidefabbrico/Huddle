@@ -56,9 +56,9 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
     : '';
 
   return (
-    <View className="gap-3 rounded-3xl bg-brand-50 p-4">
+    <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-brand-50 p-4">
       <View className="flex-row items-center justify-between gap-2">
-        <Text className="flex-1 text-base font-semibold text-brand-800">
+        <Text className="flex-1 text-base font-pixel text-brand-800">
           🔁 {weekdaysLabel(series.weekdays)} alle {shortTime(series.start_time)}
         </Text>
         <InfoTip text="“Ci sono ogni volta” copia le tue scelte di oggi (auto, posti, partenza, passaggio) sulle prossime date. Per saltare una data rispondi “Non ci sono” solo lì." />
@@ -76,7 +76,7 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
         mine ? (
           <View className="gap-2">
             <Text className="text-sm text-brand-700">
-              <Text className="font-semibold">Ci sei ogni volta</Text>
+              <Text className="font-pixel">Ci sei ogni volta</Text>
               {usual ? ` · ${usual}` : ''}
             </Text>
             <View className="flex-row flex-wrap gap-2">
@@ -93,7 +93,7 @@ export function SeriesCard({ series, regulars, people, myId, canAnswer, canStop,
 
       {canStop && editingEnd ? (
         <View className="gap-2">
-          <Text className="text-sm font-semibold text-brand-800">Nuovo ultimo giorno: {shortDayLabel(newEnd)}</Text>
+          <Text className="text-sm font-pixel text-brand-800">Nuovo ultimo giorno: {shortDayLabel(newEnd)}</Text>
           <MonthCalendar
             month={month}
             onMonthChange={setMonth}

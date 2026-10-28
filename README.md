@@ -10,7 +10,11 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 
 ## Funzioni
 
-- **Stile**: Material 3 in tinta pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
+- **Stile arcade**, come le mascotte: angoli squadrati, schede e pulsanti con il contorno scuro a pixel (più spesso
+  sotto, come i pulsanti dei cabinati: premuti si abbassano), icone pixel nella barra e nel menu
+  ([components/PixelIcon.tsx](components/PixelIcon.tsx)), font pixel per titoli, pulsanti e numeri ("Huddle Pixel",
+  cioè Pixelify Sans senza legature, in [assets/fonts](assets/fonts)); i testi lunghi restano nel font di sistema.
+  Tinte pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
   il suo colore: entrando nel gruppo (pagina, chat, eventi, storia, organizzare) tutta l'interfaccia prende la sua
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
@@ -91,7 +95,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Avatar**: foto profilo, avatar a pixel stile GitHub o iniziali.
 - **Eliminare l'account** (Profilo → Account): per sempre, con tutti i dati personali; i gruppi di cui eri admin passano
   al membro entrato per primo (quelli senza altri membri vengono eliminati).
-- **Icona app**: salvando il sito nella schermata Home (iPhone: Condividi → Aggiungi a Home) compare l'icona di Huddle.
+- **Icona app**: la volpe pixel su un cielo notturno da sala giochi. Salvando il sito nella schermata Home (iPhone:
+  Condividi → Aggiungi a Home) compare questa icona.
 
 ## Collegamento con SmartPark
 
@@ -210,8 +215,9 @@ npm run lint              # ESLint (config Expo)
 npm run build:web         # build di produzione in dist/ (come su GitHub Pages)
 ```
 
-L'icona nasce da [assets/icon.svg](assets/icon.svg); i PNG in `assets/` (app) e `public/` (sito: apple-touch-icon,
-icone del manifest) ne sono l'esportazione. `public/index.html` e `public/manifest.json` contengono il percorso
+L'icona nasce da [assets/icon.svg](assets/icon.svg) (la volpe pixel di [components/Mascot.tsx](components/Mascot.tsx));
+i PNG in `assets/` (app) e `public/` (sito: apple-touch-icon, icone del manifest) ne sono l'esportazione, con i pixel
+di misura intera perché restino nitidi. `public/index.html` e `public/manifest.json` contengono il percorso
 `/Huddle/`: se rinomini la repo aggiornali insieme a `baseUrl`.
 
 ## Pubblicazione su GitHub Pages

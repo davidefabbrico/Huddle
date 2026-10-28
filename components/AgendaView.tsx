@@ -31,7 +31,7 @@ export function AgendaView({ events }: { events: EventWithGroup[] }) {
   const list = (
     <View className="gap-3">
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-lg font-semibold text-ink">{selected ? capitalized(shortDayLabel(selected)) : 'I prossimi'}</Text>
+        <Text className="text-lg font-pixel text-ink">{selected ? capitalized(shortDayLabel(selected)) : 'I prossimi'}</Text>
         {selected ? <Button title="Tutti i prossimi" size="sm" variant="muted" onPress={() => setSelected(null)} /> : null}
       </View>
       {shown.length === 0 ? (

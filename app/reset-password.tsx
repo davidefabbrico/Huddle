@@ -18,7 +18,7 @@ export default function ResetPasswordScreen() {
     <AuthScreen>
       <ScrollView contentContainerClassName="flex-grow justify-center gap-6 px-6 py-10" keyboardShouldPersistTaps="handled">
         <View className="gap-1">
-          <Text className="text-3xl font-bold text-ink">Nuova password</Text>
+          <Text className="text-3xl font-pixel-bold text-ink">Nuova password</Text>
           <Text className="text-base text-stone-600">Scegli la password che userai da ora in poi.</Text>
         </View>
 

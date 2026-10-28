@@ -67,6 +67,7 @@ export interface Neutrals {
   surface: string;
   surface2: string;
   ink: string;
+  line: string; // the arcade outline of cards and buttons, the same plum as the mascots' outline
   stone: Record<50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900, string>;
 }
 
@@ -76,6 +77,7 @@ export const NEUTRALS: Record<ThemeMode, Neutrals> = {
     surface: '#F8F8F9', // almost white, no brown
     surface2: '#EEEFF2',
     ink: '#1F2430',
+    line: '#3A2E39',
     stone: {
       50: '#FAFAF9', 100: '#F5F5F4', 200: '#E7E5E4', 300: '#D6D3D1', 400: '#A8A29E',
       500: '#78716C', 600: '#57534E', 700: '#44403C', 800: '#292524', 900: '#1C1917',
@@ -86,6 +88,7 @@ export const NEUTRALS: Record<ThemeMode, Neutrals> = {
     surface: '#121316',
     surface2: '#1A1C21',
     ink: '#ECEDEF',
+    line: '#4B4556', // lighter than the cards, or the outline would vanish at night
     stone: {
       50: '#1C1D21', 100: '#24262B', 200: '#2E3036', 300: '#3F424A', 400: '#6B6F78',
       500: '#9A9EA6', 600: '#B9BCC3', 700: '#D3D5DA', 800: '#E6E7EA', 900: '#F2F3F5',
@@ -123,6 +126,7 @@ export function themeVars(mode: ThemeMode, palette: Palette): Record<string, str
     '--surface': rgb(n.surface),
     '--surface2': rgb(n.surface2),
     '--ink': rgb(n.ink),
+    '--line': rgb(n.line),
     ...Object.fromEntries(Object.entries(n.stone).map(([tone, hex]) => [`--stone-${tone}`, rgb(hex)])),
     ...paletteVars(paletteFor(palette, mode)),
   };

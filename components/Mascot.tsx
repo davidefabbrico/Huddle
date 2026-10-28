@@ -433,7 +433,7 @@ function FloatingHeart({ size }: { size: number }) {
 // A still preview of each species, for the picker in the group form
 export function MascotPreview({ species, accent, selected }: { species: MascotSpecies; accent: string; selected: boolean }) {
   return (
-    <View className={`items-center rounded-2xl p-1 ${selected ? 'bg-brand-200' : 'bg-white'}`}>
+    <View className={`items-center rounded-2xl border-2 border-line p-1 ${selected ? 'bg-brand-200' : 'bg-white'}`}>
       <Mascot species={species} stage={2} accent={accent} size={64} animated={false} />
     </View>
   );

@@ -1,9 +1,9 @@
 // Side menu on wide screens (computer browser): takes the place of the bottom tab bar and stays
 // visible on every page (group, event, chat…). Same sections, plus Attività with the unread count.
+// Arcade look: pixel icons and font, the active section outlined like a selected menu entry.
 
-import { useState, type ComponentProps } from 'react';
+import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAsync } from '../hooks/useAsync';
@@ -11,16 +11,16 @@ import { useAuth } from '../hooks/useAuth';
 import * as api from '../lib/api';
 import { Avatar, avatarOf } from './Avatar';
 import { Confetti } from './Confetti';
+import { PixelIcon, type PixelIconName } from './PixelIcon';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
 type Section = 'search' | 'groups' | 'events' | 'create' | 'chats' | 'activity' | 'profile';
 
-const items: { section: Section; href: Href; label: string; icon: IconName; activeIcon: IconName }[] = [
-  { section: 'search', href: '/search', label: 'Cerca', icon: 'search-outline', activeIcon: 'search' },
-  { section: 'groups', href: '/', label: 'Gruppi', icon: 'people-outline', activeIcon: 'people' },
-  { section: 'events', href: '/events', label: 'Eventi', icon: 'calendar-outline', activeIcon: 'calendar' },
-  { section: 'chats', href: '/chats', label: 'Chat', icon: 'chatbubbles-outline', activeIcon: 'chatbubbles' },
-  { section: 'activity', href: '/activity', label: 'Attività', icon: 'notifications-outline', activeIcon: 'notifications' },
+const items: { section: Section; href: Href; label: string; icon: PixelIconName }[] = [
+  { section: 'search', href: '/search', label: 'Cerca', icon: 'search' },
+  { section: 'groups', href: '/', label: 'Gruppi', icon: 'people' },
+  { section: 'events', href: '/events', label: 'Eventi', icon: 'calendar' },
+  { section: 'chats', href: '/chats', label: 'Chat', icon: 'chat' },
+  { section: 'activity', href: '/activity', label: 'Attività', icon: 'bell' },
 ];
 
 // Which section a page belongs to (a group's chat is under Chat, an event under Eventi…)
@@ -44,7 +44,7 @@ export function SideNav() {
   const unread = useAsync(() => (user ? api.getUnreadNotificationCount(user.id) : Promise.resolve(0)), [user?.id, pathname]);
 
   return (
-    <View className="w-64 gap-1 border-r border-stone-200 bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
+    <View className="w-64 gap-1 border-r-2 border-line bg-white px-3 pb-6" style={{ paddingTop: insets.top + 24 }}>
       <Pressable
         onPress={() => router.navigate('/')}
         onLongPress={() => setBurst((b) => b + 1)} // easter egg: confetti
@@ -53,15 +53,15 @@ export function SideNav() {
         accessibilityLabel="Huddle, vai ai gruppi"
         className="mb-6 flex-row items-center gap-3 px-3"
       >
-        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 10 }} accessibilityIgnoresInvertColors />
-        <Text className="text-2xl font-bold text-ink">Huddle</Text>
+        <Image source={require('../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 4 }} accessibilityIgnoresInvertColors />
+        <Text className="text-2xl font-pixel-bold text-ink">Huddle</Text>
       </Pressable>
 
       {items.map((item) => (
         <NavItem
           key={item.section}
           label={item.label}
-          icon={active === item.section ? item.activeIcon : item.icon}
+          icon={item.icon}
           active={active === item.section}
           badge={item.section === 'activity' ? (unread.data ?? 0) : 0}
           onPress={() => router.navigate(item.href)}
@@ -71,10 +71,10 @@ export function SideNav() {
       <Pressable
         onPress={() => router.navigate('/create')}
         accessibilityRole="link"
-        className={`mt-4 h-14 flex-row items-center justify-center gap-2 rounded-2xl ${active === 'create' ? 'bg-brand-300' : 'bg-brand-200 active:bg-brand-300'}`}
+        className={`mt-4 h-14 flex-row items-center justify-center gap-2 rounded-2xl border-2 border-b-4 border-line ${active === 'create' ? 'bg-brand-300' : 'bg-brand-200 active:border-b-2 active:bg-brand-300'}`}
       >
-        <Ionicons name="add" size={24} className="text-brand-800" />
-        <Text className="text-base font-semibold text-brand-800">Crea</Text>
+        <PixelIcon name="plus" size={18} className="text-brand-800" />
+        <Text className="text-base font-pixel text-brand-800">Crea</Text>
       </Pressable>
 
       <View className="flex-1" />
@@ -84,11 +84,11 @@ export function SideNav() {
           onPress={() => router.navigate('/profile')}
           accessibilityRole="link"
           accessibilityLabel="Profilo"
-          className={`flex-row items-center gap-3 rounded-full px-3 py-2 ${active === 'profile' ? 'bg-brand-100' : 'active:bg-stone-100'}`}
+          className={`flex-row items-center gap-3 rounded-full border-2 px-3 py-2 ${active === 'profile' ? 'border-line bg-brand-200' : 'border-transparent active:bg-stone-100'}`}
         >
           <Avatar {...avatarOf(user)} size={36} />
           <View className="flex-1">
-            <Text numberOfLines={1} className="font-semibold text-ink">
+            <Text numberOfLines={1} className="font-pixel text-ink">
               {user.full_name}
             </Text>
             <Text className="text-xs text-stone-500">Profilo</Text>
@@ -100,19 +100,19 @@ export function SideNav() {
   );
 }
 
-function NavItem({ label, icon, active, badge, onPress }: { label: string; icon: IconName; active: boolean; badge: number; onPress: () => void }) {
+function NavItem({ label, icon, active, badge, onPress }: { label: string; icon: PixelIconName; active: boolean; badge: number; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={badge > 0 ? `${label}, ${badge} non lette` : label}
-      className={`h-14 flex-row items-center gap-4 rounded-full px-4 ${active ? 'bg-brand-100' : 'active:bg-stone-100'}`}
+      className={`h-14 flex-row items-center gap-4 rounded-full border-2 px-4 ${active ? 'border-line bg-brand-200' : 'border-transparent active:bg-stone-100'}`}
     >
-      <Ionicons name={icon} size={24} className={active ? 'text-ink' : 'text-stone-500'} />
-      <Text className={`flex-1 text-base ${active ? 'font-bold text-ink' : 'text-stone-600'}`}>{label}</Text>
+      <PixelIcon name={icon} size={22} className={active ? 'text-brand-800' : 'text-stone-500'} />
+      <Text className={`flex-1 text-base font-pixel ${active ? 'text-brand-800' : 'text-stone-600'}`}>{label}</Text>
       {badge > 0 ? (
         <View className="h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1">
-          <Text className="text-xs font-bold text-[#FFFFFF]">{badge > 9 ? '9+' : badge}</Text>
+          <Text className="text-xs font-pixel-bold text-[#FFFFFF]">{badge > 9 ? '9+' : badge}</Text>
         </View>
       ) : null}
     </Pressable>

@@ -9,8 +9,8 @@ import type { WeeklyPick } from '../lib/recommendations';
 
 export function NewsletterCard({ picks, hasArea }: { picks: WeeklyPick[]; hasArea: boolean }) {
   return (
-    <View className="gap-2 rounded-3xl bg-brand-50 p-4">
-      <Text className="text-base font-bold text-ink">📰 La tua settimana</Text>
+    <View className="gap-2 rounded-3xl border-2 border-b-4 border-line bg-brand-50 p-4">
+      <Text className="text-base font-pixel-bold text-ink">📰 La tua settimana</Text>
       {picks.length === 0 ? (
         <Text className="text-sm text-stone-600">
           Niente in vista questa settimana.{hasArea ? '' : ' Imposta la tua zona nel profilo per vedere anche gli eventi vicini.'}
@@ -18,9 +18,9 @@ export function NewsletterCard({ picks, hasArea }: { picks: WeeklyPick[]; hasAre
       ) : (
         picks.map(({ event, why }) => (
           <Link key={event.id} href={{ pathname: '/event/[id]', params: { id: event.id } }} asChild>
-            <Pressable className="flex-row items-center gap-3 rounded-2xl bg-white px-3 py-2.5 active:bg-stone-100">
+            <Pressable className="flex-row items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2.5 active:bg-stone-100">
               <View className="flex-1">
-                <Text numberOfLines={1} className="font-semibold text-ink">
+                <Text numberOfLines={1} className="font-pixel text-ink">
                   {event.title}
                 </Text>
                 <Text numberOfLines={1} className="text-xs text-stone-500">

@@ -57,14 +57,14 @@ export default function ActivityScreen() {
       ) : notifications.data.length === 0 ? (
         <View className="flex-1 items-center justify-center gap-3 px-8">
           <Ionicons name="notifications-outline" size={40} className="text-stone-500" />
-          <Text className="text-center text-lg font-semibold text-ink">Nessuna novità</Text>
+          <Text className="text-center text-lg font-pixel text-ink">Nessuna novità</Text>
           <Text className="text-center text-stone-500">
             Qui trovi nuovi eventi nei tuoi gruppi, richieste accettate, i grazie ricevuti e i gradi che conquisti.
           </Text>
         </View>
       ) : (
         <ScrollView contentContainerClassName="px-4 py-4">
-          <View className="overflow-hidden rounded-3xl bg-white">
+          <View className="overflow-hidden rounded-3xl border-2 border-b-4 border-line bg-white">
             {notifications.data.map((n, index) => {
               const style = typeStyle[n.type];
               const href = destination(n);
@@ -79,7 +79,7 @@ export default function ActivityScreen() {
                     <Ionicons name={style.icon} size={22} className={style.iconClass} />
                   </View>
                   <View className="flex-1">
-                    <Text className="font-semibold text-ink">{n.title}</Text>
+                    <Text className="font-pixel text-ink">{n.title}</Text>
                     <Text className="text-sm text-stone-600">{n.body}</Text>
                     <Text className="mt-0.5 text-xs text-stone-400">{timeAgo(n.created_at)}</Text>
                   </View>

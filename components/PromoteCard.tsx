@@ -34,8 +34,8 @@ export function PromoteCard({ eventId, hasPlace }: { eventId: string; hasPlace: 
   }
 
   return (
-    <View className="gap-3 rounded-3xl border border-violet-200 bg-violet-50 p-4">
-      <Text className="text-base font-semibold text-violet-950">📣 Fallo sapere ai gruppi della zona</Text>
+    <View className="gap-3 rounded-3xl border-2 border-b-4 border-line bg-violet-50 p-4">
+      <Text className="text-base font-pixel text-violet-950">📣 Fallo sapere ai gruppi della zona</Text>
       {result ? (
         <Text className="text-sm text-violet-900">
           Fatto! Invito mandato a {result.people === 1 ? '1 persona' : `${result.people} persone`} di{' '}
