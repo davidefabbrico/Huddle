@@ -40,6 +40,15 @@ module.exports = {
         line: 'rgb(var(--line) / <alpha-value>)',
         surface: 'rgb(var(--surface) / <alpha-value>)',
         surface2: 'rgb(var(--surface2) / <alpha-value>)',
+        // sky, emerald, violet, amber, red: from CSS variables too, so they flip at night (lib/palette.ts tintVars)
+        ...Object.fromEntries(
+          ['sky', 'emerald', 'violet', 'amber', 'red'].map((family) => [
+            family,
+            Object.fromEntries(
+              [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((tone) => [tone, `rgb(var(--${family}-${tone}) / <alpha-value>)`]),
+            ),
+          ]),
+        ),
         stone: Object.fromEntries(
           [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((tone) => [tone, `rgb(var(--stone-${tone}) / <alpha-value>)`]),
         ),

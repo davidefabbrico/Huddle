@@ -47,7 +47,7 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
       {arrival ? (
         <View className="gap-3 rounded-3xl bg-sky-50 p-4">
           <View className="flex-row items-start gap-3">
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-[#0284C7]">
               <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">
@@ -90,7 +90,7 @@ export function SmartParkCard({ event, phase, me, arrival, sharedCar, busy, onCh
             accessibilityRole="link"
             className="flex-row items-center gap-3 rounded-2xl bg-white p-3 active:bg-stone-100"
           >
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-[#0284C7]">
               <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
             </View>
             <View className="flex-1">

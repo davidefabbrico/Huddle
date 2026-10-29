@@ -1,5 +1,6 @@
 // Light or dark ("notte") theme: the user's choice (Automatico follows the phone/computer), remembered
 // on this device (localStorage: the browser's, or expo-sqlite's on the phone, see lib/sessionStorage).
+// Until you choose, it's light.
 
 import { useColorScheme } from 'react-native';
 import { create } from 'zustand';
@@ -12,9 +13,9 @@ const KEY = 'huddle.theme';
 function saved(): ThemePreference {
   try {
     const value = globalThis.localStorage?.getItem(KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return value === 'dark' || value === 'system' ? value : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 

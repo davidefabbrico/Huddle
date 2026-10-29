@@ -40,7 +40,8 @@ export function Avatar({ name, url, seed, size = 40 }: Props) {
 
   return (
     <View className={`items-center justify-center rounded-full ${colorFor(name)}`} style={box}>
-      <Text className="font-semibold text-ink" style={{ fontSize: size * 0.38 }}>
+      {/* dark on the pastel circle, also at night */}
+      <Text className="font-semibold text-[#1F2430]" style={{ fontSize: size * 0.38 }}>
         {initials(name)}
       </Text>
     </View>

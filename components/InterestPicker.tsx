@@ -115,7 +115,7 @@ export function InterestChips({ keys, shared }: { keys: string[]; shared?: Set<s
             className={`h-8 flex-row items-center gap-1.5 rounded-lg px-2.5 ${common ? 'bg-brand-300' : shared ? 'bg-stone-100' : 'bg-brand-100'}`}
           >
             <PixelIcon name={interestIcon(key)} size={14} className={common ? 'text-brand-800' : shared ? 'text-stone-500' : 'text-brand-700'} />
-            <Text className={`text-sm ${common ? 'font-semibold text-brand-800' : shared ? 'text-stone-600' : 'text-brand-800'}`}>
+            <Text className={`text-sm ${common ? 'font-semibold text-brand-800' : shared ? 'text-stone-600' : 'text-brand-700'}`}>
               {interestLabel(key)}
             </Text>
           </View>

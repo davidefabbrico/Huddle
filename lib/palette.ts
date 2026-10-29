@@ -118,7 +118,42 @@ export function darkPalette(palette: Palette): Palette {
 
 export const paletteFor = (palette: Palette, mode: ThemeMode) => (mode === 'dark' ? darkPalette(palette) : palette);
 
-// All the CSS variables of a theme: neutrals + the brand palette
+// The other colors the app uses for meaning (sky: rides, newcomers; emerald: open, expenses; violet: venues'
+// promotions; amber: achievements, warnings; red: errors, cancelled), Tailwind's own tones 50…950. At night
+// they flip like the brand: light tints (50–100) become dark tints and dark text (600–950) becomes light, so
+// a light box never ends up with light text on it. The fills in between (200–500) stay as they are.
+export const TINT_FAMILIES = ['sky', 'emerald', 'violet', 'amber', 'red'] as const;
+export const TINT_TONES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
+const TINTS: Record<(typeof TINT_FAMILIES)[number], string[]> = {
+  sky: ['#f0f9ff', '#e0f2fe', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7', '#0369a1', '#075985', '#0c4a6e', '#082f49'],
+  emerald: ['#ecfdf5', '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'],
+  violet: ['#f5f3ff', '#ede9fe', '#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#2e1065'],
+  amber: ['#fffbeb', '#fef3c7', '#fde68a', '#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e', '#78350f', '#451a03'],
+  red: ['#fef2f2', '#fee2e2', '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', '#450a0a'],
+};
+
+function tintFor(tones: string[], index: number, mode: ThemeMode): string {
+  if (mode === 'light') return tones[index];
+  const base = NEUTRALS.dark.white;
+  const dark: Record<number, string> = {
+    0: mix(base, tones[4], 0.1), // 50
+    1: mix(base, tones[4], 0.18), // 100
+    6: tones[3], // 600 -> 300
+    7: tones[3], // 700 -> 300
+    8: tones[2], // 800 -> 200
+    9: tones[1], // 900 -> 100
+    10: tones[0], // 950 -> 50
+  };
+  return dark[index] ?? tones[index];
+}
+
+export function tintVars(mode: ThemeMode): Record<string, string> {
+  return Object.fromEntries(
+    TINT_FAMILIES.flatMap((family) => TINT_TONES.map((tone, i) => [`--${family}-${tone}`, rgb(tintFor(TINTS[family], i, mode))])),
+  );
+}
+
+// All the CSS variables of a theme: neutrals + the brand palette + the tints
 export function themeVars(mode: ThemeMode, palette: Palette): Record<string, string> {
   const n = NEUTRALS[mode];
   return {
@@ -129,5 +164,6 @@ export function themeVars(mode: ThemeMode, palette: Palette): Record<string, str
     '--line': rgb(n.line),
     ...Object.fromEntries(Object.entries(n.stone).map(([tone, hex]) => [`--stone-${tone}`, rgb(hex)])),
     ...paletteVars(paletteFor(palette, mode)),
+    ...tintVars(mode),
   };
 }

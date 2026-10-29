@@ -5,13 +5,20 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeVars } from './GroupTheme';
 import { Text } from './Text';
 
 export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const { height } = useWindowDimensions();
+  const theme = useThemeVars(); // the Modal is outside the themed views: light/dark and group colors come along
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 justify-end bg-black/40 wide:items-center wide:justify-center" onPress={onClose} accessibilityLabel="Chiudi">
+      <Pressable
+        className="flex-1 justify-end bg-black/40 wide:items-center wide:justify-center"
+        style={theme}
+        onPress={onClose}
+        accessibilityLabel="Chiudi"
+      >
         {/* taps inside don't close it */}
         <Pressable className="w-full gap-4 rounded-t-3xl bg-white p-5 pb-8 wide:max-w-md wide:rounded-3xl" onPress={() => {}}>
           <View className="flex-row items-center justify-between gap-3">

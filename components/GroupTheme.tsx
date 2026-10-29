@@ -19,6 +19,12 @@ export const useBrand = () => {
   return paletteFor(palette, mode);
 };
 export const useNeutrals = () => NEUTRALS[useContext(ThemeContext).mode];
+// All the theme's variables (light/dark, the group's palette), for what is drawn outside the themed
+// views: a Modal opens above the app, so it has to carry them itself (components/Sheet.tsx)
+export const useThemeVars = () => {
+  const { mode, palette } = useContext(ThemeContext);
+  return vars(themeVars(mode, palette));
+};
 
 export function AppTheme({ children }: { children: ReactNode }) {
   const mode = useThemeMode();

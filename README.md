@@ -18,6 +18,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   il suo colore: entrando nel gruppo (pagina, chat, eventi, storia, organizzare) tutta l'interfaccia prende la sua
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
+  Si parte dal chiaro finché non scegli. Di notte anche i colori di significato (blu, verde, viola, giallo, rosso)
+  si girano: i riquadri chiari diventano tinte scure e i testi scuri diventano chiari (lib/palette.ts).
   I colori sono variabili CSS che cambiano con il tema, quindi anche i colori dei gruppi hanno la versione notte.
 - **Condividere in chat**: un evento o una vacanza pubblica, anche di un altro gruppo, si condivide nella chat di
   uno dei tuoi gruppi e lì compare come scheda da aprire.

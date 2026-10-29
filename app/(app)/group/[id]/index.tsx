@@ -459,7 +459,7 @@ function ParkingGroupButton({ code }: { code: string }) {
       accessibilityRole="link"
       className="flex-row items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 active:bg-sky-100"
     >
-      <View className="h-10 w-10 items-center justify-center rounded-xl bg-sky-600">
+      <View className="h-10 w-10 items-center justify-center rounded-xl bg-[#0284C7]">
         <Text className="text-lg font-extrabold text-[#FFFFFF]">P</Text>
       </View>
       <View className="flex-1">
