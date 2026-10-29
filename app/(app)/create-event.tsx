@@ -52,7 +52,12 @@ export default function CreateEventScreen() {
   const [period, setPeriod] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const [visibility, setVisibility] = useState<EventVisibility>('public');
   const user = useAuth((state) => state.user)!;
-  const memberships = useAsync(() => api.getMemberships(user.id), [user.id]);
+  // Your groups, and the venues where you're staff (you organize for them too)
+  const memberships = useAsync(async () => {
+    const [mine, venues] = await Promise.all([api.getMemberships(user.id), api.getStaffVenueGroups(user.id)]);
+    const extra = venues.filter((v) => !mine.some((m) => m.group.id === v.id)).map((group) => ({ group, member_role: 'member' as const, attended_events: 0 }));
+    return [...mine, ...extra];
+  }, [user.id]);
 
   const [selectedGroup, setSelectedGroup] = useState<string | undefined>(groupId);
   const [title, setTitle] = useState('');

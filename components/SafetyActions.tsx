@@ -2,8 +2,8 @@
 // report a group (bottom of its page), and on the profile the lists to undo blocks and hidden groups.
 // Reports go to the app's owner (Supabase -> reports), who can suspend a person or a group.
 
-import { useState, type ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAsync } from '../hooks/useAsync';
 import * as api from '../lib/api';
@@ -11,6 +11,7 @@ import { firstName } from '../lib/format';
 import { Avatar, avatarOf } from './Avatar';
 import { Button } from './Button';
 import { GroupIcon, groupIconOf } from './GroupIcon';
+import { Sheet } from './Sheet';
 import { Text, TextInput } from './Text';
 
 // What a person can do about someone else: a sheet with "Blocca" and "Segnala"
@@ -157,28 +158,6 @@ function ReportForm({ target, onSent }: { target: { userId: string } | { groupId
         }}
       />
     </View>
-  );
-}
-
-// A sheet from the bottom over a dimmed page; on a computer a box in the middle
-function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: ReactNode }) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 justify-end bg-black/40 wide:items-center wide:justify-center" onPress={onClose} accessibilityLabel="Chiudi">
-        {/* taps inside don't close it */}
-        <Pressable className="w-full gap-4 rounded-t-3xl bg-white p-5 pb-8 wide:max-w-md wide:rounded-3xl" onPress={() => {}}>
-          <View className="flex-row items-center justify-between gap-3">
-            <Text numberOfLines={1} className="flex-1 text-lg font-semibold text-ink">
-              {title}
-            </Text>
-            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Chiudi" hitSlop={8}>
-              <Ionicons name="close" size={22} className="text-stone-500" />
-            </Pressable>
-          </View>
-          {children}
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 

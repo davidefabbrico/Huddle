@@ -68,7 +68,7 @@ export default function TabsLayout() {
           tabBarAccessibilityLabel: 'Crea',
           // An arcade button, like a "post" button
           tabBarIcon: ({ focused }) => (
-            <View className={`h-12 w-12 items-center justify-center rounded-full border-2 border-b-4 border-line ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
+            <View className={`h-10 w-10 items-center justify-center rounded-full border-2 border-b-4 border-line ${focused ? 'bg-brand-300' : 'bg-brand-200'}`}>
               <PixelIcon name="plus" size={18} className="text-brand-800" />
             </View>
           ),

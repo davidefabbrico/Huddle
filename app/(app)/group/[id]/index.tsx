@@ -16,6 +16,8 @@ import { Button } from '../../../../components/Button';
 import { GroupTheme, useBrand } from '../../../../components/GroupTheme';
 import { ReliabilityBadge } from '../../../../components/ReliabilityBadge';
 import { GroupSafetyLinks, PersonMenuButton } from '../../../../components/SafetyActions';
+import { PersonLink } from '../../../../components/PersonLink';
+import { VenueStaff } from '../../../../components/VenueStaff';
 import { Columns } from '../../../../components/Columns';
 import { ConfirmButton } from '../../../../components/ConfirmButton';
 import { EventCard } from '../../../../components/EventCard';
@@ -182,6 +184,8 @@ export default function GroupDetailScreen() {
               <>
                 {leaderboard.length > 0 ? <Leaderboard entries={leaderboard} myId={user.id} /> : null}
 
+                {group.is_business ? <VenueStaff groupId={group.id} isVenue={group.admin_id === user.id} me={user} /> : null}
+
                 <View className="gap-3">
                   <Text className="text-lg font-semibold text-ink">Membri ({members.length})</Text>
                   <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
@@ -190,6 +194,7 @@ export default function GroupDetailScreen() {
                         key={member.id}
                         className={`flex-row gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}
                       >
+                        <PersonLink userId={member.id} name={member.full_name} className="flex-1 flex-row gap-3">
                         <Avatar {...avatarOf(member)} />
                         <View className="flex-1 gap-1">
                           <View className="flex-row flex-wrap items-center gap-2">
@@ -205,6 +210,7 @@ export default function GroupDetailScreen() {
                             {member.bio}
                           </Text>
                         </View>
+                        </PersonLink>
                         {member.id === user.id ? null : <PersonMenuButton me={user.id} person={member} onBlocked={reloadHidden} />}
                       </View>
                     ))}
@@ -424,17 +430,19 @@ function Leaderboard({ entries, myId }: { entries: LeaderboardEntry[]; myId: str
             <Text className="w-7 text-center text-base font-semibold text-stone-500">
               {entry.points > 0 && index < 3 ? medals[index] : index + 1}
             </Text>
-            <Avatar {...avatarOf(entry.user)} size={34} />
-            <View className="flex-1">
-              <Text numberOfLines={1} className="font-semibold text-ink">
-                {entry.user.full_name}
-                {entry.user.id === myId ? ' (tu)' : ''}
-              </Text>
-              <Text className="text-xs text-stone-500">
-                {entry.attended} eventi · {entry.organized} organizzati · {entry.thanks_received} 🙏
-                {entry.passengers ? ` · ${entry.passengers} 🚗` : ''}
-              </Text>
-            </View>
+            <PersonLink userId={entry.user.id} name={entry.user.full_name} className="flex-1 flex-row items-center gap-3">
+              <Avatar {...avatarOf(entry.user)} size={34} />
+              <View className="flex-1">
+                <Text numberOfLines={1} className="font-semibold text-ink">
+                  {entry.user.full_name}
+                  {entry.user.id === myId ? ' (tu)' : ''}
+                </Text>
+                <Text className="text-xs text-stone-500">
+                  {entry.attended} eventi · {entry.organized} organizzati · {entry.thanks_received} 🙏
+                  {entry.passengers ? ` · ${entry.passengers} 🚗` : ''}
+                </Text>
+              </View>
+            </PersonLink>
             <Text className="text-base font-bold text-brand-600">{entry.points} pt</Text>
           </View>
         ))}

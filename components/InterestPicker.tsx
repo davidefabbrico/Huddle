@@ -101,16 +101,26 @@ function Tile({ label, icon, selected, disabled = false, removable = false, onPr
   );
 }
 
-// Read-only: the interests with their icon (profile, group page)
-export function InterestChips({ keys }: { keys: string[] }) {
+// Read-only: the interests with their icon (profile). `shared`: the ones you have too stand out, first.
+export function InterestChips({ keys, shared }: { keys: string[]; shared?: Set<string> }) {
+  const sorted = shared ? [...keys].sort((a, b) => Number(shared.has(b)) - Number(shared.has(a))) : keys;
   return (
     <View className="flex-row flex-wrap gap-2">
-      {keys.map((key) => (
-        <View key={key} className="h-8 flex-row items-center gap-1.5 rounded-lg bg-brand-100 px-2.5">
-          <PixelIcon name={interestIcon(key)} size={14} className="text-brand-700" />
-          <Text className="text-sm text-brand-800">{interestLabel(key)}</Text>
-        </View>
-      ))}
+      {sorted.map((key) => {
+        const common = shared?.has(key) ?? false;
+        return (
+          <View
+            key={key}
+            accessibilityLabel={common ? `${interestLabel(key)}, in comune` : interestLabel(key)}
+            className={`h-8 flex-row items-center gap-1.5 rounded-lg px-2.5 ${common ? 'bg-brand-300' : shared ? 'bg-stone-100' : 'bg-brand-100'}`}
+          >
+            <PixelIcon name={interestIcon(key)} size={14} className={common ? 'text-brand-800' : shared ? 'text-stone-500' : 'text-brand-700'} />
+            <Text className={`text-sm ${common ? 'font-semibold text-brand-800' : shared ? 'text-stone-600' : 'text-brand-800'}`}>
+              {interestLabel(key)}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }

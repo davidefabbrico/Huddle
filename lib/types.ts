@@ -1,6 +1,8 @@
 // Data model types. They mirror the tables in supabase/schema.sql
 // (lib/api.ts maps the Supabase rows to these shapes).
 
+import type { AchievementFacts } from './achievements';
+
 export type GroupType = 'closed' | 'open_to_new';
 export type GroupVisibility = 'public' | 'private'; // private: only members and invite links
 export type MemberRole = 'admin' | 'member';
@@ -24,7 +26,8 @@ export type NotificationType =
   | 'promo' // a venue near your groups invites you to its event
   | 'digest' // weekly newsletter: events for you
   | 'event_update' // an event you're going to changed date or place, or was cancelled
-  | 'group_event'; // your group takes part in an event: are you going?
+  | 'group_event' // your group takes part in an event: are you going?
+  | 'staff'; // someone says they work at your venue / the venue approved you
 
 // ---- Tables ----
 
@@ -425,4 +428,20 @@ export interface HiddenGroup {
   name: string;
   icon: string | null;
   color: string | null;
+}
+
+// Someone else's profile (public_profile): what they show, and counts only (never which events)
+export interface PublicProfile extends Pick<User, 'id' | 'full_name' | 'bio' | 'avatar_url' | 'avatar_seed' | 'is_relocated' | 'relocated_at' | 'interests' | 'account_type'> {
+  created_at: string;
+  points: number; // reliability
+  best_group_events: number; // the most events in one group: their best rank
+  facts: AchievementFacts;
+}
+
+// A person in a venue's staff ("Lavoro qui"): pending until the venue approves
+export interface VenueStaffMember {
+  group_id: string;
+  user_id: string;
+  status: 'pending' | 'approved';
+  user: Pick<User, 'id' | 'full_name' | 'avatar_url' | 'avatar_seed'>;
 }

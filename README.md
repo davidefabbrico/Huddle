@@ -14,7 +14,7 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   pulsanti principali (e il ➕) sono "da cabinato", con il contorno scuro più spesso sotto. Icone pixel nella barra e
   nel menu ([components/PixelIcon.tsx](components/PixelIcon.tsx)). Testi in Chakra Petch (lettere squadrate, a metà
   tra un font normale e il pixel: [components/Text.tsx](components/Text.tsx)), il logo "Huddle" in font pixel
-  ([assets/fonts](assets/fonts)). Tinte pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ). Ogni gruppo ha
+  ([assets/fonts](assets/fonts)). Tinte pastello, con poche scritte (le spiegazioni sono dietro l'icona ⓘ, che apre un pannello leggibile: [components/InfoTip.tsx](components/InfoTip.tsx)). Ogni gruppo ha
   il suo colore: entrando nel gruppo (pagina, chat, eventi, storia, organizzare) tutta l'interfaccia prende la sua
   tinta ([components/GroupTheme.tsx](components/GroupTheme.tsx), palette in [lib/palette.ts](lib/palette.ts)).
 - **Tema chiaro o notte** (Profilo → Account → Tema: Chiaro, Notte o Automatico, che segue il telefono/computer).
@@ -77,6 +77,15 @@ con i dati su **Supabase** (login, database, file, tempo reale).
   pagina (un gruppo speciale) dove pubblica i suoi eventi, a cui chiunque può dire "Ci sono" senza entrare nel gruppo.
   Punti diversi: evento organizzato +5, ogni persona che viene +2, grazie +2. Con **20 punti** può mandare un suo evento
   ai membri dei gruppi entro 5/10/25 km (una volta per evento; chi non vuole inviti dei locali lo disattiva nel profilo).
+- **Lo staff dei locali**: chi lavora in un locale tocca "Lavoro qui" sulla sua pagina; il locale riceve la richiesta e
+  la approva. Lo staff compare sulla pagina del locale, il locale sul profilo della persona ("Lavora a …"), e lo staff
+  può organizzare eventi a nome del locale ([components/VenueStaff.tsx](components/VenueStaff.tsx)). Un locale può
+  avere più persone.
+- **Il profilo degli altri**: toccando il nome o la foto di una persona (membri, classifica, chat, partecipanti, staff)
+  si vede il suo profilo: bio, affidabilità con le stelle, grado più alto, interessi (quelli in comune risaltano) e
+  traguardi sbloccati, più "⋯" per bloccare o segnalare ([app/(app)/user/[id].tsx](app/(app)/user/[id].tsx)). Solo
+  conteggi: mai età, zona, email o a quali eventi è andata. Nel tuo profilo "Come si guadagnano i punti" e la scala
+  dei gradi stanno dietro una ⓘ.
 - **Newsletter** "📰 La tua settimana": in cima a "Per te" e una volta a settimana in Attività, gli eventi dei prossimi
   7 giorni vicini alla tua zona o con i tuoi interessi. Si disattiva nel profilo. (Per riceverla anche via email
   servirà un servizio di invio, vedi "Login ed email".)
@@ -112,7 +121,8 @@ con i dati su **Supabase** (login, database, file, tempo reale).
 - **Avatar**: foto profilo, avatar a pixel stile GitHub o iniziali.
 - **Eliminare l'account** (Profilo → Account): per sempre, con tutti i dati personali; i gruppi di cui eri admin passano
   al membro entrato per primo (quelli senza altri membri vengono eliminati).
-- **Icona app**: tre omini pixel abbracciati su un cielo notturno da sala giochi. Salvando il sito nella schermata Home (iPhone:
+- **Icona app**: un cane travestito da drago (puoi essere tante cose, in tanti gruppi), in pixel art, di profilo verso
+  sinistra, su fondo bianco. Salvando il sito nella schermata Home (iPhone:
   Condividi → Aggiungi a Home) compare questa icona.
 
 ## Collegamento con SmartPark
@@ -187,6 +197,7 @@ Se il progetto esiste già, **non** rieseguire `schema.sql`: esegui una volta, i
 | `20261031_ricorrenze_eventi_voti_account.sql` | periodo delle ricorrenze, eventi pubblici/privati, modifica e annullamento, voti nella scaletta, eliminazione account |
 | `20261101_mascotte_condivisione.sql` | mascotte e livello del gruppo, eventi condivisi nelle chat |
 | `20261102_profilo_interessi_blocchi_gruppi.sql` | via mascotte e clan; interessi a categorie; solo 18+; benvenuto dopo la registrazione; blocchi, gruppi nascosti, segnalazioni e sospensioni; partecipare come gruppo |
+| `20261103_staff_locali_profili.sql` | lo staff dei locali ("Lavoro qui", il locale approva), il profilo pubblico delle persone |
 
 ### 2. Login ed email
 
@@ -234,7 +245,7 @@ npm run lint              # ESLint (config Expo)
 npm run build:web         # build di produzione in dist/ (come su GitHub Pages)
 ```
 
-L'icona nasce da [assets/icon.svg](assets/icon.svg) (tre omini pixel abbracciati);
+L'icona nasce da [assets/icon.svg](assets/icon.svg) (la testa del cane travestito da drago);
 i PNG in `assets/` (app) e `public/` (sito: apple-touch-icon, icone del manifest) ne sono l'esportazione, con i pixel
 di misura intera perché restino nitidi. `public/index.html` e `public/manifest.json` contengono il percorso
 `/Huddle/`: se rinomini la repo aggiornali insieme a `baseUrl`.

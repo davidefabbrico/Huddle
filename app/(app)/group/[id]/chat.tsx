@@ -12,6 +12,7 @@ import { ExternalChatButton } from '../../../../components/ExternalChatButton';
 import { GroupIcon } from '../../../../components/GroupIcon';
 import { GroupTheme } from '../../../../components/GroupTheme';
 import { PixelIcon } from '../../../../components/PixelIcon';
+import { PersonLink } from '../../../../components/PersonLink';
 import { PersonSheet } from '../../../../components/SafetyActions';
 import { Header } from '../../../../components/Header';
 import { Screen } from '../../../../components/Screen';
@@ -181,10 +182,14 @@ function MessageBubble({ message, isMine, onLongPress }: { message: ChatMessageW
 
   return (
     <Pressable onLongPress={onLongPress} delayLongPress={500} className="max-w-[85%] flex-row items-end gap-2 self-start">
-      <Avatar {...avatarOf(message.author)} size={32} />
+      <PersonLink userId={message.user_id} name={message.author.full_name}>
+        <Avatar {...avatarOf(message.author)} size={32} />
+      </PersonLink>
       <View className="flex-shrink">
         <View className="mb-1 flex-row flex-wrap items-center gap-2">
-          <Text className="text-xs font-semibold text-stone-600">{message.author.full_name}</Text>
+          <PersonLink userId={message.user_id} name={message.author.full_name}>
+            <Text className="text-xs font-semibold text-stone-600">{message.author.full_name}</Text>
+          </PersonLink>
           {message.author.is_relocated ? <RelocatedBadge /> : null}
         </View>
         {message.event ? (

@@ -20,6 +20,7 @@ import { CarpoolSection } from '../../../components/CarpoolSection';
 import { GroupTheme } from '../../../components/GroupTheme';
 import { ShareEventToChat } from '../../../components/ShareEventToChat';
 import { GroupParticipation } from '../../../components/GroupParticipation';
+import { PersonLink } from '../../../components/PersonLink';
 import { ConfirmButton } from '../../../components/ConfirmButton';
 import { EventPhotos } from '../../../components/EventPhotos';
 import { ExpensesSection } from '../../../components/ExpensesSection';
@@ -172,12 +173,12 @@ export default function EventScreen() {
                   />
                   {event.location ? <InfoRow icon="location-outline" text={event.location} /> : null}
                   {organizer ? (
-                    <View className="flex-row items-center gap-2">
+                    <PersonLink userId={organizer.id} name={organizer.full_name} className="flex-row items-center gap-2">
                       <Avatar {...avatarOf(organizer)} size={24} />
                       <Text className="flex-1 text-base text-stone-700">
                         Organizza <Text className="font-semibold">{organizer.id === user.id ? 'tu' : organizer.full_name}</Text>
                       </Text>
-                    </View>
+                    </PersonLink>
                   ) : null}
                   <Link href={{ pathname: '/group/[id]', params: { id: event.group_id } }} asChild>
                     <Pressable className="mt-1 flex-row items-center gap-3 rounded-2xl bg-brand-50 p-3 active:bg-brand-100">
@@ -481,11 +482,13 @@ function PeopleList({ title, people, myId, empty, right }: PeopleListProps) {
         <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
           {people.map((person, index) => (
             <View key={person.id} className={`flex-row items-center gap-3 p-3 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
-              <Avatar {...avatarOf(person)} size={36} />
-              <Text className="flex-1 font-medium text-ink">
-                {person.full_name}
-                {person.id === myId ? ' (tu)' : ''}
-              </Text>
+              <PersonLink userId={person.id} name={person.full_name} className="flex-1 flex-row items-center gap-3">
+                <Avatar {...avatarOf(person)} size={36} />
+                <Text className="flex-1 font-medium text-ink">
+                  {person.full_name}
+                  {person.id === myId ? ' (tu)' : ''}
+                </Text>
+              </PersonLink>
               {right?.(person)}
             </View>
           ))}

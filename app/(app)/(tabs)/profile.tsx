@@ -1,7 +1,6 @@
 // Profilo tab: who you are, points, achievements, your rank in each group, the rank ladder and your account.
 // Two columns on a computer.
 
-import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
@@ -50,6 +49,7 @@ export default function ProfileScreen() {
   const reliability = earned !== undefined ? reliabilityFor(earned) : null;
   const nextReliability = reliability ? RELIABILITY.find((level) => level.stars === reliability.stars + 1) : undefined;
   const email = useAsync(() => api.getCurrentEmail(), []);
+  const venues = useAsync(() => api.getStaffVenues(user.id), [user.id], { refetchOnFocus: true }); // where you work
 
   const list = stats.data?.memberships ?? [];
   // Secret achievements stay out of sight (not even counted) until you unlock one
@@ -58,7 +58,6 @@ export default function ProfileScreen() {
   const bestRank = rankFor(Math.max(0, ...list.map((m) => m.attended_events)));
 
   const fresh = stats.data?.fresh ?? [];
-  const [showRules, setShowRules] = useState(false);
   const themePreference = useThemePreference((state) => state.preference);
   const setThemePreference = useThemePreference((state) => state.setPreference);
 
@@ -97,6 +96,18 @@ export default function ProfileScreen() {
                   </View>
                 ) : null}
                 {user.bio ? <Text className="text-center text-base leading-6 text-stone-600">{user.bio}</Text> : null}
+                {venues.data?.length ? (
+                  <View className="flex-row flex-wrap justify-center gap-2">
+                    {venues.data.map((venue) => (
+                      <Link key={venue.id} href={{ pathname: '/group/[id]', params: { id: venue.id } }} asChild>
+                        <Pressable className="flex-row items-center gap-2 rounded-full bg-sky-100 px-3 py-1 active:bg-sky-200">
+                          <GroupIcon {...groupIconOf(venue)} size={20} />
+                          <Text className="text-sm font-semibold text-sky-700">Lavora a {venue.name}</Text>
+                        </Pressable>
+                      </Link>
+                    ))}
+                  </View>
+                ) : null}
                 <Button title="Modifica profilo" icon="create-outline" variant="secondary" size="sm" onPress={() => router.push('/edit-profile')} />
               </View>
 
@@ -122,12 +133,16 @@ export default function ProfileScreen() {
                   <View className="flex-row items-center justify-between">
                     <Text className="text-sm font-semibold text-brand-700">LA TUA AFFIDABILITÀ</Text>
                     <InfoTip
+                      title="Punti e affidabilità"
+                      label="Come si guadagnano i punti"
                       text={
                         nextReliability
                           ? `Con ${nextReliability.minPoints} punti diventi “${nextReliability.label}” (ne hai ${earned}). La vedono gli altri sul tuo profilo e nei gruppi.`
                           : 'Livello massimo: la vedono gli altri sul tuo profilo e nei gruppi.'
                       }
-                    />
+                    >
+                      <PointsRules isBusiness={isBusiness} />
+                    </InfoTip>
                   </View>
                   <View className="flex-row items-center gap-2">
                     <PixelStars stars={reliability.stars} size={18} />
@@ -136,26 +151,6 @@ export default function ProfileScreen() {
                   <Text className="text-sm text-stone-600">{reliability.description}</Text>
                 </View>
               ) : null}
-
-              {/* How points work (opens on tap) */}
-              <View className="gap-2 rounded-3xl border border-stone-200 bg-white p-4">
-                <Pressable onPress={() => setShowRules(!showRules)} accessibilityRole="button" className="flex-row items-center justify-between">
-                  <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
-                  <Ionicons name={showRules ? 'chevron-up' : 'chevron-down'} size={18} className="text-stone-500" />
-                </Pressable>
-                {!showRules ? null : isBusiness ? (
-                  <Text className="text-sm text-stone-500">
-                    Per i locali contano le persone che vengono. Con {PROMOTION_COST} punti mandi un tuo evento ai gruppi della zona.
-                  </Text>
-                ) : null}
-                {(showRules ? (isBusiness ? businessPointsRules : pointsRules) : []).map((rule) => (
-                  <View key={rule.label} className="flex-row items-center gap-3">
-                    <Text className="text-lg">{rule.emoji}</Text>
-                    <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
-                    <Text className="font-bold text-brand-600">+{rule.points}</Text>
-                  </View>
-                ))}
-              </View>
 
               {/* Interests */}
               {user.interests.length > 0 ? (
@@ -184,7 +179,12 @@ export default function ProfileScreen() {
 
               {/* Rank in each group */}
               <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">Il tuo grado nei gruppi</Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-lg font-semibold text-ink">Il tuo grado nei gruppi</Text>
+                  <InfoTip title="La scala dei gradi" label="La scala dei gradi">
+                    <RankLadder reachedLevel={list.length > 0 ? bestRank.level : -1} />
+                  </InfoTip>
+                </View>
                 {!stats.data && stats.loading ? (
                   <ActivityIndicator color={colors.brand} />
                 ) : list.length === 0 ? (
@@ -197,31 +197,6 @@ export default function ProfileScreen() {
                 ) : (
                   list.map((membership) => <RankCard key={membership.group.id} membership={membership} />)
                 )}
-              </View>
-
-              {/* The ladder */}
-              <View className="gap-3">
-                <Text className="text-lg font-semibold text-ink">La scala dei gradi</Text>
-                <Text className="text-sm text-stone-500">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
-                <View className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
-                  {RANKS.map((rank, index) => {
-                    const reached = list.length > 0 && bestRank.level >= rank.level;
-                    return (
-                      <View key={rank.level} className={`flex-row items-center gap-3 p-4 ${index > 0 ? 'border-t border-stone-100' : ''}`}>
-                        <Text className={`text-2xl ${reached ? '' : 'opacity-40'}`}>{rank.emoji}</Text>
-                        <View className="flex-1">
-                          <Text className={`font-semibold ${reached ? 'text-ink' : 'text-stone-400'}`}>
-                            {rank.level}. {rank.name}
-                          </Text>
-                          <Text className="text-sm text-stone-500">{rank.description}</Text>
-                        </View>
-                        <Text className="text-xs text-stone-400">
-                          {rank.minEvents === 0 ? 'all’ingresso' : `${rank.minEvents}+ eventi`}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
               </View>
 
               {/* Account */}
@@ -324,5 +299,50 @@ function RankCard({ membership }: { membership: Membership }) {
         </View>
       </Pressable>
     </Link>
+  );
+}
+
+// How points are earned (behind the ⓘ of the reliability)
+function PointsRules({ isBusiness }: { isBusiness: boolean }) {
+  return (
+    <View className="gap-3">
+      <Text className="text-sm font-semibold text-stone-500">COME SI GUADAGNANO I PUNTI</Text>
+      {isBusiness ? (
+        <Text className="text-sm text-stone-600">
+          Per i locali contano le persone che vengono. Con {PROMOTION_COST} punti mandi un tuo evento ai gruppi della zona.
+        </Text>
+      ) : null}
+      {(isBusiness ? businessPointsRules : pointsRules).map((rule) => (
+        <View key={rule.label} className="flex-row items-center gap-3">
+          <Text className="text-lg">{rule.emoji}</Text>
+          <Text className="flex-1 text-base text-stone-700">{rule.label}</Text>
+          <Text className="font-bold text-brand-600">+{rule.points}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// The rank ladder (behind the ⓘ of "Il tuo grado nei gruppi"); the ranks you reached are in color
+function RankLadder({ reachedLevel }: { reachedLevel: number }) {
+  return (
+    <View className="gap-3">
+      <Text className="text-sm text-stone-600">Ogni evento a cui partecipi in un gruppo ti fa salire di grado in quel gruppo.</Text>
+      {RANKS.map((rank) => {
+        const reached = reachedLevel >= rank.level;
+        return (
+          <View key={rank.level} className="flex-row items-center gap-3">
+            <Text className={`text-2xl ${reached ? '' : 'opacity-40'}`}>{rank.emoji}</Text>
+            <View className="flex-1">
+              <Text className={`font-semibold ${reached ? 'text-ink' : 'text-stone-400'}`}>
+                {rank.level}. {rank.name}
+              </Text>
+              <Text className="text-sm text-stone-500">{rank.description}</Text>
+            </View>
+            <Text className="text-xs text-stone-400">{rank.minEvents === 0 ? 'all’ingresso' : `${rank.minEvents}+ eventi`}</Text>
+          </View>
+        );
+      })}
+    </View>
   );
 }

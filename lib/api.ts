@@ -41,6 +41,7 @@ import type {
   Notification,
   PickedFile,
   ProfileStats,
+  PublicProfile,
   RsvpStatus,
   SeriesRegular,
   SignUpInput,
@@ -50,6 +51,7 @@ import type {
   TripItem,
   User,
   UserSettings,
+  VenueStaffMember,
 } from './types';
 
 // Rows come back untyped from supabase-js; each function maps them to lib/types.ts shapes
@@ -813,6 +815,52 @@ export async function wasPromoted(eventId: string): Promise<boolean> {
 // Weekly newsletter: at most once a week the database adds "La tua settimana" to Attività (best effort)
 export async function sendNewsletterIfDue(): Promise<void> {
   await supabase.rpc('newsletter_digest');
+}
+
+// ---- Someone else's profile ----
+
+// null: the person doesn't exist, or one of you blocked the other
+export async function getPublicProfile(userId: string): Promise<PublicProfile | null> {
+  return check(await supabase.rpc('public_profile', { uid: userId })) as PublicProfile | null;
+}
+
+// ---- A venue's staff ----
+
+const STAFF_SELECT = 'group_id, user_id, status, user:users(id, full_name, avatar_url, avatar_seed)';
+
+// The approved staff (anyone); the venue also sees the requests, a person their own request
+export async function getVenueStaff(groupId: string): Promise<VenueStaffMember[]> {
+  return check(await supabase.from('venue_staff').select(STAFF_SELECT).eq('group_id', groupId).order('created_at')) as unknown as VenueStaffMember[];
+}
+
+// The venues a person works at (approved)
+export async function getStaffVenues(userId: string): Promise<Pick<Group, 'id' | 'name' | 'icon' | 'color'>[]> {
+  const rows = check(
+    await supabase.from('venue_staff').select('group:groups(id, name, icon, color)').eq('user_id', userId).eq('status', 'approved'),
+  ) as unknown as { group: Pick<Group, 'id' | 'name' | 'icon' | 'color'> | null }[];
+  return rows.map((r) => r.group).filter((g): g is Pick<Group, 'id' | 'name' | 'icon' | 'color'> => g !== null);
+}
+
+// The venues where you're staff, as full groups: you can organize for them (create-event)
+export async function getStaffVenueGroups(userId: string): Promise<Group[]> {
+  const rows = check(
+    await supabase.from('venue_staff').select('group:groups(*)').eq('user_id', userId).eq('status', 'approved'),
+  ) as unknown as { group: Group | null }[];
+  return rows.map((r) => r.group).filter((g): g is Group => g !== null);
+}
+
+// "Lavoro qui": a person asks; the venue gets a notification
+export async function askToJoinStaff(userId: string, groupId: string): Promise<void> {
+  check(await supabase.from('venue_staff').insert({ user_id: userId, group_id: groupId }));
+}
+
+export async function approveStaff(groupId: string, userId: string): Promise<void> {
+  check(await supabase.from('venue_staff').update({ status: 'approved' }).eq('group_id', groupId).eq('user_id', userId));
+}
+
+// Leave the staff, refuse a request or remove someone (the venue)
+export async function removeStaff(groupId: string, userId: string): Promise<void> {
+  check(await supabase.from('venue_staff').delete().eq('group_id', groupId).eq('user_id', userId));
 }
 
 // ---- Blocking, hiding, reporting ----

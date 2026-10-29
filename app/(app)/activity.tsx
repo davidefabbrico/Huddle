@@ -29,6 +29,7 @@ const typeStyle: Record<NotificationType, { icon: ComponentProps<typeof Ionicons
   digest: { icon: 'newspaper', box: 'bg-brand-100', iconClass: 'text-brand-600' },
   event_update: { icon: 'alert-circle', box: 'bg-amber-100', iconClass: 'text-amber-700' },
   group_event: { icon: 'people', box: 'bg-brand-100', iconClass: 'text-brand-600' },
+  staff: { icon: 'briefcase', box: 'bg-sky-100', iconClass: 'text-sky-700' },
 };
 
 // Where tapping a notification takes you
