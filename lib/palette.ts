@@ -10,21 +10,9 @@ import type { GroupColor } from './groupIcons';
 export type Tone = 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800;
 export type Palette = Record<Tone, string>;
 
-// export const APP_PALETTE: Palette = {
-//  50: '#FFF6F1', 100: '#FFE9DD', 200: '#FFD5C0', 300: '#FBBB9A', 400: '#F59E74',
-//  500: '#EC8357', 600: '#C9643C', 700: '#9C4A2B', 800: '#6B321E',
-// };
-
 export const APP_PALETTE: Palette = {
-  50: '#F2FCF0',  // Verde chiarissimo (background)
-  100: '#E1F8DC', // Verde pastello
-  200: '#C5F0BC', // Verde chiaro
-  300: '#9DE290', // Verde menta/erba
-  400: '#73D064', // Verde medio-chiaro
-  500: '#50BB42', // Verde base (il colore principale del drago)
-  600: '#3D9832', // Verde scuro (hover/active)
-  700: '#2D7425', // Verde bosco
-  800: '#1E5119', // Verde scurissimo
+  50: '#FFF6F1', 100: '#FFE9DD', 200: '#FFD5C0', 300: '#FBBB9A', 400: '#F59E74',
+  500: '#EC8357', 600: '#C9643C', 700: '#9C4A2B', 800: '#6B321E',
 };
 
 export const GROUP_PALETTES: Record<GroupColor, Palette> = {
